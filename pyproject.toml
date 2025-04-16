@@ -1,0 +1,82 @@
+[project]
+name = "kamae"
+dynamic = ["version"]
+description = ""
+authors = [
+  { name="Expedia Group", email="oss@expediagroup.com" },
+]
+readme = "README.md"
+requires-python = ">=3.8.1,<3.13"
+dependencies = [
+    "pyspark>=3.4.0,<4.0.0",
+    "pandas>=1.3.4,<2.0.0",
+    "networkx>=2.6.3,<3.0.0",
+    "pyfarmhash>=0.3.2,<0.4.0",
+    "keras-tuner>=1.0.4,<2.0.0",
+    "scikit-learn>=1.0.0,<2.0.0",
+    "joblib>=1.0.0,<2.0.0",
+    "numpy>=1.22.0,<2.0.0",
+    "tensorflow>=2.9.1,<2.19.0",
+    "dill>=0.3.0,<1.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=3.3.3,<4",
+    "python-semantic-release>=8.0.0,<9",
+    "mkdocs>=1.5.2,<2",
+    "mkdocstrings[python]>=0.26.1,<1",
+    "mkdocs-material>=9.1.8,<10",
+    "mkdocs-gen-files>=0.4.0,<1",
+    "mkdocs-literate-nav>=0.6.0,<1",
+    "mkdocs-section-index>=0.3.5,<1",
+    "pytest>=7.4.0,<8",
+    "pytest-cov>=2.12.1,<3",
+    "pytest-xdist>=3.5.0,<4",
+    "freezegun>=1.1.0,<2",
+    "black==23.10.1",
+    "isort==5.12.0",
+    "flake8==7.1.1",
+    "pylint==3.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {attr = "kamae.__version__"}
+
+[tool.uv]
+index-strategy = "unsafe-best-match"
+
+[tool.black]
+includes = "src"
+
+[tool.pylint.format]
+max-line-length = "88"
+
+[tool.semantic_release]
+assets = []
+branch = "main"
+build_command = "pip install uv && uv build"    # build dists
+version_variables = [
+    "src/kamae/__init__.py:__version__",
+    "tests/kamae/test_kamae.py:semantic_release_version",
+    ]
+
+[tool.semantic_release.branches.main]
+match = "main"
+
+[tool.semantic_release.changelog]
+changelog_file = "CHANGELOG.md"
+
+[tool.semantic_release.publish]
+dist_glob_patterns = ["dist/*"]
+upload_to_vcs_release = true
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+addopts = [
+    "--import-mode=importlib",
+]
