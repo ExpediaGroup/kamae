@@ -1,0 +1,59 @@
+site_name: Kamae
+site_description: "Automatic documentation from sources, for MkDocs."
+repo_url: "https://github.com/ExpediaGroup/kamae"
+repo_name: "kamae"
+site_dir: "site"
+watch: [README.md, src/kamae]
+
+theme:
+  name: "material"
+
+nav:
+  - Home:
+      - Overview: README.md
+      - Adding new transforms: adding_transformer.md
+      - Achieving type parity between Spark & Keras: achieving_type_parity.md
+      - Achieving shape parity between Spark & Keras: achieving_shape_parity.md
+      - Chaining models: chaining_models.md
+      - Testing inference: testing_inference.md
+  # defer to gen-files + literate-nav
+  - Code Reference: reference/  # (1)
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.emoji
+  - pymdownx.magiclink
+  - pymdownx.snippets:
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist
+  - toc:
+      permalink: "¤"
+
+hooks:
+  - "docs/hooks/link_replace.py"
+  - "docs/hooks/copy_readme.py"
+
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - docs/gen_ref_pages.py
+  - literate-nav:
+      nav_file: SUMMARY.txt
+  - section-index
+  - mkdocstrings:
+      handlers:
+        python:
+          import:
+            - https://docs.python.org/3/objects.inv
+            - https://installer.readthedocs.io/en/stable/objects.inv  # demonstration purpose in the docs
+            - https://mkdocstrings.github.io/autorefs/objects.inv
+          options:
+            separate_signature: true
+            merge_init_into_class: true
+            docstring_options:
+              ignore_init_summary: true
