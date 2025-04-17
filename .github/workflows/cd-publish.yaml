@@ -15,6 +15,8 @@ env:
 jobs:
   publish:
     runs-on: [ ubuntu-latest ]
+    permissions:
+      id-token: write
     steps:
       - name: Setup Local Repo
         uses: actions/checkout@v3
