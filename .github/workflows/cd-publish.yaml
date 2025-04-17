@@ -46,5 +46,5 @@ jobs:
         if: "${{ github.event.inputs.test != '' }}"
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository_url: https://test.pypi.org/legacy/
+          repository-url: https://test.pypi.org/legacy/
           password: ${{ secrets.TEST_PY_PI_TOKEN }}
