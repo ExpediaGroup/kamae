@@ -218,4 +218,4 @@ make all
 
 Versioning for the project is performed by the [semantic-release](https://semantic-release.gitbook.io/semantic-release/) package. When a pull request is merged into the `main` branch, the package version will be automatically updated based on the squashed commit message from the PR title.
 
-Commits prefixed with `fix:` will trigger a patch version update, `feat:` will trigger a minor version update, and `BREAKING CHANGE:` will trigger a major version update. All other commit prefixes will trigger no version update. PR titles should therefore be prefixed accordingly.
+Commits prefixed with `fix:` will trigger a patch version update, `feat:` will trigger a minor version update, and `BREAKING CHANGE:` will trigger a major version update. Note `BREAKING CHANGE:` needs to be in the commit body/footer as detailed [here](https://www.conventionalcommits.org/en/v1.0.0/#summary). All other commit prefixes will trigger no version update. PR titles should therefore be prefixed accordingly.
