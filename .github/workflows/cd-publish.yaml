@@ -11,22 +11,23 @@ on:
 
 env:
   UV_VERSION: 0.5.21
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   publish:
     runs-on: [ ubuntu-latest ]
-    permissions:
-      id-token: write
     steps:
       - name: Setup Local Repo
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v3
         with:
           python-version: "3.10"
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install uv
         run: |
