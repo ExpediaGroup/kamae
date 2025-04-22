@@ -1,7 +1,7 @@
 [project]
 name = "kamae"
 dynamic = ["version"]
-description = ""
+description = "Feature engineering for big data and quick inference."
 authors = [
   { name="Expedia Group", email="oss@expediagroup.com" },
 ]

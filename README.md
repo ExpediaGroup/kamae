@@ -4,6 +4,8 @@
 Kamae is a Python package comprising a set of reusable components
 for preprocessing inputs offline (Spark) and online (TensorFlow).
 
+Build all your big-data preprocessing pipelines in [Spark](https://spark.apache.org/), and get your [Keras](https://keras.io/) preprocessing model for free!
+
 ## Usage
 The library is designed with three main usage patterns in mind:
 
@@ -33,7 +35,7 @@ and you want to apply standard preprocessing steps such as normalization, one-ho
 [Keras Tuner](https://keras.io/keras_tuner/) support is also provided for the Spark & Scikit-learn Pipeline interface, whereby a
 model builder function is returned so that the hyperparameters of the preprocessing steps can be tuned using the Keras Tuner API.
 
-Once you have created a Kamae processing model, you can use it as the input to a trainable model. See [these](docs/chaining_models.md) docs for more information.
+Once you have created a Kamae preprocessing model, you can use it as the input to a trainable model. See [these](docs/chaining_models.md) docs for more information.
 
 For advice on achieving type parity between the Spark and Keras implementations of the preprocessing layers, see [these](docs/achieving_type_parity.md) docs.
 
@@ -126,7 +128,7 @@ From `tensorflow>=2.18.0` onwards, TensorFlow does not release builds for Mac x8
 
 ## Installation
 
-The Kamae package is pushed PyPI, and can be installed using the command:
+The Kamae package is pushed to PyPI, and can be installed using the command:
 ```bash
 pip install kamae
 ```
@@ -143,7 +145,7 @@ pip install kamae-<version>.tar
 
 Local development is in Python 3.10. uv can install this for you, once you have run `make setup-uv`. Then run `make install`
 
-The final package supports Python 3.8 -> 3.11.
+The final package supports Python 3.8 -> 3.12.
 
 #### Installing `pipx`
 
@@ -219,3 +221,7 @@ make all
 Versioning for the project is performed by the [semantic-release](https://semantic-release.gitbook.io/semantic-release/) package. When a pull request is merged into the `main` branch, the package version will be automatically updated based on the squashed commit message from the PR title.
 
 Commits prefixed with `fix:` will trigger a patch version update, `feat:` will trigger a minor version update, and `BREAKING CHANGE:` will trigger a major version update. Note `BREAKING CHANGE:` needs to be in the commit body/footer as detailed [here](https://www.conventionalcommits.org/en/v1.0.0/#summary). All other commit prefixes will trigger no version update. PR titles should therefore be prefixed accordingly.
+
+
+### Contact
+For any questions or concerns please reach out to the [team](https://github.com/orgs/ExpediaGroup/teams/kamae-committers).
