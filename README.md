@@ -224,4 +224,4 @@ Commits prefixed with `fix:` will trigger a patch version update, `feat:` will t
 
 
 ### Contact
-For any questions or concerns please reach out to the [team](https://github.com/orgs/ExpediaGroup/teams/kamae-committers).
+For any questions or concerns please reach out to the [team](https://github.com/orgs/ExpediaGroup/teams/kamae-admins).
