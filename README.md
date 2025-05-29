@@ -1,5 +1,5 @@
 # Kamae
-
+[![CI](https://github.com/ExpediaGroup/kamae/actions/workflows/ci.yaml/badge.svg)](https://github.com/ExpediaGroup/kamae/actions/workflows/ci.yaml)
 
 Kamae is a Python package comprising a set of reusable components
 for preprocessing inputs offline (Spark) and online (TensorFlow).
