@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import keras
 import networkx as nx
@@ -114,18 +114,34 @@ class PipelineGraph:
         graph.add_edges_from(edges_to_add)
         return graph
 
-    def get_model_outputs(self) -> Dict[str, tf.Tensor]:
+    def get_model_outputs(
+        self, output_names: Optional[List[str]] = None
+    ) -> Dict[str, tf.Tensor]:
         """
-        Get the outputs of the model. This is all the layer store outputs that are not
-        reused and not inputs. We also apply an identity layer to the outputs so we
+        Gets the outputs of the model. If output_names is provided, we use this to find
+        the outputs for the model. Otherwise, the outputs are those that are not reused
+        and not inputs. We also apply an identity layer to the outputs, so we
         can rename them with the same name as the output columns of the layer.
 
+        :param output_names: Optional list of output names. If provided, the outputs
+        are only allowed to be within this list.
         :returns: Dictionary of model output tensors.
         """
+        if output_names is None:
+            # If no specified output names then these are outputs that are not reused
+            # and not inputs.
+            output_names = [
+                k
+                for k, v in self.layer_store.items()
+                if not v["reused"] and k not in self.inputs
+            ]
         return {
+            # Do not wrap with identity if we are just passing through an input.
             k: IdentityLayer(name=k)(v["output"])
+            if k not in self.inputs
+            else v["output"]
             for k, v in self.layer_store.items()
-            if not v["reused"] and k not in self.inputs
+            if k in output_names
         }
 
     def build_keras_inputs(
@@ -378,6 +394,7 @@ class PipelineGraph:
         self,
         tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
         hp_dict: Dict[str, List[Dict[str, Any]]],
+        output_names: Optional[List[str]] = None,
     ):
         """
         Returns a Keras tuner model builder function for the current graph.
@@ -401,6 +418,8 @@ class PipelineGraph:
                 }
             ]
         }
+        :param output_names: Optional list of output names for the Keras model. If
+        provided, only the outputs specified are used as model outputs.
         :returns: Model builder function that takes a keras_tuner.HyperParameters class
         and returns a model.
         """
@@ -430,13 +449,16 @@ class PipelineGraph:
 
             sorted_inputs = [self.inputs[k] for k in sorted(self.inputs)]
             return tf.keras.Model(
-                inputs=sorted_inputs, outputs=self.get_model_outputs()
+                inputs=sorted_inputs,
+                outputs=self.get_model_outputs(output_names=output_names),
             )
 
         return keras_model_builder
 
     def build_keras_model(
-        self, tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]]
+        self,
+        tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
+        output_names: Optional[List[str]] = None,
     ) -> tf.keras.Model:
         """
         Builds a Keras model from the graph.
@@ -444,6 +466,8 @@ class PipelineGraph:
         :param tf_input_schema: List of tf.TypeSpec objects containing the input schema
         for the model. Each TypeSpec object must define a unique `name` attribute.
         These will be passed as is to the Keras Input layer.
+        :param output_names: Optional list of output names for the Keras model. If
+        provided, only the outputs specified are used as model outputs.
         :returns: Keras model to be applied to a tensors dictionary: {name: Tensor}.
         """
         # Build the input layers
@@ -457,4 +481,7 @@ class PipelineGraph:
         # with all inputs/outputs specified.
         # We can now build the model by specifying the inputs and outputs.
         sorted_inputs = {k: self.inputs[k] for k in sorted(self.inputs)}
-        return tf.keras.Model(inputs=sorted_inputs, outputs=self.get_model_outputs())
+        return tf.keras.Model(
+            inputs=sorted_inputs,
+            outputs=self.get_model_outputs(output_names=output_names),
+        )
