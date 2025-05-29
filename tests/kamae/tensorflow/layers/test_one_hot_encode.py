@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import OneHotLayer
+from kamae.tensorflow.layers import OneHotEncodeLayer
 
 
 class TestOneHotEncode:
@@ -167,7 +167,7 @@ class TestOneHotEncode:
         expected_output,
     ):
         # when
-        layer = OneHotLayer(
+        layer = OneHotEncodeLayer(
             name=input_name,
             vocabulary=vocabulary,
             num_oov_indices=num_oov_indices,
