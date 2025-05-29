@@ -143,7 +143,7 @@ pip install kamae-<version>.tar
 
 Local development is in Python 3.10. uv can install this for you, once you have run `make setup-uv`. Then run `make install`
 
-The final package supports Python 3.8 -> 3.11.
+The final package supports Python 3.9 -> 3.12.
 
 #### Installing `pipx`
 
