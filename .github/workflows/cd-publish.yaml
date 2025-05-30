@@ -46,11 +46,13 @@ jobs:
         if: "${{ github.event.inputs.test == '' }}"
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          verbose: true
           password: ${{ secrets.PY_PI_TOKEN }}
 
       - name: Publish to Test PyPI
         if: "${{ github.event.inputs.test != '' }}"
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          verbose: true
           repository-url: https://test.pypi.org/legacy/
           password: ${{ secrets.TEST_PY_PI_TOKEN }}
