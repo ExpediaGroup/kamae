@@ -3,7 +3,6 @@ name: Build dists and publish to PyPI and TestPyPI
 on:
   release:
     types: [ published ]
-  workflow_dispatch:
 
 env:
   UV_VERSION: 0.5.21
