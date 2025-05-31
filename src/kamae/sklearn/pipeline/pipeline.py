@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import keras_tuner as kt
 import tensorflow as tf
@@ -56,7 +56,9 @@ class KamaeSklearnPipeline(Pipeline):
         return [step[1].get_tf_layer() for step in self.steps]
 
     def build_keras_model(
-        self, tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]]
+        self,
+        tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
+        output_names: Optional[List[str]] = None,
     ) -> tf.keras.Model:
         """
         Builds a keras model from the pipeline using the PipelineGraph
@@ -65,18 +67,23 @@ class KamaeSklearnPipeline(Pipeline):
         :param tf_input_schema: List of dictionaries containing the input schema for
         the model. Specifically the name, shape and dtype of each input.
         These will be passed as is to the Keras Input layer.
+        :param output_names: Optional list of output names for the Keras model. If
+        provided, only the outputs specified are used as model outputs.
         :returns: Keras model.
         """
         stage_dict = {
             step[1].layer_name: step[1].construct_layer_info() for step in self.steps
         }
         pipeline_graph = PipelineGraph(stage_dict=stage_dict)
-        return pipeline_graph.build_keras_model(tf_input_schema=tf_input_schema)
+        return pipeline_graph.build_keras_model(
+            tf_input_schema=tf_input_schema, output_names=output_names
+        )
 
     def get_keras_tuner_model_builder(
         self,
         tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
         hp_dict: Dict[str, List[Dict[str, Any]]],
+        output_names: Optional[List[str]] = None,
     ) -> Callable[[kt.HyperParameters], tf.keras.Model]:
         """
         Builds a keras tuner model builder (function) from the pipeline model
@@ -86,6 +93,8 @@ class KamaeSklearnPipeline(Pipeline):
         the model. Specifically the name, shape and dtype of each input.
         These will be passed as is to the Keras Input layer.
         :param hp_dict: Dictionary containing the hyperparameters for the model.
+        :param output_names: Optional list of output names for the Keras model. If
+        provided, only the outputs specified are used as model outputs.
         :returns: Keras tuner model builder (function).
         """
         stage_dict = {
@@ -93,5 +102,5 @@ class KamaeSklearnPipeline(Pipeline):
         }
         pipeline_graph = PipelineGraph(stage_dict=stage_dict)
         return pipeline_graph.get_keras_tuner_model_builder(
-            tf_input_schema=tf_input_schema, hp_dict=hp_dict
+            tf_input_schema=tf_input_schema, hp_dict=hp_dict, output_names=output_names
         )
