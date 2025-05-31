@@ -24,7 +24,7 @@ from .base import BaseLayer
 
 
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
-class OneHotLayer(BaseLayer):
+class OneHotEncodeLayer(BaseLayer):
     """
     Performs a one-hot encoding of a string input tensor.
 

@@ -41,7 +41,7 @@ from kamae.spark.utils import (
     one_hot_encoding_udf,
     single_input_single_output_scalar_udf_transform,
 )
-from kamae.tensorflow.layers import OneHotLayer
+from kamae.tensorflow.layers import OneHotEncodeLayer
 
 from .base import BaseTransformer
 
@@ -168,7 +168,7 @@ class SharedOneHotEncodeTransformer(
         parameter and the input column name, that performs the indexing.
         """
         return [
-            OneHotLayer(
+            OneHotEncodeLayer(
                 name=f"{self.getLayerName()}_{input_name}",
                 input_dtype=self.getInputTFDtype(),
                 output_dtype=self.getOutputTFDtype(),

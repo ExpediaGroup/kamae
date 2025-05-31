@@ -66,7 +66,7 @@ from kamae.tensorflow.layers import (
     ModuloLayer,
     MultiplyLayer,
     NumericalIfStatementLayer,
-    OneHotLayer,
+    OneHotEncodeLayer,
     OrdinalArrayEncodeLayer,
     RoundLayer,
     RoundToDecimalLayer,
@@ -238,7 +238,7 @@ from kamae.tensorflow.layers import (
             False,
         ),
         (
-            OneHotLayer,
+            OneHotEncodeLayer,
             [tf.constant("a", shape=(100, 10, 1))],
             {"num_oov_indices": 1, "vocabulary": ["a", "b"], "drop_unseen": True},
             False,
