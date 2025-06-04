@@ -592,7 +592,7 @@ class TestPipeline:
         transformed_df.count()
 
     @pytest.mark.parametrize(
-        "stages, input_tensors, tf_input_schema, expected_output",
+        "stages, input_tensors, tf_input_schema, output_names, expected_output",
         [
             (
                 "valid_stages_0",
@@ -621,15 +621,18 @@ class TestPipeline:
                     {"name": "col2", "dtype": tf.float32, "shape": (None, 1)},
                     {"name": "col3", "dtype": tf.float32, "shape": (None, 1)},
                 ],
-                tf.constant(
-                    [
+                None,
+                {
+                    "features_scaled": tf.constant(
                         [
-                            [-1.2247448, -0.70710677, -0.70710677],
-                            [0.0, -0.70710677, 1.4142135],
-                            [1.2247448, 1.4142135, -0.70710677],
+                            [
+                                [-1.2247448, -0.70710677, -0.70710677],
+                                [0.0, -0.70710677, 1.4142135],
+                                [1.2247448, 1.4142135, -0.70710677],
+                            ]
                         ]
-                    ]
-                ),
+                    ),
+                },
             ),
             (
                 "valid_stages_2",
@@ -658,14 +661,15 @@ class TestPipeline:
                     {"name": "col3", "dtype": tf.float32, "shape": (None, 1)},
                     {"name": "col4", "dtype": tf.string, "shape": (None, 1)},
                 ],
-                [
-                    tf.constant(
+                None,
+                {
+                    "col4_identity": tf.constant(
                         [
                             [["a"], ["b"], ["a"]],
                         ],
                         dtype=tf.string,
                     ),
-                    tf.constant(
+                    "features_scaled": tf.constant(
                         [
                             [
                                 [-1.2247448, -0.70710677, -0.70710677, -0.7071067],
@@ -675,7 +679,7 @@ class TestPipeline:
                         ],
                         dtype=tf.float32,
                     ),
-                ],
+                },
             ),
             (
                 "valid_stages_transforms_only_0",
@@ -704,26 +708,27 @@ class TestPipeline:
                     {"name": "col2", "dtype": tf.float32, "shape": (None, 1)},
                     {"name": "col3", "dtype": tf.float32, "shape": (None, 1)},
                 ],
-                [
-                    tf.constant(
+                None,
+                {
+                    "log_col1_sliced": tf.constant(
                         [
                             [[0.0953102], [1.4109869], [1.9600948]],
                         ],
                         dtype=tf.float32,
                     ),
-                    tf.constant(
+                    "col2_sliced": tf.constant(
                         [
                             [[2.0], [2.0], [8.0]],
                         ],
                         dtype=tf.float32,
                     ),
-                    tf.constant(
+                    "col3_sliced": tf.constant(
                         [
                             [[3.0], [6.0], [3.0]],
                         ],
                         dtype=tf.float32,
                     ),
-                ],
+                },
             ),
             (
                 "valid_stages_transforms_only_1",
@@ -752,26 +757,246 @@ class TestPipeline:
                     {"name": "col2", "dtype": tf.float32, "shape": (None, 1)},
                     {"name": "col3", "dtype": tf.float32, "shape": (None, 1)},
                 ],
-                [
-                    tf.constant(
+                None,
+                {
+                    "col1_sliced": tf.constant(
                         [
                             [[1.0], [4.0], [7.0]],
                         ],
                         dtype=tf.float32,
                     ),
-                    tf.constant(
+                    "log_col2_sliced": tf.constant(
                         [
                             [[1.9459101], [1.9459101], [2.5649493]],
                         ],
                         dtype=tf.float32,
                     ),
-                    tf.constant(
+                    "col3_sliced": tf.constant(
                         [
                             [[3.0], [6.0], [3.0]],
                         ],
                         dtype=tf.float32,
                     ),
+                },
+            ),
+            (
+                "valid_stages_0",
+                {
+                    "col1": tf.constant(
+                        [
+                            [[1], [4], [7]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col2": tf.constant(
+                        [
+                            [[2], [2], [8]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col3": tf.constant(
+                        [
+                            [[3], [6], [3]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                },
+                [
+                    {"name": "col1", "dtype": tf.float32, "shape": (None, 1)},
+                    {"name": "col2", "dtype": tf.float32, "shape": (None, 1)},
+                    {"name": "col3", "dtype": tf.float32, "shape": (None, 1)},
                 ],
+                ["features_scaled"],
+                {
+                    "features_scaled": tf.constant(
+                        [
+                            [
+                                [-1.2247448, -0.70710677, -0.70710677],
+                                [0.0, -0.70710677, 1.4142135],
+                                [1.2247448, 1.4142135, -0.70710677],
+                            ]
+                        ]
+                    ),
+                },
+            ),
+            (
+                "valid_stages_2",
+                {
+                    "col1_col2_col3": tf.constant(
+                        [
+                            [[1, 2, 3], [4, 2, 6], [7, 8, 3]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col3": tf.constant(
+                        [
+                            [[3], [6], [3]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col4": tf.constant(
+                        [
+                            [["a"], ["b"], ["a"]],
+                        ],
+                        dtype=tf.string,
+                    ),
+                },
+                [
+                    {"name": "col1_col2_col3", "dtype": tf.float32, "shape": (None, 3)},
+                    {"name": "col3", "dtype": tf.float32, "shape": (None, 1)},
+                    {"name": "col4", "dtype": tf.string, "shape": (None, 1)},
+                ],
+                ["col4_identity"],
+                {
+                    "col4_identity": tf.constant(
+                        [
+                            [["a"], ["b"], ["a"]],
+                        ],
+                        dtype=tf.string,
+                    ),
+                },
+            ),
+            (
+                "valid_stages_transforms_only_0",
+                {
+                    "col1": tf.constant(
+                        [
+                            [[1.0], [4.0], [7.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col2": tf.constant(
+                        [
+                            [[2.0], [2.0], [8.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col3": tf.constant(
+                        [
+                            [[3.0], [6.0], [3.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                },
+                [
+                    {"name": "col1", "dtype": tf.float32, "shape": (None, 1)},
+                    {"name": "col2", "dtype": tf.float32, "shape": (None, 1)},
+                    {"name": "col3", "dtype": tf.float32, "shape": (None, 1)},
+                ],
+                ["log_col1_sliced", "col3_sliced"],
+                {
+                    "log_col1_sliced": tf.constant(
+                        [
+                            [[0.0953102], [1.4109869], [1.9600948]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col3_sliced": tf.constant(
+                        [
+                            [[3.0], [6.0], [3.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                },
+            ),
+            (
+                "valid_stages_transforms_only_1",
+                {
+                    "col1": tf.constant(
+                        [
+                            [[1.0], [4.0], [7.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col2": tf.constant(
+                        [
+                            [[2.0], [2.0], [8.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col3": tf.constant(
+                        [
+                            [[3.0], [6.0], [3.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                },
+                [
+                    {"name": "col1", "dtype": tf.float32, "shape": (None, 1)},
+                    {"name": "col2", "dtype": tf.float32, "shape": (None, 1)},
+                    {"name": "col3", "dtype": tf.float32, "shape": (None, 1)},
+                ],
+                ["col1_sliced", "log_col2_sliced"],
+                {
+                    "col1_sliced": tf.constant(
+                        [
+                            [[1.0], [4.0], [7.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "log_col2_sliced": tf.constant(
+                        [
+                            [[1.9459101], [1.9459101], [2.5649493]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                },
+            ),
+            (
+                "valid_stages_transforms_only_1",
+                {
+                    "col1": tf.constant(
+                        [
+                            [[1.0], [4.0], [7.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col2": tf.constant(
+                        [
+                            [[2.0], [2.0], [8.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col3": tf.constant(
+                        [
+                            [[3.0], [6.0], [3.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col4": tf.constant(
+                        [
+                            [[3.0], [6.0], [3.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                },
+                [
+                    {"name": "col1", "dtype": tf.float32, "shape": (None, 1)},
+                    {"name": "col2", "dtype": tf.float32, "shape": (None, 1)},
+                    {"name": "col3", "dtype": tf.float32, "shape": (None, 1)},
+                    {"name": "col4", "dtype": tf.float32, "shape": (None, 1)},
+                ],
+                ["col1_sliced", "log_col2_sliced", "col4"],
+                {
+                    "col1_sliced": tf.constant(
+                        [
+                            [[1.0], [4.0], [7.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "log_col2_sliced": tf.constant(
+                        [
+                            [[1.9459101], [1.9459101], [2.5649493]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    "col4": tf.constant(
+                        [
+                            [[3.0], [6.0], [3.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                },
             ),
         ],
     )
@@ -780,6 +1005,7 @@ class TestPipeline:
         stages,
         input_tensors,
         tf_input_schema,
+        output_names,
         expected_output,
         example_dataframe,
         request,
@@ -789,23 +1015,15 @@ class TestPipeline:
 
         pipeline_model = pipeline.fit(example_dataframe)
 
-        keras_model = pipeline_model.build_keras_model(tf_input_schema=tf_input_schema)
+        keras_model = pipeline_model.build_keras_model(
+            tf_input_schema=tf_input_schema, output_names=output_names
+        )
 
         actual = keras_model(input_tensors)
-        if isinstance(actual, list):
-            for a, e in zip(actual, expected_output):
-                if a.dtype == "string":
-                    tf.debugging.assert_equal(a, e)
-                else:
-                    tf.debugging.assert_near(a, e, atol=1e-6)
-        elif isinstance(actual, dict):
-            for a, e in zip(actual.values(), expected_output):
-                if a.dtype == "string":
-                    tf.debugging.assert_equal(a, e)
-                else:
-                    tf.debugging.assert_near(a, e, atol=1e-6)
-        else:
-            if actual.dtype == "string":
-                tf.debugging.assert_equal(actual, expected_output)
+
+        for k, v in actual.items():
+            expected = expected_output[k]
+            if v.dtype == "string":
+                tf.debugging.assert_equal(v, expected)
             else:
-                tf.debugging.assert_near(actual, expected_output, atol=1e-6)
+                tf.debugging.assert_near(v, expected, atol=1e-6)

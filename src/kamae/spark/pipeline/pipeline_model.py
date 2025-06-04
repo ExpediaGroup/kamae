@@ -104,7 +104,9 @@ class KamaeSparkPipelineModel(PipelineModel):
         return expanded_stages
 
     def build_keras_model(
-        self, tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]]
+        self,
+        tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
+        output_names: Optional[List[str]] = None,
     ) -> tf.keras.Model:
         """
         Builds a keras model from the pipeline model using the PipelineGraph
@@ -113,6 +115,8 @@ class KamaeSparkPipelineModel(PipelineModel):
         :param tf_input_schema: List of dictionaries containing the input schema for
         the model. Specifically the name, shape and dtype of each input.
         These will be passed as is to the Keras Input layer.
+        :param output_names: Optional list of output names for the Keras model. If
+        provided, only the outputs specified are used as model outputs.
         :returns: Keras model.
         """
         stage_dict = {
@@ -120,16 +124,27 @@ class KamaeSparkPipelineModel(PipelineModel):
             for stage in self.expand_pipeline_stages()
         }
         pipeline_graph = PipelineGraph(stage_dict=stage_dict)
-        return pipeline_graph.build_keras_model(tf_input_schema=tf_input_schema)
+        return pipeline_graph.build_keras_model(
+            tf_input_schema=tf_input_schema, output_names=output_names
+        )
 
     def get_keras_tuner_model_builder(
         self,
         tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
         hp_dict: Dict[str, List[Dict[str, Any]]],
+        output_names: Optional[List[str]] = None,
     ) -> Callable[[kt.HyperParameters], tf.keras.Model]:
         """
         Builds a keras tuner model builder (function) from the pipeline model
         using the PipelineGraph helper class.
+
+        :param tf_input_schema: List of dictionaries containing the input schema for
+        the model. Specifically the name, shape and dtype of each input.
+        These will be passed as is to the Keras Input layer.
+        :param hp_dict: Dictionary containing the hyperparameters for the model.
+        :param output_names: Optional list of output names for the Keras model. If
+        provided, only the outputs specified are used as model outputs.
+        :returns: Keras tuner model builder (function).
         """
         stage_dict = {
             stage.getOrDefault("layerName"): stage.construct_layer_info()
@@ -137,7 +152,7 @@ class KamaeSparkPipelineModel(PipelineModel):
         }
         pipeline_graph = PipelineGraph(stage_dict=stage_dict)
         return pipeline_graph.get_keras_tuner_model_builder(
-            tf_input_schema=tf_input_schema, hp_dict=hp_dict
+            tf_input_schema=tf_input_schema, hp_dict=hp_dict, output_names=output_names
         )
 
 
