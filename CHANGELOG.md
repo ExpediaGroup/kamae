@@ -2,15 +2,67 @@
 
 
 
+## v2.33.1 (2025-06-04)
+
+### Build
+
+* build: Set up trusted publishing github actions (#16)
+
+Minor renaming of actions alongside creating the proper trusted publishing OICD workflow ([`845d984`](https://github.com/ExpediaGroup/kamae/commit/845d9843e896dbfa5f977b48046704a2bbb39107))
+
+* build: Add read perms back in (#3) ([`81af646`](https://github.com/ExpediaGroup/kamae/commit/81af646747647472848c969c80144f481966b210))
+
+* build: Add id-token write back in ([`82cf518`](https://github.com/ExpediaGroup/kamae/commit/82cf518033bf16b9502b66cc662816867b577fc7))
+
+* build: Update tokens on publish ([`3f4e717`](https://github.com/ExpediaGroup/kamae/commit/3f4e717d2af71d6e550b709173cdf5509ee62592))
+
+* build: Configure workflows (#2)
+
+* build: Use PAT token for releases
+
+* build: Rename repo url with dashes
+
+* build: Add id token write permissions ([`0639630`](https://github.com/ExpediaGroup/kamae/commit/0639630a3a2f5ab5b74f30c7efa01bc04228a2dc))
+
+### Chore
+
+* chore: Remove workflow dispatch from release and publish (#17)
+
+This should not be needed anymore since it is all automated. ([`3718ed1`](https://github.com/ExpediaGroup/kamae/commit/3718ed1413d560eaf9d2b98de6ff95ebcc0aa5e9))
+
+### Documentation
+
+* docs: Minor docs changes (#4)
+
+* docs: Minor readme changes
+
+* docs: Fix file ending of readme
+
+* build: Temp add verbose as true to understand publish errors
+
+* docs: Update team name
+
+* docs: Add CI badge
+
+* chore: Add codeowners file
+
+Use admin team for now ([`b76b3f6`](https://github.com/ExpediaGroup/kamae/commit/b76b3f6e8abbe4386370f964c559bf7ff502eaba))
+
+### Fix
+
+* fix: Renames OneHotLayer to OneHotEncodeLayer (#14)
+
+* fix: Renames OneHotLayer to OneHotEncodeLayer
+
+Keeps an alias with the name OneHotLayer and so is not a breaking change.
+
+* fix: use deprecation suggestion ([`b625133`](https://github.com/ExpediaGroup/kamae/commit/b625133331d92ac7341a57e3f57ef4ffcb00a32d))
+
+
 ## v2.33.0 (2025-04-17)
 
 ### Feature
 
 * feat: Small docs change to trigger publish ([`2753bdc`](https://github.com/ExpediaGroup/kamae/commit/2753bdc3dbeff249f2b6d7c28ce41e8269f4b7c3))
-
-
-## v2.32.1 (2025-04-16)
-
-### Feature
 
 * feat: Kamae is open-source! ([`aa4bc04`](https://github.com/ExpediaGroup/kamae/commit/aa4bc048c33991d172428056ad4fc1ce6c378990))
