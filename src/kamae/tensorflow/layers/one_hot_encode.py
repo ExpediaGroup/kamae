@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Any, Dict, List, Optional, Union
 
 import tensorflow as tf
@@ -24,7 +25,7 @@ from .base import BaseLayer
 
 
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
-class OneHotLayer(BaseLayer):
+class OneHotEncodeLayer(BaseLayer):
     """
     Performs a one-hot encoding of a string input tensor.
 
@@ -152,3 +153,16 @@ class OneHotLayer(BaseLayer):
             }
         )
         return config
+
+
+# TODO: Remove this alias in next breaking change,
+#  it is maintained for backwards compatibility
+class OneHotLayer(OneHotEncodeLayer):
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "OneHotLayer is deprecated and will be removed in a future release. "
+            "Use OneHotEncodeLayer instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(*args, **kwargs)
