@@ -54,7 +54,7 @@ def get_top_n(
     # If value of shape at position (axis + 1) is equal to 1, squeeze this dimension,
     # otherwise the top_k would complain about the shape mismatch
     # If we apply squeeze without axis, the inference when batch_size=1 would fail
-    if len(sort_tensor_with_order.shape) > axis:
+    if len(sort_tensor_with_order.shape) > axis + 1:
         if sort_tensor_with_order.shape[axis + 1] == 1:
             sort_tensor_with_order = tf.squeeze(sort_tensor_with_order, axis=axis + 1)
 

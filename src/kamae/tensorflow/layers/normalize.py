@@ -17,8 +17,9 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import tensorflow as tf
 
-from kamae.tensorflow.layers.base import BaseLayer
 from kamae.tensorflow.utils import listify_tensors
+
+from .base import BaseLayer
 
 
 class NormalizeLayer(BaseLayer):
