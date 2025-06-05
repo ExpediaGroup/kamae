@@ -53,7 +53,6 @@ from .mean import MeanLayer  # noqa: F401
 from .min import MinLayer  # noqa: F401
 from .modulo import ModuloLayer  # noqa: F401
 from .multiply import MultiplyLayer  # noqa: F401
-from .normalize import NormalizeLayer  # noqa: F401
 from .numerical_if_statement import NumericalIfStatementLayer  # noqa: F401
 from .one_hot_encode import OneHotEncodeLayer, OneHotLayer  # noqa: F401
 from .ordinal_array_encode import OrdinalArrayEncodeLayer  # noqa: F401

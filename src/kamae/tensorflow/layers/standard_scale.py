@@ -18,9 +18,7 @@ import tensorflow as tf
 
 import kamae
 from kamae.tensorflow.typing import Tensor
-from kamae.tensorflow.utils import enforce_single_tensor_input
-
-from .normalize import NormalizeLayer
+from kamae.tensorflow.utils import NormalizeLayer, enforce_single_tensor_input
 
 
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
