@@ -51,10 +51,15 @@ def get_top_n(
     else:
         ValueError(f"Invalid sort_order: {sort_order}")
 
+    # If value of shape at position (axis + 1) is equal to 1, squeeze this dimension,
+    # otherwise the top_k would complain about the shape mismatch
+    # If we apply squeeze without axis, the inference when batch_size=1 would fail
+    if len(sort_tensor_with_order.shape) > axis + 1:
+        if sort_tensor_with_order.shape[axis + 1] == 1:
+            sort_tensor_with_order = tf.squeeze(sort_tensor_with_order, axis=axis + 1)
+
     # Get the indices of the top N items, using the sort tensor
-    _, sorted_indices = tf.math.top_k(
-        tf.squeeze(sort_tensor_with_order), k=top_n, sorted=True
-    )
+    _, sorted_indices = tf.math.top_k(sort_tensor_with_order, k=top_n, sorted=True)
 
     # Gather elements from the value tensor using the top-k indices
     return tf.gather(
