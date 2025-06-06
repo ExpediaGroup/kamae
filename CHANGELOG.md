@@ -2,6 +2,25 @@
 
 
 
+## v2.33.2 (2025-06-06)
+
+### Fix
+
+* fix: Fix squeeze during listwise top_k operation. (#19)
+
+* fix: Fix squeeze during listwise top_k operation.
+
+* fix: Added tests for get_top_n.
+fix: Moved Normalize layer from utils to layers folder, to fix a circular dependency error.
+
+* chore: Move Normalize back to utils
+
+---------
+
+Co-authored-by: ddonghi &lt;ddonghi@expediagroup.com&gt;
+Co-authored-by: George Barrowclough &lt;george.d.b@hotmail.com&gt; ([`c28e4a9`](https://github.com/ExpediaGroup/kamae/commit/c28e4a98ac63b677e83798dfe72ac9daefb07627))
+
+
 ## v2.33.1 (2025-06-04)
 
 ### Build
