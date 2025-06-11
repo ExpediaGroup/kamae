@@ -2,6 +2,23 @@
 
 
 
+## v2.34.0 (2025-06-11)
+
+### Documentation
+
+* docs: Minor docs additions (#18)
+
+* build: Add license information to toml
+
+* docs: Add pypi version badge ([`7fa6495`](https://github.com/ExpediaGroup/kamae/commit/7fa64950b21ca37602ab1649eeaf6851933c9492))
+
+### Feature
+
+* feat: Add optional output names to subset model output (#15)
+
+If the output name asked for is an input, we do not add an identity layer over the top ([`eaec071`](https://github.com/ExpediaGroup/kamae/commit/eaec071a563f81b7e55843e03fc90f5683f7f316))
+
+
 ## v2.33.2 (2025-06-06)
 
 ### Fix
