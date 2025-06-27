@@ -25,10 +25,10 @@ from pyspark.ml.param.shared import (
     HasOutputCol,
     HasOutputCols,
 )
-from pyspark.ml.util import DefaultParamsReadable, DefaultParamsWritable
 
 from kamae.utils import DType
 
+from .default_read_write import KamaeDefaultParamsReadable, KamaeDefaultParamsWritable
 from .name import HasLayerName
 from .utils import InputOutputExtractor
 
@@ -238,8 +238,8 @@ class SingleInputSingleOutputParams(
     SingleInputParams,
     SingleOutputParams,
     InputOutputExtractor,
-    DefaultParamsReadable,
-    DefaultParamsWritable,
+    KamaeDefaultParamsReadable,
+    KamaeDefaultParamsWritable,
 ):
     """
     Mixin class containing set methods for the single input
@@ -251,8 +251,8 @@ class SingleInputMultiOutputParams(
     SingleInputParams,
     MultiOutputParams,
     InputOutputExtractor,
-    DefaultParamsReadable,
-    DefaultParamsWritable,
+    KamaeDefaultParamsReadable,
+    KamaeDefaultParamsWritable,
 ):
     """
     Mixin class containing set methods for the single input
@@ -264,8 +264,8 @@ class MultiInputSingleOutputParams(
     MultiInputParams,
     SingleOutputParams,
     InputOutputExtractor,
-    DefaultParamsReadable,
-    DefaultParamsWritable,
+    KamaeDefaultParamsReadable,
+    KamaeDefaultParamsWritable,
 ):
     """
     Mixin class containing set methods for the multiple input
@@ -277,8 +277,8 @@ class MultiInputMultiOutputParams(
     MultiInputParams,
     MultiOutputParams,
     InputOutputExtractor,
-    DefaultParamsReadable,
-    DefaultParamsWritable,
+    KamaeDefaultParamsReadable,
+    KamaeDefaultParamsWritable,
 ):
     """
     Mixin class containing set methods for the multiple input
