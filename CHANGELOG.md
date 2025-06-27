@@ -2,6 +2,17 @@
 
 
 
+## v2.34.1 (2025-06-27)
+
+### Fix
+
+* fix: Ensure that pipeline metadata writes use the rdd api (#13)
+
+* fix: Ensure that pipeline metadata writes use the rdd api
+
+* chore: Add license header ([`8d129c5`](https://github.com/ExpediaGroup/kamae/commit/8d129c56f6c35353bc2a748b1a14593aac3a3ec6))
+
+
 ## v2.34.0 (2025-06-11)
 
 ### Documentation
