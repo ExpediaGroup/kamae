@@ -58,6 +58,9 @@ from .one_hot_encode import OneHotEncodeLayer, OneHotLayer  # noqa: F401
 from .ordinal_array_encode import OrdinalArrayEncodeLayer  # noqa: F401
 from .round import RoundLayer  # noqa: F401
 from .round_to_decimal import RoundToDecimalLayer  # noqa: F401
+from .segment_max import SegmentMaxLayer  # noqa: F401
+from .segment_mean import SegmentMeanLayer  # noqa: F401
+from .segment_min import SegmentMinLayer  # noqa: F401
 from .standard_scale import StandardScaleLayer  # noqa: F401
 from .string_affix import StringAffixLayer  # noqa: F401
 from .string_array_constant import StringArrayConstantLayer  # noqa: F401

@@ -23,6 +23,7 @@ def check_listwise_columns(
     query_col_name: str,
     value_col_name: str,
     sort_col_name: Optional[str] = None,
+    segment_col_name: Optional[str] = None,
 ) -> None:
     """
     Check if the query and value columns are array columns in the dataset.
@@ -32,7 +33,7 @@ def check_listwise_columns(
     :param query_col_name: Name of the query column.
     :param value_col_name: Name of the value column.
 
-    :raises ValueError: If the query or value column is an array column.
+    :raises ValueError: If the query, value or segment column is an array column.
     :returns: None
     """
     query_col_datatype = dataset.schema[query_col_name].dataType
@@ -43,6 +44,11 @@ def check_listwise_columns(
 
     if isinstance(value_col_datatype, ArrayType):
         raise ValueError("Value column cannot be an array column")
+
+    if segment_col_name is not None:
+        segment_col_datatype = dataset.schema[segment_col_name].dataType
+        if isinstance(segment_col_datatype, ArrayType):
+            raise ValueError("Segment column cannot be an array column")
 
     if sort_col_name is not None:
         sort_col_datatype = dataset.schema[sort_col_name].dataType
@@ -57,6 +63,7 @@ def get_listwise_condition_and_window(
     sort_order: str = "asc",
     sort_top_n: int = None,
     min_filter_value: float = None,
+    segment_col: Column = None,
 ) -> (Column, WindowSpec):
     """
     Get the condition and window operations for listwise statistics calculation.
@@ -69,10 +76,14 @@ def get_listwise_condition_and_window(
     Default is None.
     :param min_filter_value: Minimum value to consider for statistics calculation.
     Default is None.
+    :param segment_col: Column by which to segment the statistics calculation. Default is None.
     :returns: Tuple of the condition and window operations.
     """
     condition_col = None
-    window_spec = Window.partitionBy(query_col)
+    if segment_col is not None:
+        window_spec = Window.partitionBy(query_col, segment_col)
+    else:
+        window_spec = Window.partitionBy(query_col)
 
     # Define statistics calculation condition based on topN and sortOrder
     if sort_col is not None:
