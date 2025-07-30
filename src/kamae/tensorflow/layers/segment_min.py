@@ -26,7 +26,8 @@ from .base import BaseLayer
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class SegmentMinLayer(BaseLayer):
     """
-    Calculate the min of the first passed tensor, segmented by the values of the second passed tensor.
+    Calculate the min of the first passed tensor,
+    segmented by the values of the second passed tensor.
 
     Example: calculate the minimum price of rates within rooms in the same query.
     """
@@ -80,7 +81,8 @@ class SegmentMinLayer(BaseLayer):
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs) -> Tensor:
         """
-        Calculate the min of the first input, segmented by the values of the second input.
+        Calculate the min of the first input,
+        segmented by the values of the second input.
 
         :param inputs: The iterable tensors for the features.
         :returns: Thew new tensor result column.

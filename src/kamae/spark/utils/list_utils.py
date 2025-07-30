@@ -76,7 +76,8 @@ def get_listwise_condition_and_window(
     Default is None.
     :param min_filter_value: Minimum value to consider for statistics calculation.
     Default is None.
-    :param segment_col: Column by which to segment the statistics calculation. Default is None.
+    :param segment_col: Column by which to segment the statistics calculation.
+    Default is None.
     :returns: Tuple of the condition and window operations.
     """
     condition_col = None
