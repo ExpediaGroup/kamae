@@ -63,6 +63,9 @@ from .one_hot_encode import OneHotEncodeTransformer  # noqa: F401
 from .ordinal_array_encode import OrdinalArrayEncodeTransformer  # noqa: F401
 from .round import RoundTransformer  # noqa: F401
 from .round_to_decimal import RoundToDecimalTransformer  # noqa: F401
+from .segment_max import SegmentMaxTransformer  # noqa: F401
+from .segment_mean import SegmentMeanTransformer  # noqa: F401
+from .segment_min import SegmentMinTransformer  # noqa: F401
 from .shared_one_hot_encode import SharedOneHotEncodeTransformer  # noqa: F401
 from .shared_string_index import SharedStringIndexTransformer  # noqa: F401
 from .standard_scale import StandardScaleTransformer  # noqa: F401
