@@ -56,6 +56,7 @@ from .logical_or import LogicalOrTransformer  # noqa: F401
 from .max import MaxTransformer  # noqa: F401
 from .mean import MeanTransformer  # noqa: F401
 from .min import MinTransformer  # noqa: F401
+from .min_max_scale import MinMaxScaleTransformer  # noqa: F401
 from .modulo import ModuloTransformer  # noqa: F401
 from .multiply import MultiplyTransformer  # noqa: F401
 from .numerical_if_statement import NumericalIfStatementTransformer  # noqa: F401
