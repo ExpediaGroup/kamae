@@ -11,11 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import traceback
 
 import numpy as np
 import pytest
 import tensorflow as tf
 
+from kamae.spark.estimators import MinMaxScaleEstimator
 from kamae.spark.transformers import MinMaxScaleTransformer
 
 
@@ -448,3 +450,32 @@ class TestMinMaxScale:
             decimal=6,
             err_msg="Spark and Tensorflow transform outputs are not equal",
         )
+
+    @pytest.mark.parametrize(
+        "input_col, output_col",
+        [
+            (
+                "col4",
+                "scaled_features",
+            ),
+        ],
+    )
+    def test_spark_min_max_scaler_raises_error_when_min_or_max_contains_none(
+        self,
+        example_dataframe_with_padding_2,
+        input_col,
+        output_col,
+    ):
+        # when
+        min_max_scaler = MinMaxScaleEstimator(
+            inputCol=input_col,
+            outputCol=output_col,
+            maskValue=-1,
+        )
+        with pytest.raises(ValueError):
+            _ = min_max_scaler.fit(example_dataframe_with_padding_2)
+            tb = traceback.format_exc()
+            assert (
+                "Got null Max values at positions " in tb
+                or "Got null Min values at positions " in tb
+            )
