@@ -49,6 +49,9 @@ class ConditionalStandardScaleTransformer(
     The skip_zeros parameter allows to apply the standard scaling process
     only when input is not equal to zero. If equal to zero, it will remain zero in
     the output value as it was in the input value.
+
+    WARNING: If the input is an array, we assume that the array has a constant
+    shape across all rows.
     """
 
     @keyword_only

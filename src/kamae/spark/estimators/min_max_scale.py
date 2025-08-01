@@ -40,6 +40,9 @@ class MinMaxScaleEstimator(
     This estimator is used to calculate the min and max of the input
     feature column. When fit is called it returns a MinMaxScaleTransformer
     which can be used to standardize/transform additional features.
+
+    WARNING: If the input is an array, we assume that the array has a constant
+    shape across all rows.
     """
 
     @keyword_only

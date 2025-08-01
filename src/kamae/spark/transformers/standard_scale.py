@@ -41,6 +41,9 @@ class StandardScaleTransformer(
     Standard scaler transformer for use in Spark pipelines.
     This is used to standardize/transform the input column
     using the mean and standard deviation.
+
+    WARNING: If the input is an array, we assume that the array has a constant
+    shape across all rows.
     """
 
     @keyword_only

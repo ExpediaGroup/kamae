@@ -40,6 +40,9 @@ class StandardScaleEstimator(
     This estimator is used to calculate the mean and standard deviation of the input
     feature column. When fit is called it returns a StandardScaleTransformer
     which can be used to standardize/transform additional features.
+
+    WARNING: If the input is an array, we assume that the array has a constant
+    shape across all rows.
     """
 
     @keyword_only
