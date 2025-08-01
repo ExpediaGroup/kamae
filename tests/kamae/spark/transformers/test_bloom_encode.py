@@ -176,8 +176,6 @@ class TestBloomEncode:
         )
         actual = transformer.transform(example_dataframe)
         # then
-        actual.select(output_col).show(20, False)
-        expected.select(output_col).show(20, False)
         diff = actual.exceptAll(expected)
         assert diff.isEmpty(), "Expected and actual dataframes are not equal"
 

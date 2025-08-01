@@ -196,8 +196,6 @@ class TestModulo:
         )
         actual = transformer.transform(input_dataframe)
         # then
-        actual.select(output_col).show(20, False)
-        expected.select(output_col).show(20, False)
         diff = actual.exceptAll(expected)
         assert diff.isEmpty(), "Expected and actual dataframes are not equal"
 

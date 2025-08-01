@@ -207,8 +207,6 @@ class TestCosineSimilarity:
             outputCol=output_col,
         )
         actual = transformer.transform(example_dataframe_with_arrays)
-        actual.show(20, False)
-        expected.show(20, False)
         # then
         diff = actual.exceptAll(expected)
         assert diff.isEmpty(), "Expected and actual dataframes are not equal"
