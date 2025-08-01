@@ -172,7 +172,7 @@ class MinMaxScaleLayer(BaseLayer):
         min_tensor = self._cast(self.min, inputs.dtype.name)
         max_tensor = self._cast(self.max, inputs.dtype.name)
         normalized_outputs = tf.math.divide_no_nan(
-            tf.math.subtract(inputs, min_tensor), max_tensor - min_tensor
+            tf.math.subtract(inputs, min_tensor), tf.subtract(max_tensor, min_tensor)
         )
         if self.mask_value is not None:
             mask = tf.equal(inputs, self.mask_value)
