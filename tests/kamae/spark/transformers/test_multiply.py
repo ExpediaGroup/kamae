@@ -235,8 +235,6 @@ class TestMultiply:
             )
         )
         actual = transformer.transform(input_dataframe)
-        actual.select(output_col).show(20, False)
-        expected.select(output_col).show(20, False)
         # then
         diff = actual.exceptAll(expected)
         assert diff.isEmpty(), "Expected and actual dataframes are not equal"
