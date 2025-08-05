@@ -43,7 +43,8 @@ class MinHashIndexParams(MaskStringValueParams):
     numPermutations = Param(
         Params._dummy(),
         "numPermutations",
-        "Number of permutations to perform the min hashing. Will return an array with length equal to this.",
+        """Number of permutations to perform the min hashing.
+        Will return an array with length equal to this.""",
         typeConverter=TypeConverters.toInt,
     )
 
