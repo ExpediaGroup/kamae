@@ -990,3 +990,34 @@ class DefaultIntValueParams(Params):
         :returns: defaultValue param value.
         """
         return self.getOrDefault(self.defaultValue)
+
+
+class MaskStringValueParams(Params):
+    """
+    Mixin class containing maskValue parameter needed
+    for MinHashIndexTransformer and other transformers that require a string mask value.
+    """
+
+    maskValue = Param(
+        Params._dummy(),
+        "maskValue",
+        """
+        Value to be used as a mask by the transformer.
+        """,
+        typeConverter=TypeConverters.toString,
+    )
+
+    def setMaskValue(self, value: str) -> "MaskStringValueParams":
+        """
+        Sets the maskValue parameter.
+        :param value: Str value to use as the mask value.
+        :returns: Instance of class mixed in.
+        """
+        return self._set(maskValue=value)
+
+    def getMaskValue(self) -> str:
+        """
+        Gets the maskValue parameter.
+        :returns: Str value of the mask value.
+        """
+        return self.getOrDefault(self.maskValue)
