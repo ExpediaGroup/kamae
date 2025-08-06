@@ -70,6 +70,9 @@ from kamae.tensorflow.layers import (
     OrdinalArrayEncodeLayer,
     RoundLayer,
     RoundToDecimalLayer,
+    SegmentMaxLayer,
+    SegmentMeanLayer,
+    SegmentMinLayer,
     StandardScaleLayer,
     StringAffixLayer,
     StringArrayConstantLayer,
@@ -283,6 +286,57 @@ from kamae.tensorflow.layers import (
                 "input_dtype": "float",
                 "output_dtype": "float",
             },
+            False,
+        ),
+        (
+            SegmentMaxLayer,
+            [
+                tf.constant(
+                    [
+                        [[2], [5], [8], [8], [9], [1]],
+                    ]
+                ),
+                tf.constant(
+                    [
+                        [["2"], ["2"], ["2"], ["1"], ["1"], ["1"]],
+                    ]
+                ),
+            ],
+            None,
+            False,
+        ),
+        (
+            SegmentMeanLayer,
+            [
+                tf.constant(
+                    [
+                        [[2], [5], [8], [8], [9], [1]],
+                    ]
+                ),
+                tf.constant(
+                    [
+                        [["2"], ["2"], ["2"], ["1"], ["1"], ["1"]],
+                    ]
+                ),
+            ],
+            None,
+            False,
+        ),
+        (
+            SegmentMinLayer,
+            [
+                tf.constant(
+                    [
+                        [[2], [5], [8], [8], [9], [1]],
+                    ]
+                ),
+                tf.constant(
+                    [
+                        [[2], [2], [2], [1], [1], [1]],
+                    ]
+                ),
+            ],
+            None,
             False,
         ),
         (
