@@ -14,6 +14,8 @@
 
 from typing import List, Optional, Union
 
+import tensorflow as tf
+
 from kamae.spark.utils.indexer_utils import safe_hash64
 
 
@@ -161,3 +163,42 @@ def ordinal_array_encode_udf(
             string_index_mapping[string] = len(string_index_mapping) - 1
         ordinal_array.append(string_index_mapping[string])
     return ordinal_array
+
+
+def min_hash_udf(
+    labels: List[str], num_permutations: int, mask_value: Optional[str] = None
+) -> List[int]:
+    """
+    User defined Spark function (UDF) to encode a list of strings as a min hash array.
+
+    :param labels: List of strings to encode.
+    :param num_permutations: Number of permutations to use. Output will be a list of
+    size num_permutations.
+    :param mask_value: Mask value to use for hash indexing. If set, the mask value
+    will be ignored when computing the min hash.
+    :returns: List of integers representing the min hash array.
+    """
+    min_hash_array = []
+    if not labels:
+        # Ensure at least one label
+        labels.append("")
+    for i in range(num_permutations):
+        # Set the number of bins to the maximum integer value. We just want to hash
+        # the input without binning it, so we use the maximum integer value.
+        # This matches the behavior of the TensorFlow layer.
+        if mask_value is not None:
+            hashed_vals = [
+                tf.int32.max
+                if label == mask_value
+                else hash_udf(label=f"{label}{i}", num_bins=tf.int32.max)
+                for label in labels
+            ]
+        else:
+            hashed_vals = [
+                hash_udf(label=f"{label}{i}", num_bins=tf.int32.max) for label in labels
+            ]
+        min_hash_val = min(hashed_vals)
+        min_hash_bit = min_hash_val & 1
+        min_hash_array.append(min_hash_bit)
+
+    return min_hash_array

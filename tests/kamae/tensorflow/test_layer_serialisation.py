@@ -62,6 +62,7 @@ from kamae.tensorflow.layers import (
     LogicalOrLayer,
     LogLayer,
     MaxLayer,
+    MinHashIndexLayer,
     MinLayer,
     ModuloLayer,
     MultiplyLayer,
@@ -229,6 +230,12 @@ from kamae.tensorflow.layers import (
         ),
         (MaxLayer, [tf.random.normal((100, 10, 5))], {"max_constant": 10}, False),
         (MinLayer, [tf.random.normal((100, 10, 5))], {"min_constant": 10}, False),
+        (
+            MinHashIndexLayer,
+            [tf.strings.as_string(tf.random.normal((100, 10, 5)))],
+            {"num_permutations": 10, "mask_value": None, "axis": -1},
+            False,
+        ),
         (ModuloLayer, [tf.random.normal((1000, 32, 1))], {"divisor": 10}, False),
         (MultiplyLayer, [tf.random.normal((1, 5))], {"multiplier": 50}, False),
         (
