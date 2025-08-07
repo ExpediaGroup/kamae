@@ -45,16 +45,16 @@ class MinHashIndexLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         num_permutations: int = 128,
         mask_value: Optional[str] = None,
         axis: int = -1,
         **kwargs,
     ) -> None:
         """
-        Intialises the MinHashIndexLayer layer.
+        Initialises the MinHashIndexLayer layer.
 
         :param name: The name of the layer. Defaults to `None`.
         :param input_dtype: The dtype to cast the input to. Defaults to `None`.

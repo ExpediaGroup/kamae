@@ -90,7 +90,7 @@ class MinHashIndexTransformer(
 
     NOTE: If your data contains null characters:
     https://en.wikipedia.org/wiki/Null_character
-    This transformer could fail since the hashing algorithm uses cannot accept null
+    This transformer could fail since the hashing algorithm used cannot accept null
     characters. If you have null characters in your data, you should remove them.
     """
 
@@ -145,6 +145,8 @@ class MinHashIndexTransformer(
         :param dataset: Pyspark DataFrame to transform.
         :returns: Transformed pyspark dataFrame.
         """
+        if not self.isDefined("numPermutations"):
+            raise ValueError("numPermutations parameter must be set.")
         num_permutations = self.getNumPermutations()
         mask_value = self.getMaskValue()
 
