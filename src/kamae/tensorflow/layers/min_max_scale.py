@@ -28,8 +28,10 @@ from .base import BaseLayer
 class MinMaxScaleLayer(BaseLayer):
     """
     Performs a min-max scaling operation on the input tensor(s).
-    This layer will shift and scale inputs to the range [0, 1] based on the provided
-    min and max values.
+    This is used to standardize/transform the input tensor
+    to the range [0, 1] using the minimum and maximum values.
+
+    Formula: (x - min)/(max - min)
     """
 
     def __init__(
@@ -151,10 +153,26 @@ class MinMaxScaleLayer(BaseLayer):
         return config
 
     def get_build_config(self):
+        """
+        Gets the build configuration of the MinMaxScaleLayer layer.
+
+        Used for saving and loading from a model.
+
+        :returns: Dictionary of the build configuration of the layer.
+        """
         if self._build_input_shape:
             return {"input_shape": self._build_input_shape}
 
     def build_from_config(self, config):
+        """
+        Builds the min/max tensor shapes from the provided configuration.
+
+        Specifically it calls the `build` method with the input shape in order to
+        construct the min and max tensors with the correct shape.
+
+        :param config: Configuration dictionary containing the input shape.
+        :returns: None - layer is built.
+        """
         if config:
             self.build(config["input_shape"])
 

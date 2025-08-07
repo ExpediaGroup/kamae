@@ -35,7 +35,7 @@ from .base import BaseTransformer
 
 class MinMaxScaleParams(MaskValueParams):
     """
-    Mixin class containing min and standard deviation parameters needed
+    Mixin class containing minimum and maximum parameters needed
     for min/max scaler transformers.
     """
 
@@ -104,7 +104,9 @@ class MinMaxScaleTransformer(
     """
     MinMax scale transformer for use in Spark pipelines.
     This is used to standardize/transform the input column
-    to [0, 1] using the minimum and maximum values.
+    to the range [0, 1] using the minimum and maximum values.
+
+    Formula: (x - min)/(max - min)
 
     WARNING: If the input is an array, we assume that the array has a constant
     shape across all rows.
