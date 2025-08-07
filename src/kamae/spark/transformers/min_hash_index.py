@@ -102,7 +102,7 @@ class MinHashIndexTransformer(
         inputDtype: Optional[str] = None,
         outputDtype: Optional[str] = None,
         layerName: Optional[str] = None,
-        numPermutations: Optional[int] = None,
+        numPermutations: int = 128,
         maskValue: Optional[str] = None,
     ) -> None:
         """
