@@ -22,25 +22,91 @@ import numpy as np
 import pyspark.sql.functions as F
 import tensorflow as tf
 from pyspark import keyword_only
+from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
-from kamae.spark.params import SingleInputSingleOutputParams, StandardScaleParams
+from kamae.spark.params import MaskValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
-from kamae.tensorflow.layers import StandardScaleLayer
+from kamae.tensorflow.layers import MinMaxScaleLayer
 
 from .base import BaseTransformer
 
 
-class StandardScaleTransformer(
+class MinMaxScaleParams(MaskValueParams):
+    """
+    Mixin class containing minimum and maximum parameters needed
+    for min/max scaler transformers.
+    """
+
+    min = Param(
+        Params._dummy(),
+        "min",
+        "Minimum of the feature values.",
+        typeConverter=TypeConverters.toListFloat,
+    )
+
+    max = Param(
+        Params._dummy(),
+        "max",
+        "Maximum of the feature values.",
+        typeConverter=TypeConverters.toListFloat,
+    )
+
+    def setMin(self, value: List[float]) -> "MinMaxScaleParams":
+        """
+        Sets the parameter min to the given list value.
+        Saves the min as a list of floats.
+
+        :param value: List of min values.
+        :returns: Instance of class mixed in.
+        """
+        if None in set(value):
+            ids = [i for i, x in enumerate(value) if x is None]
+            raise ValueError("Got null Min values at positions: ", ids)
+        return self._set(min=value)
+
+    def getMin(self) -> List[float]:
+        """
+        Gets the min parameter.
+
+        :returns: List of float min values.
+        """
+        return self.getOrDefault(self.min)
+
+    def setMax(self, value: List[float]) -> "MinMaxScaleParams":
+        """
+        Sets the parameter max to the given list value.
+        Saves the max as a list of floats.
+
+        :param value: List of max values.
+        :returns: Instance of class mixed in.
+        """
+        if None in set(value):
+            ids = [i for i, x in enumerate(value) if x is None]
+            raise ValueError("Got null Max values at positions: ", ids)
+        return self._set(max=value)
+
+    def getMax(self) -> List[float]:
+        """
+        Gets the max parameter.
+
+        :returns: List of float standard deviation values.
+        """
+        return self.getOrDefault(self.max)
+
+
+class MinMaxScaleTransformer(
     BaseTransformer,
-    StandardScaleParams,
+    MinMaxScaleParams,
     SingleInputSingleOutputParams,
 ):
     """
-    Standard scaler transformer for use in Spark pipelines.
+    MinMax scale transformer for use in Spark pipelines.
     This is used to standardize/transform the input column
-    using the mean and standard deviation.
+    to the range [0, 1] using the minimum and maximum values.
+
+    Formula: (x - min)/(max - min)
 
     WARNING: If the input is an array, we assume that the array has a constant
     shape across all rows.
@@ -54,12 +120,12 @@ class StandardScaleTransformer(
         inputDtype: Optional[str] = None,
         outputDtype: Optional[str] = None,
         layerName: Optional[str] = None,
-        mean: Optional[List[float]] = None,
-        stddev: Optional[List[float]] = None,
+        min: Optional[List[float]] = None,
+        max: Optional[List[float]] = None,
         maskValue: Optional[float] = None,
     ) -> None:
         """
-        Initializes a StandardScaleTransformer transformer.
+        Initializes a MinMaxScaleTransformer transformer.
 
         :param inputCol: Input column name to standardize.
         :param outputCol: Output column name.
@@ -69,12 +135,10 @@ class StandardScaleTransformer(
         transforming.
         :param layerName: Name of the layer. Used as the name of the tensorflow layer
         in the keras model.
-        :param mean: List of mean values corresponding to the input column.
-        :param stddev: List of standard deviation values corresponding to the
+        :param min: List of minimum values corresponding to the input column.
+        :param max: List of maximum values corresponding to the
         input column.
-        :param maskValue: Value which should be ignored in the standard scaling process.
-        That is disregarded when calculating the mean and standard deviation and
-        when the scaling is applied.
+        :param maskValue: Value which should be ignored in the min/max scaling process.
         :returns: None - class instantiated.
         """
         super().__init__()
@@ -94,10 +158,8 @@ class StandardScaleTransformer(
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
-        Transforms the input dataset using the mean and standard deviation
-        to standardize the input column. If a mask value is set, it is used
-        to ignore elements in the dataset with that value, and they will remain
-        unchanged in the standardization process.
+        Transforms the input dataset using the minimum and maximum values
+        to standardize the input column.
 
         :param dataset: Pyspark dataframe to transform.
         :returns: Pyspark dataframe with the input column standardized,
@@ -111,8 +173,13 @@ class StandardScaleTransformer(
             input_col = F.col(self.getInputCol())
             input_datatype = original_input_datatype
 
-        shift = F.array([F.lit(m) for m in self.getMean()])
-        scale = F.array([F.lit(1.0 / s if s != 0 else 0.0) for s in self.getStddev()])
+        shift = F.array([F.lit(m) for m in self.getMin()])
+        scale = F.array(
+            [
+                F.lit(1.0 / (m1 - m0) if m1 != m0 else 0.0)
+                for m0, m1 in zip(self.getMin(), self.getMax())
+            ]
+        )
 
         output_col = single_input_single_output_array_transform(
             input_col=input_col,
@@ -132,19 +199,19 @@ class StandardScaleTransformer(
 
     def get_tf_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the standard scaler transformer.
+        Gets the tensorflow layer for the min max transformation.
 
         :returns: Tensorflow keras layer with name equal to the layerName parameter
          that performs the standardization.
         """
-        np_mean = np.array(self.getMean())
-        np_variance = np.array(self.getStddev()) ** 2
+        np_min = np.array(self.getMin())
+        np_max = np.array(self.getMax())
         mask_value = self.getMaskValue()
-        return StandardScaleLayer(
+        return MinMaxScaleLayer(
             name=self.getLayerName(),
             input_dtype=self.getInputTFDtype(),
             output_dtype=self.getOutputTFDtype(),
-            mean=np_mean,
-            variance=np_variance,
+            min=np_min,
+            max=np_max,
             mask_value=mask_value,
         )

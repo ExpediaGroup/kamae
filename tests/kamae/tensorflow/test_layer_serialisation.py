@@ -63,6 +63,7 @@ from kamae.tensorflow.layers import (
     LogLayer,
     MaxLayer,
     MinLayer,
+    MinMaxScaleLayer,
     ModuloLayer,
     MultiplyLayer,
     NumericalIfStatementLayer,
@@ -229,6 +230,24 @@ from kamae.tensorflow.layers import (
         ),
         (MaxLayer, [tf.random.normal((100, 10, 5))], {"max_constant": 10}, False),
         (MinLayer, [tf.random.normal((100, 10, 5))], {"min_constant": 10}, False),
+        (
+            MinMaxScaleLayer,
+            [
+                tf.concat(
+                    [
+                        tf.random.uniform((100, 10, 1), minval=-i, maxval=i)
+                        for i in range(1, 6)
+                    ],
+                    axis=-1,
+                )
+            ],
+            {
+                "min": [-i for i in range(1, 6)],
+                "max": [i for i in range(1, 6)],
+                "axis": -1,
+            },
+            False,
+        ),
         (ModuloLayer, [tf.random.normal((1000, 32, 1))], {"divisor": 10}, False),
         (MultiplyLayer, [tf.random.normal((1, 5))], {"multiplier": 50}, False),
         (

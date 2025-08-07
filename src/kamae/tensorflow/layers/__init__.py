@@ -51,6 +51,7 @@ from .logical_or import LogicalOrLayer  # noqa: F401
 from .max import MaxLayer  # noqa: F401
 from .mean import MeanLayer  # noqa: F401
 from .min import MinLayer  # noqa: F401
+from .min_max_scale import MinMaxScaleLayer  # noqa: F401
 from .modulo import ModuloLayer  # noqa: F401
 from .multiply import MultiplyLayer  # noqa: F401
 from .numerical_if_statement import NumericalIfStatementLayer  # noqa: F401

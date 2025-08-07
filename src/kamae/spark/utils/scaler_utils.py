@@ -36,8 +36,8 @@ def construct_nested_elements_for_scaling(
     and flattens them into a single array. It then explodes these out so that the mean
     and variance can be computed on the flattened array.
 
-    Only intended to be used for the StandardScaleEstimator &
-    ConditionalStandardScaleEstimator.
+    Only intended to be used for the StandardScaleEstimator,
+    ConditionalStandardScaleEstimator & MinMaxScaleEstimator.
 
     :param column: The input column to extract the element from.
     :param column_datatype: The datatype of the input column.

@@ -15,6 +15,7 @@
 from .base import BaseEstimator  # noqa: F401
 from .conditional_standard_scale import ConditionalStandardScaleEstimator  # noqa: F401
 from .impute import ImputeEstimator  # noqa: F401
+from .min_max_scale import MinMaxScaleEstimator  # noqa: F401
 from .one_hot_encode import OneHotEncodeEstimator  # noqa: F401
 from .shared_one_hot_encode import SharedOneHotEncodeEstimator  # noqa: F401
 from .shared_string_index import SharedStringIndexEstimator  # noqa: F401
