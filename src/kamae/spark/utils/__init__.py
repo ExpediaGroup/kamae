@@ -43,6 +43,7 @@ from .transform_utils import (  # noqa: F401
 from .user_defined_functions import (  # noqa: F401
     hash_udf,
     indexer_udf,
+    min_hash_udf,
     one_hot_encoding_udf,
     ordinal_array_encode_udf,
 )
