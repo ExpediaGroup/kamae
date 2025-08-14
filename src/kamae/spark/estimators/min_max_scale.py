@@ -24,21 +24,21 @@ from pyspark import keyword_only
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
 from kamae.spark.params import MaskValueParams, SingleInputSingleOutputParams
-from kamae.spark.transformers import StandardScaleTransformer
+from kamae.spark.transformers import MinMaxScaleTransformer
 from kamae.spark.utils import construct_nested_elements_for_scaling
 
 from .base import BaseEstimator
 
 
-class StandardScaleEstimator(
+class MinMaxScaleEstimator(
     BaseEstimator,
     SingleInputSingleOutputParams,
     MaskValueParams,
 ):
     """
-    Standard scaler estimator for use in Spark pipelines.
-    This estimator is used to calculate the mean and standard deviation of the input
-    feature column. When fit is called it returns a StandardScaleTransformer
+    Min max estimator for use in Spark pipelines.
+    This estimator is used to calculate the min and max of the input
+    feature column. When fit is called it returns a MinMaxScaleTransformer
     which can be used to standardize/transform additional features.
 
     WARNING: If the input is an array, we assume that the array has a constant
@@ -56,7 +56,7 @@ class StandardScaleEstimator(
         maskValue: Optional[float] = None,
     ) -> None:
         """
-        Initializes a StandardScaleEstimator estimator.
+        Initializes a MinMaxScaleEstimator estimator.
         Sets all parameters to given inputs.
 
         :param inputCol: Input column name to standardize.
@@ -67,6 +67,8 @@ class StandardScaleEstimator(
         transforming.
         :param layerName: Name of the layer. Used as the name of the tensorflow layer
          in the keras model. If not set, we use the uid of the Spark transformer.
+        :param maskValue: Value to use for masking. If set, these values will be ignored
+        during the computation of the min and max values.
         :returns: None - class instantiated.
         """
         super().__init__()
@@ -84,14 +86,14 @@ class StandardScaleEstimator(
         """
         return [FloatType(), DoubleType()]
 
-    def _fit(self, dataset) -> "StandardScaleTransformer":
+    def _fit(self, dataset) -> "MinMaxScaleTransformer":
         """
-        Fits the StandardScaleEstimator estimator to the given dataset.
-        Calculates the mean and standard deviation of the input feature column and
-        returns a StandardScaleTransformer with the mean and standard deviation set.
+        Fits the MinMaxScaleEstimator estimator to the given dataset.
+        Calculates the min and max of the input feature column and
+        returns a MinMaxScaleTransformer with the min and max set.
 
         :param dataset: Pyspark dataframe to fit the estimator to.
-        :returns: StandardScaleTransformer instance with mean & standard deviation set.
+        :returns: MinMaxScaleTransformer instance with min & max set.
         """
         input_column_type = self.get_column_datatype(dataset, self.getInputCol())
         if not isinstance(input_column_type, ArrayType):
@@ -110,41 +112,41 @@ class StandardScaleEstimator(
             array_dim=array_size,
         )
 
-        mean_cols = [
-            F.mean(
+        min_cols = [
+            F.min(
                 F.when(
                     F.col(f"element_struct.element_{i}") == F.lit(self.getMaskValue()),
                     F.lit(None),
                 ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"mean_{i}")
+            ).alias(f"min_{i}")
             for i in range(1, array_size + 1)
         ]
 
-        stddev_cols = [
-            F.stddev_pop(
+        max_cols = [
+            F.max(
                 F.when(
                     F.col(f"element_struct.element_{i}") == F.lit(self.getMaskValue()),
                     F.lit(None),
                 ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"stddev_{i}")
+            ).alias(f"max_{i}")
             for i in range(1, array_size + 1)
         ]
 
-        metric_cols = mean_cols + stddev_cols
+        metric_cols = min_cols + max_cols
 
-        mean_and_stddev_dict = (
+        min_and_max_dict = (
             dataset.select(element_struct).agg(*metric_cols).first().asDict()
         )
-        mean = [mean_and_stddev_dict[f"mean_{i}"] for i in range(1, array_size + 1)]
-        stddev = [mean_and_stddev_dict[f"stddev_{i}"] for i in range(1, array_size + 1)]
+        min_vals = [min_and_max_dict[f"min_{i}"] for i in range(1, array_size + 1)]
+        max_vals = [min_and_max_dict[f"max_{i}"] for i in range(1, array_size + 1)]
 
-        return StandardScaleTransformer(
+        return MinMaxScaleTransformer(
             inputCol=self.getInputCol(),
             outputCol=self.getOutputCol(),
             layerName=self.getLayerName(),
             inputDtype=self.getInputDtype(),
             outputDtype=self.getOutputDtype(),
-            mean=mean,
-            stddev=stddev,
+            min=min_vals,
+            max=max_vals,
             maskValue=self.getMaskValue(),
         )

@@ -230,6 +230,9 @@ class ConditionalStandardScaleEstimator(
     scalingFunction parameter.
     When fit is called it returns a ConditionalStandardScaleTransformer
     which can be used to standardize/transform the input data.
+
+    WARNING: If the input is an array, we assume that the array has a constant
+    shape across all rows.
     """
 
     @keyword_only
