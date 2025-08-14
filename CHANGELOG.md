@@ -2,6 +2,35 @@
 
 
 
+## v2.35.0 (2025-08-14)
+
+### Documentation
+
+* docs: Update PULL_REQUEST_TEMPLATE.md (#23) ([`510e70f`](https://github.com/ExpediaGroup/kamae/commit/510e70fb88ae37955b8cca3062e6cfb742f8c9b2))
+
+### Feature
+
+* feat: Add MinMaxScale estimator, transformer &amp; layer (#21)
+
+* feat: Add MinMaxScale estimator, transformer &amp; layer
+
+Adds a min max scaling op in similar vein to the standard scaler
+
+* docs: Add missing warnings and docstrings
+
+* refactor: Align subtract calls
+
+* tests: Add tests for None min/max values
+
+* chore: Align both to math.
+
+* docs: Improve docstrings and typos ([`0aebfd4`](https://github.com/ExpediaGroup/kamae/commit/0aebfd47b6a482ae6b6d1f32de0228e6c3051a30))
+
+### Unknown
+
+* tests: Remove show commands in tests (#24) ([`8005828`](https://github.com/ExpediaGroup/kamae/commit/8005828f574108e200ca0cfc261f5c97fa1fd600))
+
+
 ## v2.34.1 (2025-06-27)
 
 ### Fix
