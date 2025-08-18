@@ -2,6 +2,23 @@
 
 
 
+## v2.36.0 (2025-08-18)
+
+### Feature
+
+* feat: Add MinHashIndex transform &amp; layer (#25)
+
+* feat: Add MinHashIndex transform &amp; layer
+
+Adds a transformer that takes an array of strings and returns a integer bit representation using the MinHash algorithm: https://en.wikipedia.org/wiki/MinHash. This can be used to approximate Jaccard similarity between sets.
+
+* docs: Update readme and fix linting
+
+* refactor: Add check on numPermutations and docstring changes
+
+* fix: add default to num permutations ([`f83c51d`](https://github.com/ExpediaGroup/kamae/commit/f83c51d216d29589856ece02b29aa1ed2aeb3a86))
+
+
 ## v2.35.0 (2025-08-14)
 
 ### Documentation
