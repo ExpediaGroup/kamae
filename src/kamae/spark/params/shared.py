@@ -446,9 +446,9 @@ class PadValueParams(Params):
         return self.getOrDefault(self.padValue)
 
 
-class ListwiseStatisticsParams(Params):
+class ListwiseParams(Params):
     """
-    Mixin class containing the parameters needed for Listwise Statistics transformers.
+    Mixin class containing the parameters needed for Listwise transformers.
     """
 
     queryIdCol = Param(
@@ -458,6 +458,30 @@ class ListwiseStatisticsParams(Params):
         such as 'search_id'.""",
         typeConverter=TypeConverters.toString,
     )
+
+    def setQueryIdCol(self, value: str) -> "ListwiseParams":
+        """
+        Sets the query id parameter.
+
+        :param value: String for column name to aggregate upon.
+        :returns: Instance of class mixed in.
+        """
+        return self._set(queryIdCol=value)
+
+    def getQueryIdCol(self) -> str:
+        """
+        Gets the query id parameter.
+
+        :returns:  String for column name to aggregate upon.
+        """
+        return self.getOrDefault(self.queryIdCol)
+
+
+class ListwiseStatisticsParams(ListwiseParams):
+    """
+    Mixin class containing the parameters needed for Listwise Statistics transformers.
+    """
+
     topN = Param(
         Params._dummy(),
         "topN",
@@ -498,23 +522,6 @@ class ListwiseStatisticsParams(Params):
         if self.getTopN() is None:
             raise ValueError("topN must be specified when using a sort column.")
         return self._set(inputCols=value)
-
-    def setQueryIdCol(self, value: str) -> "ListwiseStatisticsParams":
-        """
-        Sets the query id parameter.
-
-        :param value: String for column name to aggregate upon.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(queryIdCol=value)
-
-    def getQueryIdCol(self) -> str:
-        """
-        Gets the query id parameter.
-
-        :returns:  String for column name to aggregate upon.
-        """
-        return self.getOrDefault(self.queryIdCol)
 
     def setTopN(self, value: int) -> "ListwiseStatisticsParams":
         """
