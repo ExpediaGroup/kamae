@@ -88,7 +88,9 @@ class ListRankLayer(BaseLayer):
         :returns: Thew new tensor result column.
         """
 
-        return tf.math.add(tf.argsort(tf.argsort(inputs, axis=self.axis), axis=self.axis), 1)
+        return tf.math.add(
+            tf.argsort(tf.argsort(inputs, axis=self.axis), axis=self.axis), 1
+        )
 
     def get_config(self) -> Dict[str, Any]:
         """

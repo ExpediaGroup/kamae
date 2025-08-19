@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import List, Optional
 
 import pyspark.sql.functions as F
 import tensorflow as tf
@@ -28,10 +28,7 @@ from pyspark.sql.types import (
     ShortType,
 )
 
-from kamae.spark.params import (
-    ListwiseParams,
-    SingleInputSingleOutputParams,
-)
+from kamae.spark.params import ListwiseParams, SingleInputSingleOutputParams
 from kamae.spark.utils import check_listwise_columns
 from kamae.tensorflow.layers import ListRankLayer
 
@@ -105,10 +102,14 @@ class ListRankTransformer(
         )
 
         # Define window spec
-        window_spec = Window.partitionBy(self.getQueryIdCol()).orderBy(self.getInputCol())
+        window_spec = Window.partitionBy(self.getQueryIdCol()).orderBy(
+            self.getInputCol()
+        )
 
         # Calculate the rank
-        dataset = dataset.withColumn(self.getOutputCol(), F.row_number().over(window_spec))
+        dataset = dataset.withColumn(
+            self.getOutputCol(), F.row_number().over(window_spec)
+        )
 
         return dataset
 
