@@ -22,7 +22,7 @@ from kamae.spark.transformers import ListRankTransformer
 from ..test_helpers import tensor_to_python_type
 
 
-class TestListMin:
+class TestListRank:
     @pytest.fixture(scope="class")
     def listwise_rank_df(self, spark_session):
         return spark_session.createDataFrame(
@@ -99,7 +99,7 @@ class TestListMin:
             ),
         ],
     )
-    def test_list_min_transform_spark_tf_parity(
+    def test_list_rank_transform_spark_tf_parity(
         self,
         spark_session,
         input_tensor,
@@ -116,7 +116,7 @@ class TestListMin:
         )
         # when
         spark_df = spark_session.createDataFrame(
-            [(1, v) for v in input_tensor.numpy().tolist()],
+            [(1, v[0]) for v in input_tensor.numpy().tolist()[0]],
             ["search_id", "input"],
         )
 

@@ -33,7 +33,7 @@ class TestListRank:
             ),
         ],
     )
-    def test_listwise_min(
+    def test_listwise_rank(
         self,
         input_tensor,
         expected_output,
