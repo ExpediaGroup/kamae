@@ -47,12 +47,7 @@ class ListRankLayer(BaseLayer):
         :param name: Name of the layer, defaults to `None`.
         :param input_dtype: The dtype to cast the input to. Defaults to `None`.
         :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param top_n: The number of top items to consider when calculating the min.
-        :param sort_order: The order to sort the second tensor by. Defaults to `asc`.
-        :param min_filter_value: The minimum filter value to ignore values during
-        calculation. Defaults to None (no filter).
-        :param nan_fill_value: The value to fill NaNs results with. Defaults to 0.
-        :param axis: The axis to calculate the statistics across. Defaults to 1.
+        :param axis: The axis to calculate the rank across. Defaults to 1.
         """
         super().__init__(
             name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
@@ -85,7 +80,7 @@ class ListRankLayer(BaseLayer):
         Calculate the rank.
 
         :param inputs: The iterable tensor for the feature.
-        :returns: Thew new tensor result column.
+        :returns: The new tensor result column.
         """
 
         return tf.math.add(

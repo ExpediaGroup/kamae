@@ -118,7 +118,7 @@ class ListRankTransformer(
         Gets the tensorflow layer for the listwise-rank transformer.
 
         :returns: Tensorflow keras layer with name equal to the layerName parameter that
-         performs an averaging operation.
+         performs a ranking operation.
         """
         return ListRankLayer(
             name=self.getLayerName(),
