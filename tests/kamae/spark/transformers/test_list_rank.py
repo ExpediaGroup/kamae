@@ -115,13 +115,15 @@ class TestListRank:
             queryIdCol="search_id",
         )
         # when
+        # index column is added so that Spark is forced to preserve the order
         spark_df = spark_session.createDataFrame(
-            [(1, v[0]) for v in input_tensor.numpy().tolist()[0]],
-            ["search_id", "input"],
+            [(1, i, v[0]) for i, v in enumerate(input_tensor.numpy().tolist()[0])],
+            ["search_id", "index", "input"],
         )
 
         spark_values = (
             transformer.transform(spark_df)
+            .orderBy("index")
             .select("output")
             .rdd.map(lambda r: r[0])
             .collect()
