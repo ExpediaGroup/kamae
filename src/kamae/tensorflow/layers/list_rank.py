@@ -33,9 +33,9 @@ class ListRankLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         axis: int = 1,
         **kwargs,
     ):
