@@ -54,7 +54,7 @@ class TestListRank:
                     [[["4"], ["5"], ["9"], ["7"], ["8"], ["6"], ["3"], ["1"], ["2"]]],
                     dtype=tf.string,
                 ),
-                "int32",
+                "float32",
                 "string",
             ),
             # Different axis

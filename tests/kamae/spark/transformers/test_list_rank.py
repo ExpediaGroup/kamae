@@ -141,9 +141,12 @@ class TestListRank:
         )
         actual = transformer.transform(input_dataframe.drop("expected"))
         # then
-        expected = input_dataframe.select(
-            F.col("expected").cast(output_dtype).alias("expected")
-        )
+        if output_dtype is not None:
+            expected = input_dataframe.select(
+                F.col("expected").cast(output_dtype).alias("expected")
+            )
+        else:
+            expected = input_dataframe.select("expected")
         diff = actual.select("expected").exceptAll(expected)
         assert diff.isEmpty(), "Expected and actual dataframes are not equal"
 
