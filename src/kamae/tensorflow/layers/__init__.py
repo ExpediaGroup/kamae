@@ -43,6 +43,7 @@ from .list_max import ListMaxLayer  # noqa: F401
 from .list_mean import ListMeanLayer  # noqa: F401
 from .list_median import ListMedianLayer  # noqa: F401
 from .list_min import ListMinLayer  # noqa: F401
+from .list_rank import ListRankLayer  # noqa: F401
 from .list_std_dev import ListStdDevLayer  # noqa: F401
 from .log import LogLayer  # noqa: F401
 from .logical_and import LogicalAndLayer  # noqa: F401
