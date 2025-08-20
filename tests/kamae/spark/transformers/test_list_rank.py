@@ -24,7 +24,30 @@ from ..test_helpers import tensor_to_python_type
 
 class TestListRank:
     @pytest.fixture(scope="class")
-    def listwise_rank_df(self, spark_session):
+    def listwise_rank_df_base(self, spark_session):
+        return spark_session.createDataFrame(
+            [
+                (1, 1.0, 3),
+                (1, 1.5, 4),
+                (1, 9.0, 8),
+                (1, 4.0, 6),
+                (1, 6.0, 7),
+                (1, 2.0, 5),
+                (1, 0.5, 2),
+                (1, 0.0, 1),
+                (2, 1.0, 3),
+                (2, 2.0, 2),
+                (2, 3.0, 1),
+            ],
+            [
+                "search_id",
+                "value_col",
+                "expected",
+            ],
+        )
+
+    @pytest.fixture(scope="class")
+    def listwise_rank_df_w_ties(self, spark_session):
         return spark_session.createDataFrame(
             [
                 (1, 1.0, 4),
@@ -47,15 +70,53 @@ class TestListRank:
             ],
         )
 
+    @pytest.fixture(scope="class")
+    def listwise_rank_df_casted(self, spark_session):
+        return spark_session.createDataFrame(
+            [
+                (1, 1.0, "4"),
+                (1, 1.5, "5"),
+                (1, 9.0, "9"),
+                (1, 4.0, "7"),
+                (1, 6.0, "8"),
+                (1, 2.0, "6"),
+                (1, 0.5, "3"),
+                (1, 0.0, "1"),
+                (1, 0.0, "2"),
+                (2, 1.0, "3"),
+                (2, 2.0, "2"),
+                (2, 3.0, "1"),
+            ],
+            [
+                "search_id",
+                "value_col",
+                "expected",
+            ],
+        )
+
     @pytest.mark.parametrize(
         "input_dataframe, value_col, output_col, input_dtype, output_dtype",
         [
             (
-                "listwise_rank_df",
+                "listwise_rank_df_base",
                 "value_col",
                 "expected",
-                "float",
-                "float",
+                None,
+                None,
+            ),
+            (
+                "listwise_rank_df_w_ties",
+                "value_col",
+                "expected",
+                None,
+                None,
+            ),
+            (
+                "listwise_rank_df_casted",
+                "value_col",
+                "expected",
+                "int",
+                "string",
             ),
         ],
     )
@@ -128,8 +189,13 @@ class TestListRank:
             .rdd.map(lambda r: r[0])
             .collect()
         )
-        tensorflow_values = transformer.get_tf_layer()(input_tensor).numpy().tolist()
-
+        tensorflow_values = np.reshape(
+            [
+                np.squeeze(v)
+                for v in transformer.get_tf_layer()(input_tensor).numpy().tolist()
+            ],
+            -1,
+        )
         # then
         np.testing.assert_almost_equal(
             spark_values,

@@ -20,8 +20,19 @@ from kamae.tensorflow.layers import ListRankLayer
 
 class TestListRank:
     @pytest.mark.parametrize(
-        "input_tensor, expected_output",
+        "input_tensor, expected_output, input_dtype, output_dtype",
         [
+            # No ties, no casting
+            (
+                tf.constant(
+                    [[[1.0], [1.5], [9.0], [4.0], [6.0], [2.0], [0.5], [0.0]]],
+                    dtype=tf.float32,
+                ),
+                tf.constant([[[3], [4], [8], [6], [7], [5], [2], [1]]], dtype=tf.int32),
+                None,
+                None,
+            ),
+            # With ties, no casting
             (
                 tf.constant(
                     [[[1.0], [1.5], [9.0], [4.0], [6.0], [2.0], [0.5], [0.0], [0.0]]],
@@ -30,20 +41,38 @@ class TestListRank:
                 tf.constant(
                     [[[4], [5], [9], [7], [8], [6], [3], [1], [2]]], dtype=tf.int32
                 ),
+                None,
+                None,
             ),
+            # With ties, casting
+            (
+                tf.constant(
+                    [[[1.0], [1.5], [9.0], [4.0], [6.0], [2.0], [0.5], [0.0], [0.0]]],
+                    dtype=tf.float32,
+                ),
+                tf.constant(
+                    [[["4"], ["5"], ["9"], ["7"], ["8"], ["6"], ["3"], ["1"], ["2"]]],
+                    dtype=tf.string,
+                ),
+                "int32",
+                "string",
+            ),
+            # Different axis
         ],
     )
     def test_listwise_rank(
         self,
         input_tensor,
         expected_output,
+        input_dtype,
+        output_dtype,
     ):
         # when
         name = "listwise_rank_test"
         layer = ListRankLayer(
             name=name,
-            input_dtype=None,
-            output_dtype=None,
+            input_dtype=input_dtype,
+            output_dtype=output_dtype,
         )
         output_tensor = layer(input_tensor)
         # then
