@@ -459,6 +459,14 @@ class ListwiseParams(Params):
         typeConverter=TypeConverters.toString,
     )
 
+    sortOrder = Param(
+        Params._dummy(),
+        "sortOrder",
+        """Either leave as blank for default ordering or 'asc'
+        for ascending values or 'desc' for descending values.""",
+        typeConverter=TypeConverters.toString,
+    )
+
     def setQueryIdCol(self, value: str) -> "ListwiseParams":
         """
         Sets the query id parameter.
@@ -475,6 +483,51 @@ class ListwiseParams(Params):
         :returns:  String for column name to aggregate upon.
         """
         return self.getOrDefault(self.queryIdCol)
+
+    def setSortOrder(self, value: str) -> "ListwiseStatisticsParams":
+        """
+        Sets the sortOrder parameter to the given value.
+        Must be one of 'asc' or 'desc'.
+
+        :param value: String to set the stringOrderType parameter to.
+        :returns: Instance of class mixed in.
+        """
+        possible_order_options = [
+            "asc",
+            "desc",
+        ]
+        if value not in possible_order_options:
+            raise ValueError(
+                f"sortOrderType must be one of {', '.join(possible_order_options)}"
+            )
+        return self._set(sortOrder=value)
+
+    def getSortOrder(self) -> str:
+        """
+        Gets the sort order parameter.
+
+        :returns: String to set the stringOrderType parameter to.
+        """
+        return self.getOrDefault(self.sortOrder)
+
+    def setDefaultValue(self, value: str) -> "ListwiseParams":
+        """
+        Sets the default value parameter.
+
+        :param value: Int defaults to 0, should a method only have
+        padded data this value will be returned.
+        :returns: Instance of class mixed in.
+        """
+        return self._set(defaultValue=value)
+
+    def getDefaultValue(self) -> int:
+        """
+        Gets the default value parameter.
+
+        :returns: Int defaults to 0, should a method only have
+        padded data this value will be returned.
+        """
+        return self.getOrDefault(self.defaultValue)
 
 
 class ListwiseStatisticsParams(ListwiseParams):
@@ -495,13 +548,6 @@ class ListwiseStatisticsParams(ListwiseParams):
          upon, anything less will be removed - this is primarily to deal
          with padded features.""",
         typeConverter=TypeConverters.toInt,
-    )
-    sortOrder = Param(
-        Params._dummy(),
-        "sortOrder",
-        """Either leave as blank for default ordering or 'asc'
-        for ascending values or 'desc' for descending values.""",
-        typeConverter=TypeConverters.toString,
     )
 
     def setInputCols(self, value: List[str]) -> "ListwiseStatisticsParams":
@@ -556,51 +602,6 @@ class ListwiseStatisticsParams(ListwiseParams):
         :returns: Minimum value to remove padded values - defaults to >= 0.
         """
         return self.getOrDefault(self.minFilterValue)
-
-    def setDefaultValue(self, value: str) -> "ListwiseStatisticsParams":
-        """
-        Sets the default value parameter.
-
-        :param value: Int defaults to 0, should a method only have
-        padded data this value will be returned.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(defaultValue=value)
-
-    def getDefaultValue(self) -> int:
-        """
-        Gets the default value parameter.
-
-        :returns: Int defaults to 0, should a method only have
-        padded data this value will be returned.
-        """
-        return self.getOrDefault(self.defaultValue)
-
-    def setSortOrder(self, value: str) -> "ListwiseStatisticsParams":
-        """
-        Sets the sortOrder parameter to the given value.
-        Must be one of 'asc' or 'desc'.
-
-        :param value: String to set the stringOrderType parameter to.
-        :returns: Instance of class mixed in.
-        """
-        possible_order_options = [
-            "asc",
-            "desc",
-        ]
-        if value not in possible_order_options:
-            raise ValueError(
-                f"sortOrderType must be one of {', '.join(possible_order_options)}"
-            )
-        return self._set(sortOrder=value)
-
-    def getSortOrder(self) -> str:
-        """
-        Gets the sort order parameter.
-
-        :returns: String to set the stringOrderType parameter to.
-        """
-        return self.getOrDefault(self.sortOrder)
 
 
 class MaskValueParams(Params):

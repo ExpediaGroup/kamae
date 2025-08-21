@@ -52,6 +52,8 @@ class ListRankTransformer(
     :param layerName: The name of the transformer, which typically
     should be the name of the produced feature.
     :param queryIdCol: Name of column to aggregate upon. It is required.
+    :param sortOrder: Option of 'asc' or 'desc' which defines order
+    for listwise operation. Default is 'asc'.
     """
 
     @keyword_only
@@ -63,8 +65,10 @@ class ListRankTransformer(
         outputDtype: Optional[str] = None,
         layerName: Optional[str] = None,
         queryIdCol: Optional[str] = None,
+        sortOrder: Optional[str] = "asc",
     ) -> None:
         super().__init__()
+        self._setDefault(sortOrder="asc")
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
 
@@ -94,22 +98,32 @@ class ListRankTransformer(
         if not self.isDefined("queryIdCol"):
             raise ValueError("queryIdCol must be set on listwise transformers.")
 
+        # Get params
+        input_col = self.getInputCol()
+        query_id_col = self.getQueryIdCol()
+        output_col = self.getOutputCol()
+        sort_order = self.getSortOrder()
+
+        # Validate listwise cols
         check_listwise_columns(
             dataset=dataset,
-            query_col_name=self.getQueryIdCol(),
-            value_col_name=self.getInputCol(),
+            query_col_name=query_id_col,
+            value_col_name=input_col,
             sort_col_name=None,
         )
 
+        # Set sort order
+        if sort_order == "asc":
+            sort_col = input_col.asc()
+        elif sort_order == "desc":
+            sort_col = input_col.desc()
+        else:
+            raise ValueError(f"Invalid sortOrder: {sort_order}")
         # Define window spec
-        window_spec = Window.partitionBy(self.getQueryIdCol()).orderBy(
-            self.getInputCol()
-        )
+        window_spec = Window.partitionBy(query_id_col).orderBy(sort_col)
 
         # Calculate the rank
-        dataset = dataset.withColumn(
-            self.getOutputCol(), F.row_number().over(window_spec)
-        )
+        dataset = dataset.withColumn(output_col, F.row_number().over(window_spec))
 
         return dataset
 
@@ -124,5 +138,6 @@ class ListRankTransformer(
             name=self.getLayerName(),
             input_dtype=self.getInputTFDtype(),
             output_dtype=self.getOutputTFDtype(),
+            sort_order=self.getSortOrder(),
             axis=1,
         )
