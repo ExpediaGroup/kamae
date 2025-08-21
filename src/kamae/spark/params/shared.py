@@ -484,7 +484,7 @@ class ListwiseParams(Params):
         """
         return self.getOrDefault(self.queryIdCol)
 
-    def setSortOrder(self, value: str) -> "ListwiseStatisticsParams":
+    def setSortOrder(self, value: str) -> "ListwiseParams":
         """
         Sets the sortOrder parameter to the given value.
         Must be one of 'asc' or 'desc'.
