@@ -57,6 +57,7 @@ from kamae.tensorflow.layers import (
     IfStatementLayer,
     ImputeLayer,
     LambdaFunctionLayer,
+    ListRankLayer,
     LogicalAndLayer,
     LogicalNotLayer,
     LogicalOrLayer,
@@ -215,6 +216,7 @@ from kamae.tensorflow.layers import (
             },
             False,
         ),
+        (ListRankLayer, [tf.random.normal((1, 2, 3))], None, False),
         (LogLayer, [tf.random.normal((100, 10, 5))], None, False),
         (
             LogicalAndLayer,

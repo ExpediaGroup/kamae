@@ -48,6 +48,7 @@ from .list_max import ListMaxTransformer  # noqa: F401
 from .list_mean import ListMeanTransformer  # noqa: F401
 from .list_median import ListMedianTransformer  # noqa: F401
 from .list_min import ListMinTransformer  # noqa: F401
+from .list_rank import ListRankTransformer  # noqa: F401
 from .list_std_dev import ListStdDevTransformer  # noqa: F401
 from .log import LogTransformer  # noqa: F401
 from .logical_and import LogicalAndTransformer  # noqa: F401
