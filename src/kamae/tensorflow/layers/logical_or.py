@@ -32,10 +32,10 @@ class LogicalOrLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the LogicalOrLayer layer
@@ -58,7 +58,7 @@ class LogicalOrLayer(BaseLayer):
         return [tf.bool]
 
     @enforce_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs) -> Tensor:
+    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
         """
         Performs the or(x, y) operation on an iterable of input tensors
 

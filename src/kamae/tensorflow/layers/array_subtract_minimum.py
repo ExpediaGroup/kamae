@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import tensorflow as tf
 
@@ -40,12 +40,12 @@ class ArraySubtractMinimumLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         axis: int = -1,
-        pad_value=None,
-        **kwargs,
+        pad_value: Optional[Union[int, float]] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the ArraySubtractMinimum layer.
@@ -87,7 +87,7 @@ class ArraySubtractMinimumLayer(BaseLayer):
         ]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the calculation of the differences on the input tensor.
 
@@ -130,7 +130,7 @@ class ArraySubtractMinimumLayer(BaseLayer):
         )
         return tf.where(tf.equal(inputs, pad_tensor), inputs, subtracted_val)
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         """
         Returns the configuration of the layer.
         Used for saving and loading from a model.

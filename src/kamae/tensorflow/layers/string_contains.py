@@ -43,9 +43,9 @@ class StringContainsLayer(BaseLayer):
         string_constant: Optional[str] = None,
         negation: bool = False,
         name: Optional[str] = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the StringContainsLayer layer.
@@ -71,7 +71,7 @@ class StringContainsLayer(BaseLayer):
         return [tf.string]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs) -> Tensor:
+    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
         Checks for the existence of a substring/pattern within a tensor.
         WARNING: While it works, the use of tensors in matching
@@ -122,7 +122,7 @@ class StringContainsLayer(BaseLayer):
 
             # Two tensors provided
             @tf.function
-            def tensor_match(x):
+            def tensor_match(x: List[Tensor]) -> Tensor:
                 match_substring = x[1]
                 match_substring = self._escape_special_characters(match_substring)
                 return tf.strings.regex_full_match(

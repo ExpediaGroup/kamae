@@ -13,14 +13,14 @@
 # limitations under the License.
 
 """Provides utilities for tensorflow layer inputs"""
-from typing import Callable, Iterable, List, Union
+from typing import Any, Callable, Iterable, List, Union
 
 import tensorflow as tf
 
 from kamae.tensorflow.typing import Tensor
 
 
-def iter_values(x) -> Iterable:
+def iter_values(x: Iterable) -> Iterable:
     """
     Returns an iterator over the values of a generic iterator.
     Will be used to construct lists from iterables such as lists, tuples, dicts, etc.
@@ -47,9 +47,9 @@ def enforce_single_tensor_input(layer_call_method: Callable) -> Callable:
     """
 
     def _enforce_single_tensor_input(
-        self,
+        self: Any,
         inputs: Union[Tensor, Iterable[Tensor]],
-        **kwargs,
+        **kwargs: Any,
     ) -> Tensor:
         if tf.is_tensor(inputs):
             # If the inputs are a tensor, then we return the tensor.
@@ -84,9 +84,9 @@ def enforce_multiple_tensor_input(layer_call_method: Callable) -> Callable:
     """
 
     def _enforce_multiple_tensor_input(
-        self,
+        self: Any,
         inputs: Union[Tensor, Iterable[Tensor]],
-        **kwargs,
+        **kwargs: Any,
     ) -> List[Tensor]:
         if tf.is_tensor(inputs):
             raise ValueError(
@@ -120,9 +120,9 @@ def allow_single_or_multiple_tensor_input(layer_call_method: Callable) -> Callab
     """
 
     def _allow_single_or_multiple_tensor_input(
-        self,
+        self: Any,
         inputs: Union[Tensor, Iterable[Tensor]],
-        **kwargs,
+        **kwargs: Any,
     ) -> List[Tensor]:
         if tf.is_tensor(inputs):
             processed_inputs = [inputs]

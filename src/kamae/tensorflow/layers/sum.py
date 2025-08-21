@@ -34,11 +34,11 @@ class SumLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        addend: float = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        addend: Optional[float] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the SumLayer layer
@@ -76,7 +76,7 @@ class SumLayer(BaseLayer):
         ]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs) -> Tensor:
+    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
         Performs the sum(x, y) operation on either an iterable of input tensors or
         a single input tensor and a constant.

@@ -35,9 +35,9 @@ class StringReplaceLayer(BaseLayer):
         string_replace_constant: Optional[str] = None,
         regex: bool = False,
         name: Optional[str] = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the StringReplaceLayer layer.
@@ -80,7 +80,7 @@ class StringReplaceLayer(BaseLayer):
         return [tf.string]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs) -> Tensor:
+    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
         Checks for the existence of a substring/pattern within a tensor and replaces
         if there is a match.
@@ -165,7 +165,7 @@ class StringReplaceLayer(BaseLayer):
             )
             mappable_tensor = tf.reshape(mappable_tensor, [-1, 3])
 
-            def _tensor_replace(x):
+            def _tensor_replace(x: List[Tensor]) -> Tensor:
                 match_substring = x[1]
                 if not self.regex:
                     match_substring = self._escape_special_characters(x[1])
