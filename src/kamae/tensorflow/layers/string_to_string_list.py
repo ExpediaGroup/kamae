@@ -35,13 +35,13 @@ class StringToStringListLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         separator: str = ",",
         default_value: str = "",
         list_length: int = 1,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the StringToStringListLayer layer.
@@ -73,7 +73,7 @@ class StringToStringListLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Splits the input string tensor by the separator and returns the list of
         strings. A list_length parameter is used to ensure that the output tensor has a

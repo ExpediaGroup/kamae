@@ -32,11 +32,11 @@ class ArraySplitLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         axis: int = -1,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the ArraySplitLayer layer.
@@ -61,7 +61,7 @@ class ArraySplitLayer(BaseLayer):
         return None
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> List[Tensor]:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> List[Tensor]:
         """
         Splits the input tensor along the specified axis.
 

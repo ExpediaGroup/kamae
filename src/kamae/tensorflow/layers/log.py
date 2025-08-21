@@ -31,11 +31,11 @@ class LogLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         alpha: float = 0.0,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the LogLayer layer
@@ -68,7 +68,7 @@ class LogLayer(BaseLayer):
         ]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the log(alpha + x) operation on a given input tensor
 

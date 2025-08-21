@@ -28,11 +28,11 @@ from .base import BaseLayer
 class SubtractLayer(BaseLayer):
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        subtrahend: float = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        subtrahend: Optional[float] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the SubtractLayer layer
@@ -73,7 +73,7 @@ class SubtractLayer(BaseLayer):
         ]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs) -> Tensor:
+    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
         Performs the subtract(x, y) operation on either an iterable of input tensors or
         a single input tensor and a constant.

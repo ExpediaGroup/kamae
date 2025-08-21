@@ -44,13 +44,13 @@ class StringEqualsIfStatementLayer(BaseLayer):
 
     def __init__(
         self,
-        value_to_compare: str = None,
-        result_if_true: str = None,
-        result_if_false: str = None,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        value_to_compare: Optional[str] = None,
+        result_if_true: Optional[str] = None,
+        result_if_false: Optional[str] = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the StringIfEqualStatement layer.
@@ -119,7 +119,7 @@ class StringEqualsIfStatementLayer(BaseLayer):
         return multiple_inputs
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs) -> Tensor:
+    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
         Performs the string if equals statement on the inputs. If the inputs are a
         tensor, we assume that the value_to_compare, result_if_true, and

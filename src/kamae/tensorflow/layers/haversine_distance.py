@@ -39,12 +39,12 @@ class HaversineDistanceLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        lat_lon_constant: List[float] = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        lat_lon_constant: Optional[List[float]] = None,
         unit: str = "km",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the HaversineDistanceLayer layer
@@ -118,7 +118,7 @@ class HaversineDistanceLayer(BaseLayer):
         return c * r
 
     @enforce_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs) -> Tensor:
+    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
         """
         Computes the haversine distance between two lat/lon pairs.
 

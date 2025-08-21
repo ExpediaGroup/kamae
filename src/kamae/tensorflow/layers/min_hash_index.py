@@ -51,7 +51,7 @@ class MinHashIndexLayer(BaseLayer):
         num_permutations: int = 128,
         mask_value: Optional[str] = None,
         axis: int = -1,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the MinHashIndexLayer layer.
@@ -88,7 +88,7 @@ class MinHashIndexLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the min hash indexing on the input tensor.
 

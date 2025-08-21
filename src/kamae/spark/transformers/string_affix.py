@@ -163,7 +163,7 @@ class StringAffixTransformer(
 
         def add_prefix_suffix(
             column: Column, prefix: Optional[str] = None, suffix: Optional[str] = None
-        ):
+        ) -> Column:
             if prefix is not None and prefix != "":
                 column = F.concat(F.lit(prefix), column)
             if suffix is not None and suffix != "":

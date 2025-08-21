@@ -31,10 +31,10 @@ class IdentityLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the IdentityLayer layer.
@@ -57,7 +57,7 @@ class IdentityLayer(BaseLayer):
         return None
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs an identity transform on the input tensor.
 

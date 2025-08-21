@@ -39,15 +39,15 @@ class BloomEncodeLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         num_hash_fns: int = 3,
-        num_bins: int = None,
+        num_bins: Optional[int] = None,
         mask_value: Union[int, str] = None,
-        feature_cardinality: int = None,
+        feature_cardinality: Optional[int] = None,
         use_heuristic_num_bins: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Intialises the BloomEncodeLayer layer.
@@ -126,7 +126,7 @@ class BloomEncodeLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the bloom encoding on the input tensor.
 

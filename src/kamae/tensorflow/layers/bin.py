@@ -42,10 +42,10 @@ class BinLayer(BaseLayer):
         bin_values: List[float],
         bin_labels: List[Union[float, int, str]],
         default_label: Union[float, int, str],
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the BinLayer layer
@@ -104,7 +104,7 @@ class BinLayer(BaseLayer):
         ]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs a binning operation on a given input tensor.
 

@@ -35,13 +35,13 @@ class SubStringDelimAtIndexLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         delimiter: str = "_",
         index: int = 0,
         default_value: str = "",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initialise the SubStringDelimAtIndexLayer layer.
@@ -91,7 +91,7 @@ class SubStringDelimAtIndexLayer(BaseLayer):
         return tf.math.add(ragged_row_lengths, index)
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Splits the input string tensor by the delimiter and returns the substring
         at the specified index. If the index is out of bounds, the default value

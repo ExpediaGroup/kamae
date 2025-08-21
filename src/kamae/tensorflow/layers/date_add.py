@@ -36,11 +36,11 @@ class DateAddLayer(BaseLayer):
 
     def __init__(
         self,
-        name=None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        num_days: int = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        num_days: Optional[int] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises an instance of the DateAddLayer.
@@ -75,7 +75,7 @@ class DateAddLayer(BaseLayer):
         return [tf.string, tf.int8, tf.int16, tf.int32, tf.int64]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Adds or subtracts a number of days from a date(time) string.
         """

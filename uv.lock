@@ -55,6 +55,15 @@ wheels = [
 ]
 
 [[package]]
+name = "attrs"
+version = "25.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/b0/1367933a8532ee6ff8d63537de4f1177af4bff9f3e829baf7331f595bb24/attrs-25.3.0.tar.gz", hash = "sha256:75d7cefc7fb576747b2c81b4442d4d4a1ce0900973527c011d1030fd3bf4af1b", size = 812032 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/77/06/bb80f5f86020c4551da315d78b3ab75e8228f89f0162f2c3a819e407941a/attrs-25.3.0-py3-none-any.whl", hash = "sha256:427318ce031701fea540783410126f03899a97ffc6f61596ad581ac2e40e3bc3", size = 63815 },
+]
+
+[[package]]
 name = "babel"
 version = "2.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -424,6 +433,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/37/72/e8d66150c4fcace3c0a450466aa3480506ba2cae7b61e100a2613afc3907/flake8-7.1.1.tar.gz", hash = "sha256:049d058491e228e03e67b390f311bbf88fce2dbaa8fa673e7aea87b7198b8d38", size = 48054 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d9/42/65004373ac4617464f35ed15931b30d764f53cdd30cc78d5aea349c8c050/flake8-7.1.1-py2.py3-none-any.whl", hash = "sha256:597477df7860daa5aa0fdd84bf5208a043ab96b8e96ab708770ae0364dd03213", size = 57731 },
+]
+
+[[package]]
+name = "flake8-annotations"
+version = "3.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "flake8" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/76/5d/fade294924cb9fa654eb3753181db021d73cc456c584ccfb71b1b3fa89e0/flake8_annotations-3.1.1.tar.gz", hash = "sha256:6c98968ccc6bdc0581d363bf147a87df2f01d0d078264b2da805799d911cf5fe", size = 20113 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bf/ce/55b1908ccfd729b896a57111c40772d81c506d3710dcc15ed827c9dec661/flake8_annotations-3.1.1-py3-none-any.whl", hash = "sha256:102935bdcbfa714759a152aeb07b14aee343fc0b6f7c55ad16968ce3e0e91a8a", size = 16988 },
 ]
 
 [[package]]
@@ -869,6 +891,7 @@ dependencies = [
 dev = [
     { name = "black" },
     { name = "flake8" },
+    { name = "flake8-annotations" },
     { name = "freezegun" },
     { name = "isort" },
     { name = "mkdocs" },
@@ -905,6 +928,7 @@ requires-dist = [
 dev = [
     { name = "black", specifier = "==23.10.1" },
     { name = "flake8", specifier = "==7.1.1" },
+    { name = "flake8-annotations", specifier = ">=3.1.1" },
     { name = "freezegun", specifier = ">=1.1.0,<2" },
     { name = "isort", specifier = "==5.12.0" },
     { name = "mkdocs", specifier = ">=1.5.2,<2" },

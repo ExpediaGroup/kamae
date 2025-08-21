@@ -31,12 +31,12 @@ class ArrayConcatenateLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         axis: int = -1,
         auto_broadcast: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the ArrayConcatenateLayer layer.
@@ -67,7 +67,7 @@ class ArrayConcatenateLayer(BaseLayer):
         return None
 
     @enforce_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs) -> Tensor:
+    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
         """
         Concatenates the input tensors along the specified axis.
         If auto_broadcast is set to True, the tensors are broadcasted to the

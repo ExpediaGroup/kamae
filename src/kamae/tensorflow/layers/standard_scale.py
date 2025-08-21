@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Union
 
+import numpy as np
 import tensorflow as tf
 
 import kamae
@@ -35,14 +36,14 @@ class StandardScaleLayer(NormalizeLayer):
 
     def __init__(
         self,
-        mean,
-        variance,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        axis=-1,
-        mask_value: float = None,
-        **kwargs,
+        mean: Union[List[float], np.array],
+        variance: Union[List[float], np.array],
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        axis: Optional[Union[int, tuple[int]]] = -1,
+        mask_value: Optional[float] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Intialise the StandardScaleLayer layer.
@@ -82,7 +83,7 @@ class StandardScaleLayer(NormalizeLayer):
         self.mask_value = mask_value
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs normalization on the input tensor(s) by calling the keras
         StandardScaleLayer layer. It ignores values which are equal to the

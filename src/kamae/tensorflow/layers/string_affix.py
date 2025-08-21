@@ -31,12 +31,12 @@ class StringAffixLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        prefix: str = None,
-        suffix: str = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        prefix: Optional[str] = None,
+        suffix: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the String Affix layer.
@@ -75,7 +75,7 @@ class StringAffixLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Prefixes and suffixes a given input tensor.
 

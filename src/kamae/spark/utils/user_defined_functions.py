@@ -19,7 +19,9 @@ import tensorflow as tf
 from kamae.spark.utils.indexer_utils import safe_hash64
 
 
-def hash_udf(label: str, num_bins: int, mask_value: str = None) -> Union[int, None]:
+def hash_udf(
+    label: str, num_bins: int, mask_value: Optional[str] = None
+) -> Union[int, None]:
     """
     User defined Spark function (UDF) to hash a string to an integer value.
 
