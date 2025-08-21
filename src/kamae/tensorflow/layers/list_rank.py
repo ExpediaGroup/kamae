@@ -36,7 +36,7 @@ class ListRankLayer(BaseLayer):
         name: Optional[str] = None,
         input_dtype: Optional[str] = None,
         output_dtype: Optional[str] = None,
-        sort_order: str = "asc",
+        sort_order: str = "desc",
         axis: int = 1,
         **kwargs,
     ):
@@ -48,7 +48,7 @@ class ListRankLayer(BaseLayer):
         :param name: Name of the layer, defaults to `None`.
         :param input_dtype: The dtype to cast the input to. Defaults to `None`.
         :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param sort_order: The order to sort the input tensor by. Defaults to 'asc'
+        :param sort_order: The order to sort the input tensor by. Defaults to 'desc'
         :param axis: The axis to calculate the rank across. Defaults to 1.
         """
         super().__init__(
@@ -85,11 +85,18 @@ class ListRankLayer(BaseLayer):
         :param inputs: The iterable tensor for the feature.
         :returns: The new tensor result column.
         """
-        # If desc order, multiply tensor by -1
-        if self.sort_order == "desc":
-            inputs = tf.math.multiply(inputs, tf.constant(-1, dtype=inputs.dtype))
         return tf.math.add(
-            tf.argsort(tf.argsort(inputs, axis=self.axis), axis=self.axis), 1
+            tf.argsort(
+                tf.argsort(
+                    inputs,
+                    axis=self.axis,
+                    direction="ASCENDING" if self.sort_order == "asc" else "DESCENDING",
+                    stable=True,
+                ),
+                axis=self.axis,
+                stable=True,
+            ),
+            1,
         )
 
     def get_config(self) -> Dict[str, Any]:

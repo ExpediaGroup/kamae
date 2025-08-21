@@ -28,7 +28,7 @@ class TestListRank:
                     [[[1.0], [1.5], [9.0], [4.0], [6.0], [2.0], [0.5], [0.0]]],
                     dtype=tf.float32,
                 ),
-                tf.constant([[[3], [4], [8], [6], [7], [5], [2], [1]]], dtype=tf.int32),
+                tf.constant([[[6], [5], [1], [3], [2], [4], [7], [8]]], dtype=tf.int32),
                 None,
                 None,
             ),
@@ -39,7 +39,7 @@ class TestListRank:
                     dtype=tf.float32,
                 ),
                 tf.constant(
-                    [[[4], [5], [9], [7], [8], [6], [3], [1], [2]]], dtype=tf.int32
+                    [[[6], [5], [1], [3], [2], [4], [7], [8], [9]]], dtype=tf.int32
                 ),
                 None,
                 None,
@@ -51,7 +51,7 @@ class TestListRank:
                     dtype=tf.float32,
                 ),
                 tf.constant(
-                    [[["4"], ["5"], ["9"], ["7"], ["8"], ["6"], ["3"], ["1"], ["2"]]],
+                    [[["6"], ["5"], ["1"], ["3"], ["2"], ["4"], ["7"], ["8"], ["9"]]],
                     dtype=tf.string,
                 ),
                 "float32",
@@ -61,11 +61,7 @@ class TestListRank:
         ],
     )
     def test_listwise_rank(
-        self,
-        input_tensor,
-        expected_output,
-        input_dtype,
-        output_dtype,
+        self, input_tensor, expected_output, input_dtype, output_dtype, capsys
     ):
         # when
         name = "listwise_rank_test"

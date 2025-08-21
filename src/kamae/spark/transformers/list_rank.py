@@ -53,7 +53,7 @@ class ListRankTransformer(
     should be the name of the produced feature.
     :param queryIdCol: Name of column to aggregate upon. It is required.
     :param sortOrder: Option of 'asc' or 'desc' which defines order
-    for listwise operation. Default is 'asc'.
+    for listwise operation. Default is 'desc'.
     """
 
     @keyword_only
@@ -65,10 +65,10 @@ class ListRankTransformer(
         outputDtype: Optional[str] = None,
         layerName: Optional[str] = None,
         queryIdCol: Optional[str] = None,
-        sortOrder: Optional[str] = "asc",
+        sortOrder: Optional[str] = "desc",
     ) -> None:
         super().__init__()
-        self._setDefault(sortOrder="asc")
+        self._setDefault(sortOrder="desc")
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
 
@@ -114,9 +114,9 @@ class ListRankTransformer(
 
         # Set sort order
         if sort_order == "asc":
-            sort_col = input_col.asc()
+            sort_col = F.col(input_col).asc()
         elif sort_order == "desc":
-            sort_col = input_col.desc()
+            sort_col = F.col(input_col).desc()
         else:
             raise ValueError(f"Invalid sortOrder: {sort_order}")
         # Define window spec
