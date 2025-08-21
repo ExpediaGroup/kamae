@@ -65,7 +65,7 @@ class ListRankTransformer(
         outputDtype: Optional[str] = None,
         layerName: Optional[str] = None,
         queryIdCol: Optional[str] = None,
-        sortOrder: Optional[str] = "desc",
+        sortOrder: str = "desc",
     ) -> None:
         super().__init__()
         self._setDefault(sortOrder="desc")
@@ -139,5 +139,4 @@ class ListRankTransformer(
             input_dtype=self.getInputTFDtype(),
             output_dtype=self.getOutputTFDtype(),
             sort_order=self.getSortOrder(),
-            axis=1,
         )
