@@ -43,8 +43,6 @@ class ListRankLayer(BaseLayer):
         """
         Initializes the Listwise Rank layer.
 
-        WARNING: The code is fully tested for axis=1 only. Further testing is needed.
-
         :param name: Name of the layer, defaults to `None`.
         :param input_dtype: The dtype to cast the input to. Defaults to `None`.
         :param output_dtype: The dtype to cast the output to. Defaults to `None`.
