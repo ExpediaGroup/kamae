@@ -55,7 +55,7 @@ class DType(Enum):
     BOOLEAN = ("boolean", BooleanType(), tf.bool, 1, False, False)
 
     def __init__(
-        self: Any,
+        self,
         dtype_name: str,
         spark_dtype: DataType,
         tf_dtype: tf.dtypes.DType,
