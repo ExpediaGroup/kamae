@@ -157,6 +157,7 @@ class OneHotEncodeLayer(BaseLayer):
 
 # TODO: Remove this alias in next breaking change,
 #  it is maintained for backwards compatibility
+@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class OneHotLayer(OneHotEncodeLayer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         warnings.warn(
