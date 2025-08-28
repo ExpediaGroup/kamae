@@ -108,6 +108,7 @@ class ListRankLayer(BaseLayer):
         config.update(
             {
                 "axis": self.axis,
+                "sort_order": self.sort_order,
             }
         )
         return config
