@@ -38,7 +38,7 @@ class ListRankLayer(BaseLayer):
         output_dtype: Optional[str] = None,
         sort_order: str = "desc",
         axis: int = 1,
-        **kwargs,
+        **kwargs: Any,
     ):
         """
         Initializes the Listwise Rank layer.
@@ -76,7 +76,7 @@ class ListRankLayer(BaseLayer):
         ]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs) -> Tensor:
+    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
         """
         Calculate the rank.
 
