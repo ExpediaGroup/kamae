@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import inspect
 import os
 
 import keras
@@ -19,6 +19,8 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from packaging.version import Version
+
+import kamae.tensorflow.layers as layers_mod
 
 keras_version = Version(keras.__version__)
 # If keras >= 2.13.0, we need to enable unsafe deserialization in order to load the
@@ -37,6 +39,7 @@ from kamae.tensorflow.layers import (
     ArrayCropLayer,
     ArraySplitLayer,
     ArraySubtractMinimumLayer,
+    BearingAngleLayer,
     BinLayer,
     BloomEncodeLayer,
     BucketizeLayer,
@@ -45,6 +48,7 @@ from kamae.tensorflow.layers import (
     CurrentDateLayer,
     CurrentDateTimeLayer,
     CurrentUnixTimestampLayer,
+    DateAddLayer,
     DateDiffLayer,
     DateParseLayer,
     DateTimeToUnixTimestampLayer,
@@ -57,11 +61,17 @@ from kamae.tensorflow.layers import (
     IfStatementLayer,
     ImputeLayer,
     LambdaFunctionLayer,
+    ListMaxLayer,
+    ListMeanLayer,
+    ListMedianLayer,
+    ListMinLayer,
+    ListStdDevLayer,
     LogicalAndLayer,
     LogicalNotLayer,
     LogicalOrLayer,
     LogLayer,
     MaxLayer,
+    MeanLayer,
     MinHashIndexLayer,
     MinLayer,
     MinMaxScaleLayer,
@@ -69,6 +79,7 @@ from kamae.tensorflow.layers import (
     MultiplyLayer,
     NumericalIfStatementLayer,
     OneHotEncodeLayer,
+    OneHotLayer,
     OrdinalArrayEncodeLayer,
     RoundLayer,
     RoundToDecimalLayer,
@@ -83,6 +94,7 @@ from kamae.tensorflow.layers import (
     StringIndexLayer,
     StringIsInListLayer,
     StringListToStringLayer,
+    StringMapLayer,
     StringReplaceLayer,
     StringToStringListLayer,
     SubStringDelimAtIndexLayer,
@@ -115,6 +127,15 @@ from kamae.tensorflow.layers import (
             ArrayCropLayer,
             [tf.constant("a", shape=(1, 4))],
             {"array_length": 3, "pad_value": "-1"},
+            False,
+        ),
+        (
+            BearingAngleLayer,
+            [
+                tf.constant(0.0, shape=(100, 10, 1)),
+                tf.constant(90.0, shape=(100, 10, 1)),
+            ],
+            {"lat_lon_constant": [-45.9, 180.67]},
             False,
         ),
         (
@@ -164,6 +185,14 @@ from kamae.tensorflow.layers import (
             [tf.constant(100, shape=(100, 10, 1))],
             {"unit": "ms"},
             True,
+        ),
+        (
+            DateAddLayer,
+            [
+                tf.constant("2023-03-02", shape=(100, 10, 1)),
+            ],
+            {"num_days": 10},
+            False,
         ),
         (
             DateDiffLayer,
@@ -230,6 +259,7 @@ from kamae.tensorflow.layers import (
             False,
         ),
         (MaxLayer, [tf.random.normal((100, 10, 5))], {"max_constant": 10}, False),
+        (MeanLayer, [tf.random.normal((100, 10, 5))], {"mean_constant": 10}, False),
         (MinLayer, [tf.random.normal((100, 10, 5))], {"min_constant": 10}, False),
         (
             MinHashIndexLayer,
@@ -265,6 +295,12 @@ from kamae.tensorflow.layers import (
         ),
         (
             OneHotEncodeLayer,
+            [tf.constant("a", shape=(100, 10, 1))],
+            {"num_oov_indices": 1, "vocabulary": ["a", "b"], "drop_unseen": True},
+            False,
+        ),
+        (
+            OneHotLayer,
             [tf.constant("a", shape=(100, 10, 1))],
             {"num_oov_indices": 1, "vocabulary": ["a", "b"], "drop_unseen": True},
             False,
@@ -308,6 +344,66 @@ from kamae.tensorflow.layers import (
                 "function": lambda x: tf.square(x) - tf.math.log(x),
                 "input_dtype": "float",
                 "output_dtype": "float",
+            },
+            False,
+        ),
+        (
+            ListMaxLayer,
+            [tf.constant([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])],
+            {
+                "axis": 1,
+                "top_n": 5,
+                "sort_order": "descending",
+                "nan_fill_value": 0,
+                "min_filter_value": 0,
+            },
+            False,
+        ),
+        (
+            ListMeanLayer,
+            [tf.constant([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])],
+            {
+                "axis": 1,
+                "top_n": 5,
+                "sort_order": "descending",
+                "nan_fill_value": 0,
+                "min_filter_value": 0,
+            },
+            False,
+        ),
+        (
+            ListMedianLayer,
+            [tf.constant([[[1.0], [2.0], [3.0]], [[4.0], [5.0], [6.0]]])],
+            {
+                "axis": 1,
+                "top_n": 5,
+                "sort_order": "descending",
+                "nan_fill_value": 0,
+                "min_filter_value": 0,
+            },
+            False,
+        ),
+        (
+            ListMinLayer,
+            [tf.constant([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])],
+            {
+                "axis": -1,
+                "top_n": 5,
+                "sort_order": "descending",
+                "nan_fill_value": 0,
+                "min_filter_value": 0,
+            },
+            False,
+        ),
+        (
+            ListStdDevLayer,
+            [tf.constant([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])],
+            {
+                "axis": -1,
+                "top_n": 5,
+                "sort_order": "descending",
+                "nan_fill_value": 0,
+                "min_filter_value": 0,
             },
             False,
         ),
@@ -386,12 +482,22 @@ from kamae.tensorflow.layers import (
             False,
         ),
         (
-            StringReplaceLayer,
+            StringMapLayer,
             [tf.constant("a", shape=(100, 5))],
             {
-                "string_replace_constant": "b",
-                "string_match_constant": "c",
-                "regex": True,
+                "string_match_values": ["a", "c"],
+                "string_replace_values": ["b", "c"],
+                "default_replace_value": "z",
+            },
+            False,
+        ),
+        (
+            StringReplaceLayer,
+            [tf.constant("a_b_c_d_e", shape=(1, 5, 45))],
+            {
+                "string_match_constant": "_",
+                "string_replace_constant": "-",
+                "regex": False,
             },
             False,
         ),
@@ -499,3 +605,30 @@ def test_layer_serialisation(
             np.testing.assert_equal(model_output, reloaded_model_output)
             np.testing.assert_equal(layer_output, recovered_layer_output)
             np.testing.assert_equal(model_output, layer_output)
+
+
+def test_all_layers_tested_for_serialisation():
+    """
+    Checks that all layers in kamae.tensorflow.layers have a serialisation test.
+    """
+    # Get all classes defined in kamae.tensorflow.layers
+    all_layers = [
+        obj
+        for name, obj in vars(layers_mod).items()
+        if isinstance(obj, type)
+        and issubclass(obj, tf.keras.layers.Layer)
+        and obj is not tf.keras.layers.Layer
+    ]
+
+    # Extract all layer_cls from the test parameterization
+    parametrize_mark = next(
+        mark
+        for mark in getattr(test_layer_serialisation, "pytestmark", [])
+        if getattr(mark, "name", None) == "parametrize"
+    )
+    tested_layers = {param[0] for param in parametrize_mark.args[1]}
+
+    missing = [layer for layer in all_layers if layer not in tested_layers]
+    assert (
+        not missing
+    ), f"Missing serialisation tests for: {[l.__name__ for l in missing]}"
