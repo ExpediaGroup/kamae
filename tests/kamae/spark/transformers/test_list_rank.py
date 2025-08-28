@@ -1,0 +1,240 @@
+# Copyright [2024] Expedia, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import numpy as np
+import pyspark.sql.functions as F
+import pytest
+import tensorflow as tf
+
+from kamae.spark.transformers import ListRankTransformer
+
+from ..test_helpers import tensor_to_python_type
+
+
+class TestListRank:
+    @pytest.fixture(scope="class")
+    def listwise_rank_df_base(self, spark_session):
+        return spark_session.createDataFrame(
+            [
+                (1, 1, 1.0, 6),
+                (1, 2, 1.5, 5),
+                (1, 3, 9.0, 1),
+                (1, 4, 4.0, 3),
+                (1, 5, 6.0, 2),
+                (1, 6, 2.0, 4),
+                (1, 7, 0.5, 7),
+                (1, 8, 0.0, 8),
+                (2, 9, 1.0, 3),
+                (2, 10, 2.0, 2),
+                (2, 11, 3.0, 1),
+            ],
+            [
+                "search_id",
+                "index",
+                "value_col",
+                "expected",
+            ],
+        )
+
+    @pytest.fixture(scope="class")
+    def listwise_rank_df_asc(self, spark_session):
+        return spark_session.createDataFrame(
+            [
+                (1, 1, 1.0, 3),
+                (1, 2, 1.5, 4),
+                (1, 3, 9.0, 8),
+                (1, 4, 4.0, 6),
+                (1, 5, 6.0, 7),
+                (1, 6, 2.0, 5),
+                (1, 7, 0.5, 2),
+                (1, 8, 0.0, 1),
+                (2, 9, 1.0, 1),
+                (2, 10, 2.0, 2),
+                (2, 11, 3.0, 3),
+            ],
+            [
+                "search_id",
+                "index",
+                "value_col",
+                "expected",
+            ],
+        )
+
+    @pytest.fixture(scope="class")
+    def listwise_rank_df_w_ties(self, spark_session):
+        return spark_session.createDataFrame(
+            [
+                (1, 1, 1.0, 6),
+                (1, 2, 1.5, 5),
+                (1, 3, 9.0, 1),
+                (1, 4, 4.0, 3),
+                (1, 5, 6.0, 2),
+                (1, 6, 2.0, 4),
+                (1, 7, 0.5, 7),
+                (1, 8, 0.0, 8),
+                (1, 9, 0.0, 9),
+                (2, 10, 1.0, 3),
+                (2, 11, 2.0, 2),
+                (2, 12, 3.0, 1),
+            ],
+            [
+                "search_id",
+                "index",
+                "value_col",
+                "expected",
+            ],
+        )
+
+    @pytest.fixture(scope="class")
+    def listwise_rank_df_casted(self, spark_session):
+        return spark_session.createDataFrame(
+            [
+                (1, 1, 2.0, "6"),
+                (1, 2, 3.0, "5"),
+                (1, 3, 9.0, "1"),
+                (1, 4, 5.0, "3"),
+                (1, 5, 6.0, "2"),
+                (1, 6, 4.0, "4"),
+                (1, 7, 1.0, "7"),
+                (1, 8, 0.0, "8"),
+                (1, 9, 0.0, "9"),
+                (2, 10, 1.0, "3"),
+                (2, 11, 2.0, "2"),
+                (2, 12, 3.0, "1"),
+            ],
+            [
+                "search_id",
+                "index",
+                "value_col",
+                "expected",
+            ],
+        )
+
+    @pytest.mark.parametrize(
+        "input_dataframe, value_col, output_col, input_dtype, output_dtype, sort_order",
+        [
+            # Base case
+            ("listwise_rank_df_base", "value_col", "output", None, None, None),
+            # Desc sort explicitly specified
+            ("listwise_rank_df_base", "value_col", "output", None, None, "desc"),
+            # Asc sort explicitly specified
+            ("listwise_rank_df_asc", "value_col", "output", None, None, "asc"),
+            # With ties
+            ("listwise_rank_df_w_ties", "value_col", "output", None, None, None),
+            # With casting
+            ("listwise_rank_df_casted", "value_col", "output", "int", "string", None),
+        ],
+    )
+    def test_spark_rank_transform(
+        self,
+        input_dataframe,
+        value_col,
+        output_col,
+        input_dtype,
+        output_dtype,
+        sort_order,
+        request,
+    ):
+        # given
+        input_dataframe = request.getfixturevalue(input_dataframe)
+        # when
+        transformer = ListRankTransformer(
+            inputCol=value_col,
+            outputCol=output_col,
+            inputDtype=input_dtype,
+            outputDtype=output_dtype,
+            queryIdCol="search_id",
+            sortOrder=sort_order,
+        )
+        actual = (
+            transformer.transform(input_dataframe.drop("expected"))
+            .orderBy("index")
+            .select(output_col)
+            .rdd.map(lambda r: r[0])
+            .collect()
+        )
+        # then
+        if output_dtype is not None:
+            expected = (
+                input_dataframe.orderBy("index")
+                .select(F.col("expected").cast(output_dtype).alias("expected"))
+                .rdd.map(lambda r: r[0])
+                .collect()
+            )
+        else:
+            expected = (
+                input_dataframe.orderBy("index")
+                .select("expected")
+                .rdd.map(lambda r: r[0])
+                .collect()
+            )
+        assert (
+            actual == expected
+        ), "Spark transform output does not match expected output"
+
+    @pytest.mark.parametrize(
+        "input_tensor, input_dtype, output_dtype",
+        [
+            (
+                tf.constant(
+                    [[[1.0], [1.5], [9.0], [4.0], [6.0], [2.0], [0.5], [0.0], [0.0]]],
+                    dtype=tf.float32,
+                ),
+                None,
+                None,
+            ),
+        ],
+    )
+    def test_list_rank_transform_spark_tf_parity(
+        self,
+        spark_session,
+        input_tensor,
+        input_dtype,
+        output_dtype,
+    ):
+        # given
+        transformer = ListRankTransformer(
+            inputCol="input",
+            outputCol="output",
+            inputDtype=input_dtype,
+            outputDtype=output_dtype,
+            queryIdCol="search_id",
+        )
+        # when
+        # index column is added so that Spark is forced to preserve the order
+        spark_df = spark_session.createDataFrame(
+            [(1, i, v[0]) for i, v in enumerate(input_tensor.numpy().tolist()[0])],
+            ["search_id", "index", "input"],
+        )
+        spark_values = (
+            transformer.transform(spark_df)
+            .orderBy("index")
+            .select("output")
+            .rdd.map(lambda r: r[0])
+            .collect()
+        )
+        tensorflow_values = np.reshape(
+            [
+                np.squeeze(v)
+                for v in transformer.get_tf_layer()(input_tensor).numpy().tolist()
+            ],
+            -1,
+        )
+        # then
+        np.testing.assert_almost_equal(
+            spark_values,
+            tensorflow_values,
+            decimal=6,
+            err_msg="Spark and Tensorflow transform outputs are not equal",
+        )
