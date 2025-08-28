@@ -2,6 +2,61 @@
 
 
 
+## v2.37.0 (2025-08-28)
+
+### Feature
+
+* feat: Add rank transformer (#26)
+
+* feat: Add transformer and layer
+
+* refactor: Restructure listwise params
+
+* refactor: Formatting
+
+* Add tests
+
+* docs: Update README
+
+* fix: Add top-level imports
+
+* fix: Add top-level imports
+
+* fix: Update tests
+
+* fix: Update tests
+
+* feat: Add test cases
+
+* fix: Update tests
+
+* feat: Add serialisation test
+
+* fix: Add default layer name
+
+* docs: Tidy up docstrings
+
+* feat: Add sort order option
+
+* fix: Make desc default
+
+* docs: Tidy up type hints/defaults
+
+* test: Add test cases for more axes
+
+* fix: Fix type hint
+
+* fix: Add sort order to layer config
+
+* tests: Expand serialisation test
+
+* fix: Remove unused methods
+
+---------
+
+Co-authored-by: James Shinner &lt;jshinner@expediagroup.com&gt; ([`a8af8dc`](https://github.com/ExpediaGroup/kamae/commit/a8af8dc5edd1e6a8c76ace4f9596df72c97172ee))
+
+
 ## v2.36.0 (2025-08-18)
 
 ### Feature
