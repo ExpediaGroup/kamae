@@ -510,25 +510,6 @@ class ListwiseParams(Params):
         """
         return self.getOrDefault(self.sortOrder)
 
-    def setDefaultValue(self, value: str) -> "ListwiseParams":
-        """
-        Sets the default value parameter.
-
-        :param value: Int defaults to 0, should a method only have
-        padded data this value will be returned.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(defaultValue=value)
-
-    def getDefaultValue(self) -> int:
-        """
-        Gets the default value parameter.
-
-        :returns: Int defaults to 0, should a method only have
-        padded data this value will be returned.
-        """
-        return self.getOrDefault(self.defaultValue)
-
 
 class ListwiseStatisticsParams(ListwiseParams):
     """
