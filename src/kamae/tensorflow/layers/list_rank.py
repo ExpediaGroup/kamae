@@ -39,7 +39,7 @@ class ListRankLayer(BaseLayer):
         sort_order: str = "desc",
         axis: int = 1,
         **kwargs: Any,
-    ):
+    ) -> None:
         """
         Initializes the Listwise Rank layer.
 
