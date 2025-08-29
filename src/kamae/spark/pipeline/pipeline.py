@@ -215,7 +215,7 @@ class KamaeSparkPipelineReader(PipelineReader):
     Util class for reading a pipeline from a persistent storage path.
     """
 
-    def __init__(self, cls: Type[KamaeSparkPipeline]):
+    def __init__(self, cls: Type[KamaeSparkPipeline]) -> None:
         super().__init__(cls=cls)
 
     def load(self, path: str) -> KamaeSparkPipeline:
@@ -235,5 +235,5 @@ class KamaeSparkPipelineWriter(PipelineWriter):
     Util class for writing a pipeline to a persistent storage path.
     """
 
-    def __init__(self, instance: KamaeSparkPipeline):
+    def __init__(self, instance: KamaeSparkPipeline) -> None:
         super().__init__(instance=instance)

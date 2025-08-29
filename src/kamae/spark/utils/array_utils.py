@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 import pyspark.sql.functions as F
 from pyspark.sql import Column
@@ -191,7 +191,7 @@ def nested_lambda(func: Callable, nest_level: int) -> Callable:
     :returns: Nested lambda function.
     """
 
-    def apply_func_to_list(x, function):
+    def apply_func_to_list(x: List[Any], function: Callable[[Any], Any]) -> List[Any]:
         return [function(y) for y in x]
 
     if nest_level == 0:

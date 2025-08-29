@@ -54,7 +54,7 @@ class LogTransformer(BaseTransformer, SingleInputSingleOutputMixin):
         self.layer_name = layer_name
         self.alpha = float(alpha) if alpha is not None else 1.0
 
-    def fit(self, X: pd.DataFrame, y=None) -> "LogTransformer":
+    def fit(self, X: pd.DataFrame, y: None = None) -> "LogTransformer":
         """
         Fits the transformer. Does nothing since this is just a transformer.
 
@@ -64,7 +64,7 @@ class LogTransformer(BaseTransformer, SingleInputSingleOutputMixin):
         """
         return self
 
-    def transform(self, X: pd.DataFrame, y=None) -> pd.DataFrame:
+    def transform(self, X: pd.DataFrame, y: None = None) -> pd.DataFrame:
         """
         Transforms the data using the transformer. Creates a new column with name
         `output_col`, which applies log(alpha + x) transform to the `input_col`.

@@ -40,7 +40,11 @@ class CurrentDateTimeLayer(BaseLayer):
     """
 
     def __init__(
-        self, name=None, input_dtype: str = None, output_dtype: str = None, **kwargs
+        self,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises an instance of the CurrentDateTimeLayer layer.
@@ -64,7 +68,7 @@ class CurrentDateTimeLayer(BaseLayer):
         return None
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> tf.Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Returns the current timestamp in yyyy-MM-dd HH:mm:ss format.
         Uses the input tensor to determine the shape of the output tensor.

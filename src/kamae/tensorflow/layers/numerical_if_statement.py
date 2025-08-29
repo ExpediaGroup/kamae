@@ -53,13 +53,13 @@ class NumericalIfStatementLayer(BaseLayer):
     def __init__(
         self,
         condition_operator: str,
-        value_to_compare: float = None,
-        result_if_true: float = None,
-        result_if_false: float = None,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        value_to_compare: Optional[float] = None,
+        result_if_true: Optional[float] = None,
+        result_if_false: Optional[float] = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the NumericalIfStatementLayer layer.
@@ -136,7 +136,7 @@ class NumericalIfStatementLayer(BaseLayer):
         return multiple_inputs
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs) -> Tensor:
+    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
         Performs the numerical if statement on the inputs. If the inputs are a tensor,
         we assume that the value_to_compare, result_if_true, and result_if_false are

@@ -45,7 +45,7 @@ install: # Install project dependencies.
 
 .PHONY: lint
 lint: # Check code quality using flake8 & pylint.
-	uv run flake8 src/kamae --max-complexity 10 --max-line-length 88 --extend-ignore E203 -v && \
+	uv run flake8 src/kamae --select=ANN -v && \
     uv run pylint src/kamae --fail-under 5 --disable=E0401,E0611,R0903
 
 .PHONY: format

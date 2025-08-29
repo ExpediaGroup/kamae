@@ -43,16 +43,16 @@ class ListMedianLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        top_n: int = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        top_n: Optional[int] = None,
         sort_order: str = "asc",
-        min_filter_value: float = None,
+        min_filter_value: Optional[float] = None,
         nan_fill_value: float = 0.0,
         axis: int = 1,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """
         Initializes the Listwise Median layer.
 
@@ -102,7 +102,7 @@ class ListMedianLayer(BaseLayer):
             tf.complex128,
         ]
 
-    def sort_with_nans_last(self, tensor: Tensor):
+    def sort_with_nans_last(self, tensor: Tensor) -> Tensor:
         """
         Sorts a tensor while placing NaN values at the end along the specified axis.
 
@@ -126,7 +126,7 @@ class ListMedianLayer(BaseLayer):
         return sorted_masked_tensor
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs) -> Tensor:
+    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
         """
         Calculate the listwise median, optionally sorting and
         filtering based on the second input tensor.

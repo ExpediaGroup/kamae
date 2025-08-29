@@ -32,10 +32,10 @@ class BaseLayer(tf.keras.layers.Layer, ABC):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the BaseLayer.
@@ -360,7 +360,9 @@ class BaseLayer(tf.keras.layers.Layer, ABC):
                 )
 
     @allow_single_or_multiple_tensor_input
-    def call(self, inputs: Iterable[Tensor], **kwargs) -> Union[Tensor, List[Tensor]]:
+    def call(
+        self, inputs: Iterable[Tensor], **kwargs: Any
+    ) -> Union[Tensor, List[Tensor]]:
         """
         Casts inputs to the given `input_dtype`, calls the internal `_call` method, and
         casts the outputs to the given `output_dtype`.
@@ -380,7 +382,7 @@ class BaseLayer(tf.keras.layers.Layer, ABC):
 
     @abstractmethod
     def _call(
-        self, inputs: Union[Tensor, List[Tensor]], **kwargs
+        self, inputs: Union[Tensor, List[Tensor]], **kwargs: Any
     ) -> Union[Tensor, List[Tensor]]:
         """
         The internal call method that should be implemented by the layer.

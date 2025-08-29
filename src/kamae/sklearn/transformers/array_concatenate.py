@@ -39,7 +39,7 @@ class ArrayConcatenateTransformer(
         self.output_col = output_col
         self.layer_name = layer_name
 
-    def fit(self, X: pd.DataFrame, y=None) -> "ArrayConcatenateTransformer":
+    def fit(self, X: pd.DataFrame, y: None = None) -> "ArrayConcatenateTransformer":
         """
         Fits the transformer to the data. Does nothing since
         this is transformer not an estimator.
@@ -50,7 +50,7 @@ class ArrayConcatenateTransformer(
         """
         return self
 
-    def transform(self, X: pd.DataFrame, y=None) -> pd.DataFrame:
+    def transform(self, X: pd.DataFrame, y: None = None) -> pd.DataFrame:
         """
         Transform the input dataset. Creates a new column named outputCol which is a
         concatenated array of all input columns.

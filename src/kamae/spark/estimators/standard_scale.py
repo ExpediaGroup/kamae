@@ -21,6 +21,7 @@ from typing import List, Optional
 import numpy as np
 import pyspark.sql.functions as F
 from pyspark import keyword_only
+from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
 from kamae.spark.params import MaskValueParams, SingleInputSingleOutputParams
@@ -84,7 +85,7 @@ class StandardScaleEstimator(
         """
         return [FloatType(), DoubleType()]
 
-    def _fit(self, dataset) -> "StandardScaleTransformer":
+    def _fit(self, dataset: DataFrame) -> "StandardScaleTransformer":
         """
         Fits the StandardScaleEstimator estimator to the given dataset.
         Calculates the mean and standard deviation of the input feature column and

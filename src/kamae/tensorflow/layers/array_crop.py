@@ -35,12 +35,12 @@ class ArrayCropLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
+        name: Optional[str] = None,
         input_dtype: Union[str, int, float] = None,
         output_dtype: Union[str, int, float] = None,
         array_length: int = 128,
         pad_value: Union[str, int, float] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the ArrayCropLayer.
@@ -72,7 +72,7 @@ class ArrayCropLayer(BaseLayer):
         return None
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Crops the tensor to specified length and pads with specified value.
 

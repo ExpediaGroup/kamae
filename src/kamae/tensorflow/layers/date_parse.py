@@ -65,11 +65,11 @@ class DateParseLayer(BaseLayer):
     def __init__(
         self,
         date_part: str,
-        name=None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         default_value: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises an instance of the DateParseLayer layer.
@@ -111,7 +111,7 @@ class DateParseLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Extracts date part from date(time) string.
 

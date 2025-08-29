@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Union
 
+import numpy as np
 import tensorflow as tf
 
 import kamae
@@ -36,15 +37,15 @@ class ConditionalStandardScaleLayer(NormalizeLayer):
 
     def __init__(
         self,
-        mean,
-        variance,
-        name: str = None,
-        axis=-1,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        mean: Union[List[float], np.array],
+        variance: Union[List[float], np.array],
+        name: Optional[str] = None,
+        axis: Optional[Union[int, tuple[int]]] = -1,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         skip_zeros: bool = False,
         epsilon: float = 0,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Intialise the ConditionalStandardScaleLayer layer.
@@ -89,7 +90,7 @@ class ConditionalStandardScaleLayer(NormalizeLayer):
         self.epsilon = epsilon
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs normalization on the input tensor(s) by calling the keras
         ConditionalStandardScaleLayer layer.

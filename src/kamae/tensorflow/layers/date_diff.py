@@ -34,11 +34,11 @@ class DateDiffLayer(BaseLayer):
 
     def __init__(
         self,
-        name=None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         default_value: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the DateDiffLayer layer.
@@ -62,7 +62,7 @@ class DateDiffLayer(BaseLayer):
         return [tf.string]
 
     @enforce_multiple_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the date difference operation on two input tensors.
 

@@ -16,7 +16,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import pyspark.sql.functions as F
 from pyspark.ml.param import Params
@@ -77,7 +77,7 @@ class InputOutputExtractor(Params):
         )
 
     def get_multiple_input_cols(
-        self, constant_param_name: str, input_cols_limit: int = None
+        self, constant_param_name: str, input_cols_limit: Optional[int] = None
     ) -> List[Column]:
         """
         Gets the (possibly multiple) input columns for the transformer.

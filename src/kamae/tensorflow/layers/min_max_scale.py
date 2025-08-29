@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import tensorflow as tf
@@ -36,14 +36,14 @@ class MinMaxScaleLayer(BaseLayer):
 
     def __init__(
         self,
-        min,
-        max,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        axis=-1,
-        mask_value: float = None,
-        **kwargs,
+        min: Union[List[float], np.array],
+        max: Union[List[float], np.array],
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        axis: int = -1,
+        mask_value: Optional[float] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Intialise the MinMaxScaleLayer layer.
@@ -84,7 +84,7 @@ class MinMaxScaleLayer(BaseLayer):
         """
         return [tf.bfloat16, tf.float16, tf.float32, tf.float64]
 
-    def build(self, input_shape) -> None:
+    def build(self, input_shape: Tuple[int]) -> None:
         """
         Builds shapes for the min and max tensors.
 
@@ -152,7 +152,7 @@ class MinMaxScaleLayer(BaseLayer):
         )
         return config
 
-    def get_build_config(self):
+    def get_build_config(self) -> Optional[Dict[str, Any]]:
         """
         Gets the build configuration of the MinMaxScaleLayer layer.
 
@@ -163,7 +163,7 @@ class MinMaxScaleLayer(BaseLayer):
         if self._build_input_shape:
             return {"input_shape": self._build_input_shape}
 
-    def build_from_config(self, config):
+    def build_from_config(self, config: Dict[str, Any]) -> None:
         """
         Builds the min/max tensor shapes from the provided configuration.
 
@@ -177,7 +177,7 @@ class MinMaxScaleLayer(BaseLayer):
             self.build(config["input_shape"])
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs normalization on the input tensor(s) to scale it to the range [0, 1]
         Decorated with `@enforce_single_tensor_input` to ensure that

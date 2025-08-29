@@ -17,7 +17,7 @@
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
 from bisect import bisect_right
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import pyspark.sql.functions as F
 import tensorflow as tf
@@ -48,7 +48,7 @@ class BucketizeParams(Params):
     )
 
     @staticmethod
-    def check_splits_sorted(splits: List[float]):
+    def check_splits_sorted(splits: List[float]) -> None:
         """
         Checks that the splits parameter is sorted.
 
@@ -138,7 +138,7 @@ class BucketizeTransformer(
         splits = self.getSplits()
         # We need to create a UDF to perform binary search on the splits.
 
-        def bucketize(value):
+        def bucketize(value: Optional[Union[float, int]]) -> Optional[int]:
             # If null, keep null. There is no best bucket to place these into.
             if value is None:
                 return None

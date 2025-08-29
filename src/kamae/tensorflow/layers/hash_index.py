@@ -43,11 +43,11 @@ class HashIndexLayer(BaseLayer):
     def __init__(
         self,
         num_bins: int,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        mask_value: Union[int, str] = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        mask_value: Optional[Union[int, str]] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Intialise the HashIndexLayer layer.
@@ -79,7 +79,7 @@ class HashIndexLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the hash indexing on the input tensor by calling the underlying
         Hashing layer.
