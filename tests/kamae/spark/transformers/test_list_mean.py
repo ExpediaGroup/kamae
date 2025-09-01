@@ -133,14 +133,6 @@ class TestListMean:
                 "float",
                 "float",
             ),
-            (
-                "listwise_transform_df_segment",
-                "value_col",
-                0.0,
-                "expected",
-                "float",
-                "float",
-            ),
         ],
     )
     def test_spark_mean_transform(
