@@ -18,7 +18,11 @@ import tensorflow as tf
 
 import kamae
 from kamae.tensorflow.typing import Tensor
-from kamae.tensorflow.utils import allow_single_or_multiple_tensor_input, get_top_n
+from kamae.tensorflow.utils import (
+    allow_single_or_multiple_tensor_input,
+    get_top_n,
+    map_fn_w_axis,
+)
 
 from .base import BaseLayer
 
@@ -29,7 +33,12 @@ class ListMinLayer(BaseLayer):
     Calculate the min across the axis dimension.
     - If one tensor is passed, the transformer calculates the min of the tensor
     based on all the items in the given axis dimension.
-    - If inputCols is set, the transformer calculates the min of the first tensor
+    - If inputCols is set,
+        - If with_segment = True: the layer calculates the minimum of the first tensor
+        segmented by values of the second tensor.
+        Example: calculate the minimum price of hotels within star ratings
+
+        - If with_segment = False: the layer calculates the min of the first tensor
     based on second tensor's topN items in the same given axis dimension.
 
     By using the topN items to calculate the statistics, we can better approximate
@@ -43,11 +52,12 @@ class ListMinLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str,
+        name: str = None,
         input_dtype: str = None,
         output_dtype: str = None,
         top_n: int = None,
         sort_order: str = "asc",
+        with_segment: bool = False,
         min_filter_value: float = None,
         nan_fill_value: float = 0.0,
         axis: int = 1,
@@ -66,6 +76,8 @@ class ListMinLayer(BaseLayer):
         :param output_dtype: The dtype to cast the output to. Defaults to `None`.
         :param top_n: The number of top items to consider when calculating the min.
         :param sort_order: The order to sort the second tensor by. Defaults to `asc`.
+        :param with_segment: Whether the second tensor should be used for segmentation (True)
+        or sorting (False). Defaults to False.
         :param min_filter_value: The minimum filter value to ignore values during
         calculation. Defaults to None (no filter).
         :param nan_fill_value: The value to fill NaNs results with. Defaults to 0.
@@ -79,6 +91,7 @@ class ListMinLayer(BaseLayer):
         self.min_filter_value = min_filter_value
         self.nan_fill_value = nan_fill_value
         self.axis = axis
+        self.with_segment = with_segment
 
     @property
     def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
@@ -100,13 +113,15 @@ class ListMinLayer(BaseLayer):
             tf.int64,
             tf.complex64,
             tf.complex128,
+            tf.string,
         ]
 
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs) -> Tensor:
         """
         Calculate the listwise min, optionally sorting and
-        filtering based on the second input tensor.
+        filtering based on the second input tensor, or segmenting
+        based on the second input tensor. Behaviour is set by with_segment.
 
         :param inputs: The iterable tensor for the feature.
         :returns: Thew new tensor result column.
@@ -114,42 +129,65 @@ class ListMinLayer(BaseLayer):
         val_tensor = inputs[0]
         output_shape = tf.shape(val_tensor)
 
-        with_sort = True if len(inputs) == 2 else False
-        sort_tensor = inputs[1] if with_sort else None
-
-        if with_sort and self.top_n is None:
-            raise ValueError("topN must be specified when using a sort column.")
-
-        if with_sort:
-            # Get the values corresponding to the top N item in the sort tensor
-            filtered_tensor = get_top_n(
-                val_tensor=val_tensor,
-                axis=self.axis,
-                sort_tensor=sort_tensor,
-                sort_order=self.sort_order,
-                top_n=self.top_n,
-            )
-        else:
-            filtered_tensor = val_tensor
+        # Define use of second input
+        if len(inputs) == 2:
+            if self.with_segment:
+                segment_tensor = inputs[1]
+            else:
+                sort_tensor = inputs[1]
+                if self.top_n is None:
+                    raise ValueError("topN must be specified when using a sort column.")
+                val_tensor = get_top_n(
+                    val_tensor=val_tensor,
+                    axis=self.axis,
+                    sort_tensor=sort_tensor,
+                    sort_order=self.sort_order,
+                    top_n=self.top_n,
+                )
 
         # Apply the mask to filter out elements less than or equal to the threshold
         if self.min_filter_value is not None:
-            mask = tf.greater_equal(filtered_tensor, self.min_filter_value)
+            mask = tf.greater_equal(val_tensor, self.min_filter_value)
             inf = val_tensor.dtype.max
-            cond = tf.where(mask, filtered_tensor, inf)
-            listwise_stat = tf.reduce_min(cond, axis=self.axis, keepdims=True)
-            is_integer = listwise_stat.dtype.is_integer
-            nan_val = int(self.nan_fill_value) if is_integer else self.nan_fill_value
-            fill_val = tf.constant(nan_val, dtype=listwise_stat.dtype)
-            listwise_min = tf.where(listwise_stat != inf, listwise_stat, fill_val)
-
+            val_tensor = tf.where(mask, val_tensor, inf)
         else:
-            # Calculate the mean without filtering
-            listwise_min = tf.reduce_min(filtered_tensor, axis=self.axis, keepdims=True)
+            val_tensor = val_tensor
 
-        # Broadcast the stat to each item in the list
-        # WARNING: If filter creates empty items list, the result will be NaN
-        listwise_min = tf.broadcast_to(listwise_min, output_shape)
+        # Apply segmented calculation
+        if self.with_segment:
+
+            def segment_min(values):
+                unique_segments, segment_indices = tf.unique(values[1])
+                num_segments = tf.size(unique_segments)
+                # Cast
+                flat_v = tf.cast(values[0], tf.float32)
+                min_vals = tf.math.unsorted_segment_min(
+                    flat_v, segment_indices, num_segments
+                )
+                gathered = tf.gather(min_vals, segment_indices)
+                return tf.reshape(gathered, tf.shape(values[0]))
+
+            listwise_min = map_fn_w_axis(
+                elems=[val_tensor, segment_tensor],
+                fn=segment_min,
+                axis=self.axis,
+                fn_output_signature=tf.TensorSpec(
+                    shape=val_tensor.shape[self.axis], dtype=tf.float32
+                ),
+            )
+        # Apply global calculation
+        else:
+            listwise_min = tf.reduce_min(val_tensor, axis=self.axis, keepdims=True)
+            listwise_min = tf.broadcast_to(listwise_min, output_shape)
+
+        if self.min_filter_value is not None:
+            # Fill NaNs
+            is_integer = listwise_min.dtype.is_integer
+            nan_val = int(self.nan_fill_value) if is_integer else self.nan_fill_value
+            fill_val = tf.constant(nan_val, dtype=listwise_min.dtype)
+            listwise_min = tf.where(
+                listwise_min != listwise_min.dtype.max, listwise_min, fill_val
+            )
 
         return listwise_min
 
@@ -168,6 +206,7 @@ class ListMinLayer(BaseLayer):
                 "min_filter_value": self.min_filter_value,
                 "nan_fill_value": self.nan_fill_value,
                 "axis": self.axis,
+                "with_segment": self.with_segment,
             }
         )
         return config

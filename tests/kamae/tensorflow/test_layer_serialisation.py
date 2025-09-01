@@ -57,6 +57,9 @@ from kamae.tensorflow.layers import (
     IfStatementLayer,
     ImputeLayer,
     LambdaFunctionLayer,
+    ListMaxLayer,
+    ListMeanLayer,
+    ListMinLayer,
     LogicalAndLayer,
     LogicalNotLayer,
     LogicalOrLayer,
@@ -70,9 +73,6 @@ from kamae.tensorflow.layers import (
     OrdinalArrayEncodeLayer,
     RoundLayer,
     RoundToDecimalLayer,
-    SegmentMaxLayer,
-    SegmentMeanLayer,
-    SegmentMinLayer,
     StandardScaleLayer,
     StringAffixLayer,
     StringArrayConstantLayer,
@@ -206,6 +206,9 @@ from kamae.tensorflow.layers import (
             False,
         ),
         (IdentityLayer, [tf.random.normal((100, 10, 5))], None, False),
+        (ListMaxLayer, [tf.random.normal((100, 10, 5))], None, False),
+        (ListMeanLayer, [tf.random.normal((100, 10, 5))], None, False),
+        (ListMinLayer, [tf.random.normal((100, 10, 5))], None, False),
         (
             IfStatementLayer,
             [tf.random.normal((100, 10, 5)), tf.random.normal((100, 10, 5))],
@@ -286,57 +289,6 @@ from kamae.tensorflow.layers import (
                 "input_dtype": "float",
                 "output_dtype": "float",
             },
-            False,
-        ),
-        (
-            SegmentMaxLayer,
-            [
-                tf.constant(
-                    [
-                        [[2], [5], [8], [8], [9], [1]],
-                    ]
-                ),
-                tf.constant(
-                    [
-                        [["2"], ["2"], ["2"], ["1"], ["1"], ["1"]],
-                    ]
-                ),
-            ],
-            None,
-            False,
-        ),
-        (
-            SegmentMeanLayer,
-            [
-                tf.constant(
-                    [
-                        [[2], [5], [8], [8], [9], [1]],
-                    ]
-                ),
-                tf.constant(
-                    [
-                        [["2"], ["2"], ["2"], ["1"], ["1"], ["1"]],
-                    ]
-                ),
-            ],
-            None,
-            False,
-        ),
-        (
-            SegmentMinLayer,
-            [
-                tf.constant(
-                    [
-                        [[2], [5], [8], [8], [9], [1]],
-                    ]
-                ),
-                tf.constant(
-                    [
-                        [[2], [2], [2], [1], [1], [1]],
-                    ]
-                ),
-            ],
-            None,
             False,
         ),
         (

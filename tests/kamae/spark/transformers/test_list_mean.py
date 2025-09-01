@@ -97,6 +97,23 @@ class TestListMean:
             ],
         )
 
+    @pytest.fixture(scope="class")
+    def listwise_transform_df_segment(self, spark_session):
+        return spark_session.createDataFrame(
+            [
+                (1, 5, 1, 6.5),
+                (1, 2, 2, 2.0),
+                (1, 2, 2, 2.0),
+                (1, 8, 1, 6.5),
+            ],
+            [
+                "search_id",
+                "value_col",
+                "segment_col",
+                "expected",
+            ],
+        )
+
     @pytest.mark.parametrize(
         "input_dataframe, value_col, min_filter_value, output_col, input_dtype, output_dtype",
         [
@@ -110,6 +127,14 @@ class TestListMean:
             ),
             (
                 "listwise_transform_df_min_value",
+                "value_col",
+                0.0,
+                "expected",
+                "float",
+                "float",
+            ),
+            (
+                "listwise_transform_df_segment",
                 "value_col",
                 0.0,
                 "expected",
@@ -205,7 +230,49 @@ class TestListMean:
         assert diff.isEmpty(), "Expected and actual dataframes are not equal"
 
     @pytest.mark.parametrize(
-        "list_size, qid_tensor, input_tensors, min_filter_value, top_n, input_dtype, output_dtype",
+        "input_dataframe, value_col, segment_col, output_col, input_dtype, output_dtype",
+        [
+            (
+                "listwise_transform_df_segment",
+                "value_col",
+                "segment_col",
+                "expected",
+                "float",
+                "float",
+            ),
+        ],
+    )
+    def test_spark_mean_transform_with_segmentation(
+        self,
+        input_dataframe,
+        value_col,
+        segment_col,
+        output_col,
+        input_dtype,
+        output_dtype,
+        request,
+    ):
+        # given
+        input_dataframe = request.getfixturevalue(input_dataframe)
+        # when
+        transformer = ListMeanTransformer(
+            inputCols=[value_col, segment_col],
+            outputCol=output_col,
+            inputDtype=input_dtype,
+            outputDtype=output_dtype,
+            queryIdCol="search_id",
+            withSegment=True,
+        )
+        actual = transformer.transform(input_dataframe.drop("expected"))
+        # then
+        expected = input_dataframe.select(
+            F.col("expected").cast(output_dtype).alias("expected")
+        )
+        diff = actual.select("expected").exceptAll(expected)
+        assert diff.isEmpty(), "Expected and actual dataframes are not equal"
+
+    @pytest.mark.parametrize(
+        "list_size, qid_tensor, input_tensors, min_filter_value, with_segment, top_n, input_dtype, output_dtype",
         [
             # Base case
             (
@@ -256,6 +323,7 @@ class TestListMean:
                     ),
                 ],
                 None,
+                False,
                 None,
                 "double",
                 "float",
@@ -309,6 +377,7 @@ class TestListMean:
                     ),
                 ],
                 1,
+                False,
                 None,
                 "double",
                 "float",
@@ -384,6 +453,7 @@ class TestListMean:
                     ),
                 ],
                 None,
+                False,
                 5,
                 "double",
                 "float",
@@ -459,6 +529,7 @@ class TestListMean:
                     ),
                 ],
                 1,
+                False,
                 5,
                 "double",
                 "float",
@@ -504,7 +575,100 @@ class TestListMean:
                     ),
                 ],
                 1,
+                False,
                 5,
+                "double",
+                "float",
+            ),
+            # With segmentation
+            (
+                3,
+                tf.constant(
+                    [
+                        [1],
+                        [1],
+                        [1],
+                        [2],
+                        [2],
+                        [2],
+                    ],
+                    dtype=tf.float32,
+                ),
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [1.0],
+                            [1.0],
+                            [4.0],
+                            [5.0],
+                            [5.0],
+                            [20.0],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    # segment
+                    tf.constant(
+                        [
+                            [1.0],
+                            [1.0],
+                            [2.0],
+                            [1.0],
+                            [1.0],
+                            [2.0],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                ],
+                0,
+                True,
+                None,
+                "double",
+                "float",
+            ),
+            # With segmentation & filter
+            (
+                3,
+                tf.constant(
+                    [
+                        [1],
+                        [1],
+                        [1],
+                        [2],
+                        [2],
+                        [2],
+                    ],
+                    dtype=tf.float32,
+                ),
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [1.0],
+                            [1.0],
+                            [4.0],
+                            [5.0],
+                            [5.0],
+                            [20.0],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    # segment
+                    tf.constant(
+                        [
+                            [1.0],
+                            [1.0],
+                            [2.0],
+                            [1.0],
+                            [1.0],
+                            [2.0],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                ],
+                2.0,
+                True,
+                None,
                 "double",
                 "float",
             ),
@@ -517,6 +681,7 @@ class TestListMean:
         qid_tensor,
         input_tensors,
         min_filter_value,
+        with_segment,
         top_n,
         input_dtype,
         output_dtype,
@@ -531,8 +696,8 @@ class TestListMean:
             outputDtype=output_dtype,
             queryIdCol="search_id",
             minFilterValue=min_filter_value,
+            withSegment=with_segment,
             topN=top_n,
-            sortOrder="asc",
         )
         # when
         qid_inputs_tensors = [qid_tensor] + input_tensors

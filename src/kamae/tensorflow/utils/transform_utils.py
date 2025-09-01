@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
+from typing import Callable, List, Tuple, Union
 
 import tensorflow as tf
 
@@ -20,7 +20,7 @@ from kamae.tensorflow.typing import Tensor
 
 
 def map_fn_w_axis(
-    elems: Tensor,
+    elems: Union[Tensor, List[Tensor]],
     fn: Callable[[Tensor], Tensor],
     fn_output_signature: tf.dtypes.DType,
     axis: int = -1,
@@ -37,7 +37,7 @@ def map_fn_w_axis(
     After applying map_fn, the tensor is reshaped and transposed back to the original
     shape.
 
-    :param elems: The input tensor.
+    :param elems: The input tensor or list of tensors.
     :param fn: The function to apply to the tensor. Must take a single tensor as input
     and return a tensor.
     :param fn_output_signature: The output signature of the function.
@@ -48,21 +48,48 @@ def map_fn_w_axis(
     :param infer_shape: Whether to infer the shape of the output. Defaults to True.
     :param name: The name of the operation. Defaults to None.
     """
+
+    def apply_transpose_and_reshape(tensor):
+        transposed = tf.transpose(tensor, perm=transpose_perm)
+        reshaped = tf.reshape(transposed, tf.stack([-1, tf.shape(tensor)[axis]]))
+        return reshaped
+
+    def apply_undo_transpose_and_reshape(
+        output, transposed_shape, identity_perm, shift_axis
+    ):
+        reshaped = tf.reshape(output, transposed_shape)
+        perm = tf.roll(identity_perm, shift=shift_axis, axis=0)
+        return tf.transpose(reshaped, perm=perm)
+
+    if isinstance(elems, list):
+        if len(elems) > 2:
+            raise ValueError("Passing 3 or more tensors as input is not supported.")
+        elems_rank = tf.rank(elems[0])
+        original_shape = tf.shape(elems[0])
+    else:
+        elems_rank = tf.rank(elems)
+        original_shape = tf.shape(elems)
+
     # Permutation tensor that does nothing/identity
-    identity_perm = tf.range(start=0, limit=tf.rank(elems))
+    identity_perm = tf.range(start=0, limit=elems_rank)
     # Mod the axis param by the rank of the tensor and add 1. To resolve the positive
     # axis value when axis is negative.
     # Create the shift axis. We will roll the identity permutation by this amount to
     # transpose the input
-    shift_axis = tf.math.mod(axis, tf.rank(elems)) + 1
+    shift_axis = tf.math.mod(axis, elems_rank) + 1
     # Roll by negative shift axis. For example if
     # axis=0, shift_axis=1, identity_perm=[0, 1, 2]
     # Then transpose_perm = [1, 2, 0]
+    transpose_perm = tf.roll(identity_perm, shift=-shift_axis, axis=0)
 
     # Transpose and reshape
-    transpose_perm = tf.roll(identity_perm, shift=-shift_axis, axis=0)
-    transposed_input = tf.transpose(elems, perm=transpose_perm)
-    reshaped_input = tf.reshape(transposed_input, tf.stack([-1, tf.shape(elems)[axis]]))
+    if isinstance(elems, list):
+        reshaped_input = (
+            apply_transpose_and_reshape(elems[0]),
+            apply_transpose_and_reshape(elems[1]),
+        )
+    else:
+        reshaped_input = apply_transpose_and_reshape(elems)
 
     # Apply map_fn
     output = tf.map_fn(
@@ -76,6 +103,7 @@ def map_fn_w_axis(
     )
 
     # Undo reshape and transpose
-    undo_reshaped_output = tf.reshape(output, tf.shape(transposed_input))
-    undo_transpose_perm = tf.roll(identity_perm, shift=shift_axis, axis=0)
-    return tf.transpose(undo_reshaped_output, perm=undo_transpose_perm)
+    transposed_shape = tf.gather(original_shape, transpose_perm)
+    return apply_undo_transpose_and_reshape(
+        output, transposed_shape, identity_perm, shift_axis
+    )

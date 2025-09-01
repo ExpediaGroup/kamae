@@ -458,6 +458,13 @@ class ListwiseStatisticsParams(Params):
         such as 'search_id'.""",
         typeConverter=TypeConverters.toString,
     )
+    withSegment = Param(
+        Params._dummy(),
+        "withSegment",
+        """Boolean specifying whether the second input col
+        should be used for segmentation of statistic calculation.""",
+        typeConverter=TypeConverters.toBoolean,
+    )
     topN = Param(
         Params._dummy(),
         "topN",
@@ -491,8 +498,9 @@ class ListwiseStatisticsParams(Params):
                 """
                 Arg inputCols must contain exactly two columns.
                 The first is the value column, on which to calculate the statistic.
-                The second is the sort column, based on which to sort the items.
-                If you don't need sorting, use setInputCol instead.
+                The second is either the sort column, based on which to sort the items or
+                the segment column, which segments the statistic calculation.
+                If you don't need sorting or segmenting, use setInputCol instead.
                 """
             )
         if self.getTopN() is None:
@@ -515,6 +523,24 @@ class ListwiseStatisticsParams(Params):
         :returns:  String for column name to aggregate upon.
         """
         return self.getOrDefault(self.queryIdCol)
+
+    def setWithSegment(self, value: bool) -> "ListwiseStatisticsParams":
+        """
+        Sets the query id parameter.
+
+        :param value: String for column name to aggregate upon.
+        :returns: Instance of class mixed in.
+        """
+        return self._set(withSegment=value)
+
+    def getWithSegment(self) -> bool:
+        """
+        Gets the withSegment parameter.
+
+        :returns:  Boolean specifying whether the second
+        input column should be used for segmentation (True) or sorting (False)
+        """
+        return self.getOrDefault(self.withSegment)
 
     def setTopN(self, value: int) -> "ListwiseStatisticsParams":
         """
