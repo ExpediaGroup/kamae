@@ -1,0 +1,6108 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Automatic documentation from sources, for MkDocs.">
+      
+      
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../achieving_type_parity/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.5">
+    
+    
+      
+        <title>Adding new transforms - Kamae</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.8608ea7d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#contributing-a-keras-layer-and-sparkscikit-learn-transformer" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Kamae" class="md-header__button md-logo" aria-label="Kamae" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Kamae
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Adding new transforms
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ExpediaGroup/kamae" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kamae
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Kamae" class="md-nav__button md-logo" aria-label="Kamae" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Kamae
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ExpediaGroup/kamae" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kamae
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Home
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Adding new transforms
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Adding new transforms
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#naming" class="md-nav__link">
+    <span class="md-ellipsis">
+      Naming
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keras-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Keras layer
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Keras layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checklist
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spark-transformerestimator" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spark Transformer/Estimator
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Spark Transformer/Estimator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checklist_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checklist
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scikit-learn-transformerestimator" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scikit-learn Transformer/Estimator
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scikit-learn Transformer/Estimator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checklist_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checklist
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../achieving_type_parity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Achieving type parity between Spark & Keras
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../achieving_shape_parity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Achieving shape parity between Spark & Keras
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chaining_models/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Chaining models
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing_inference/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing inference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Code Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Code Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    src
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            src
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    kamae
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1" id="__nav_2_1_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            kamae
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/graph/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    graph
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_1" id="__nav_2_1_1_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_1_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            graph
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/graph/pipeline_graph/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    pipeline_graph
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/sklearn/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    sklearn
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_2" id="__nav_2_1_1_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_1_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            sklearn
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_2_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/sklearn/estimators/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    estimators
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_2_1" id="__nav_2_1_1_2_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            estimators
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/sklearn/estimators/standard_scale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    standard_scale
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_2_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/sklearn/params/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    params
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_2_2" id="__nav_2_1_1_2_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            params
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/sklearn/params/base/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    base
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/sklearn/params/name/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    name
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/sklearn/params/utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_2_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/sklearn/pipeline/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    pipeline
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_2_3" id="__nav_2_1_1_2_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            pipeline
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/sklearn/pipeline/pipeline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_2_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/sklearn/transformers/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    transformers
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_2_4" id="__nav_2_1_1_2_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            transformers
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/sklearn/transformers/array_concatenate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    array_concatenate
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/sklearn/transformers/array_split/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    array_split
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/sklearn/transformers/base/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    base
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/sklearn/transformers/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    identity
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/sklearn/transformers/log/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    log
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/spark/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    spark
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_3" id="__nav_2_1_1_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_1_1_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_3">
+            <span class="md-nav__icon md-icon"></span>
+            spark
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/spark/common/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    common
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_3_1" id="__nav_2_1_1_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            common
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/common/spark_operation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    spark_operation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_3_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/spark/estimators/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    estimators
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_3_2" id="__nav_2_1_1_3_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            estimators
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/estimators/base/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    base
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/estimators/conditional_standard_scale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    conditional_standard_scale
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/estimators/impute/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    impute
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/estimators/min_max_scale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    min_max_scale
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/estimators/one_hot_encode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    one_hot_encode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/estimators/shared_one_hot_encode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    shared_one_hot_encode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/estimators/shared_string_index/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    shared_string_index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/estimators/single_feature_array_standard_scale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    single_feature_array_standard_scale
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/estimators/standard_scale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    standard_scale
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/estimators/string_index/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_3_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/spark/params/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    params
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_3_3" id="__nav_2_1_1_3_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            params
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/params/base/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    base
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/params/default_read_write/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    default_read_write
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/params/name/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    name
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/params/shared/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    shared
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/params/utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_3_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/spark/pipeline/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    pipeline
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_3_4" id="__nav_2_1_1_3_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            pipeline
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/pipeline/pipeline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/pipeline/pipeline_model/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    pipeline_model
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_3_5" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/spark/transformers/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    transformers
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_3_5" id="__nav_2_1_1_3_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            transformers
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/absolute_value/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    absolute_value
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/array_concatenate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    array_concatenate
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/array_crop/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    array_crop
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/array_split/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    array_split
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/array_subtract_minimum/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    array_subtract_minimum
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/base/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    base
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/bearing_angle/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    bearing_angle
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/bin/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    bin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/bloom_encode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    bloom_encode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/bucketize/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    bucketize
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/conditional_standard_scale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    conditional_standard_scale
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/cosine_similarity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    cosine_similarity
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/current_date/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    current_date
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/current_date_time/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    current_date_time
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/current_unix_timestamp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    current_unix_timestamp
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/date_add/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    date_add
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/date_diff/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    date_diff
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/date_parse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    date_parse
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/date_time_to_unix_timestamp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    date_time_to_unix_timestamp
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/divide/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    divide
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/exp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    exp
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/exponent/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    exponent
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/hash_index/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    hash_index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/haversine_distance/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    haversine_distance
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    identity
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/if_statement/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    if_statement
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/impute/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    impute
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/lambda_function/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    lambda_function
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/list_max/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_max
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/list_mean/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_mean
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/list_median/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_median
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/list_min/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_min
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/list_rank/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_rank
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/list_std_dev/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_std_dev
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/log/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    log
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/logical_and/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    logical_and
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/logical_not/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    logical_not
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/logical_or/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    logical_or
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/max/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    max
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/mean/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    mean
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/min/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    min
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/min_hash_index/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    min_hash_index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/min_max_scale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    min_max_scale
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/modulo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    modulo
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/multiply/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    multiply
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/numerical_if_statement/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    numerical_if_statement
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/one_hot_encode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    one_hot_encode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/ordinal_array_encode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ordinal_array_encode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/round/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    round
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/round_to_decimal/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    round_to_decimal
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/shared_one_hot_encode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    shared_one_hot_encode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/shared_string_index/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    shared_string_index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/standard_scale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    standard_scale
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_affix/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_affix
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_array_constant/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_array_constant
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_case/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_case
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_concatenate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_concatenate
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_contains/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_contains
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_contains_list/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_contains_list
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_equals_if_statement/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_equals_if_statement
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_index/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_isin_list/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_isin_list
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_list_to_string/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_list_to_string
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_map/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_map
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_replace/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_replace
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/string_to_string_list/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_to_string_list
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/sub_string_delim_at_index/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    sub_string_delim_at_index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/subtract/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    subtract
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/sum/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    sum
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/transformers/unix_timestamp_to_date_time/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    unix_timestamp_to_date_time
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_3_6" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/spark/utils/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    utils
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_3_6" id="__nav_2_1_1_3_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            utils
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/utils/array_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    array_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/utils/indexer_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    indexer_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/utils/list_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/utils/scaler_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    scaler_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/utils/transform_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    transform_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/spark/utils/user_defined_functions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    user_defined_functions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/tensorflow/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    tensorflow
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_4" id="__nav_2_1_1_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_1_1_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_4">
+            <span class="md-nav__icon md-icon"></span>
+            tensorflow
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_4_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/tensorflow/layers/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    layers
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_4_1" id="__nav_2_1_1_4_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            layers
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/absolute_value/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    absolute_value
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/array_concatenate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    array_concatenate
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/array_crop/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    array_crop
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/array_split/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    array_split
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/array_subtract_minimum/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    array_subtract_minimum
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/base/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    base
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/bearing_angle/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    bearing_angle
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/bin/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    bin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/bloom_encode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    bloom_encode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/bucketize/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    bucketize
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/conditional_standard_scale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    conditional_standard_scale
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/cosine_similarity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    cosine_similarity
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/current_date/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    current_date
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/current_date_time/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    current_date_time
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/current_unix_timestamp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    current_unix_timestamp
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/date_add/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    date_add
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/date_diff/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    date_diff
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/date_parse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    date_parse
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/date_time_to_unix_timestamp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    date_time_to_unix_timestamp
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/divide/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    divide
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/exp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    exp
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/exponent/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    exponent
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/hash_index/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    hash_index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/haversine_distance/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    haversine_distance
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    identity
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/if_statement/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    if_statement
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/impute/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    impute
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/lambda_function/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    lambda_function
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/list_max/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_max
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/list_mean/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_mean
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/list_median/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_median
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/list_min/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_min
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/list_rank/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_rank
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/list_std_dev/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_std_dev
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/log/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    log
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/logical_and/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    logical_and
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/logical_not/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    logical_not
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/logical_or/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    logical_or
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/max/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    max
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/mean/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    mean
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/min/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    min
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/min_hash_index/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    min_hash_index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/min_max_scale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    min_max_scale
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/modulo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    modulo
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/multiply/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    multiply
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/numerical_if_statement/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    numerical_if_statement
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/one_hot_encode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    one_hot_encode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/ordinal_array_encode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ordinal_array_encode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/round/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    round
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/round_to_decimal/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    round_to_decimal
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/standard_scale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    standard_scale
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_affix/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_affix
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_array_constant/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_array_constant
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_case/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_case
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_concatenate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_concatenate
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_contains/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_contains
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_contains_list/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_contains_list
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_equals_if_statement/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_equals_if_statement
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_index/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_isin_list/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_isin_list
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_list_to_string/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_list_to_string
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_map/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_map
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_replace/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_replace
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/string_to_string_list/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    string_to_string_list
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/sub_string_delim_at_index/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    sub_string_delim_at_index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/subtract/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    subtract
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/sum/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    sum
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/layers/unix_timestamp_to_date_time/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    unix_timestamp_to_date_time
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_4_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/tensorflow/typing/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    typing
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_4_2" id="__nav_2_1_1_4_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            typing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/typing/types/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    types
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_4_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/tensorflow/utils/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    utils
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_4_3" id="__nav_2_1_1_4_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_2_1_1_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            utils
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/utils/date_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    date_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/utils/input_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    input_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/utils/layer_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    layer_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/utils/list_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    list_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/utils/shape_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    shape_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/tensorflow/utils/transform_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    transform_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1_5" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/src/kamae/utils/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    utils
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_1_1_5" id="__nav_2_1_1_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_1_1_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1_5">
+            <span class="md-nav__icon md-icon"></span>
+            utils
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/utils/dtype_enum/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    dtype_enum
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/src/kamae/utils/utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#naming" class="md-nav__link">
+    <span class="md-ellipsis">
+      Naming
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keras-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Keras layer
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Keras layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checklist
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spark-transformerestimator" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spark Transformer/Estimator
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Spark Transformer/Estimator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checklist_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checklist
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scikit-learn-transformerestimator" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scikit-learn Transformer/Estimator
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scikit-learn Transformer/Estimator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checklist_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checklist
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="contributing-a-keras-layer-and-sparkscikit-learn-transformer">Contributing a Keras layer and Spark/Scikit-learn transformer<a class="headerlink" href="#contributing-a-keras-layer-and-sparkscikit-learn-transformer" title="Permanent link">¤</a></h1>
+<p>Follow this guide to contribute a new transformer to the project.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">¤</a></h2>
+<p>In order to contribute a new transformer, you will need to implement a Spark Transformer, a corresponding Keras layer, and a Spark Estimator if your transformer needs a fit method.
+We also require unit tests for all new classes, in particular parity tests ensuring your Spark Transformer and Keras layer produce the same output.</p>
+<p>You may wish to also implement a Scikit-learn transformer, however we deem the scikit-learn usage pattern to be experimental for now and so this is not required.</p>
+<h2 id="naming">Naming<a class="headerlink" href="#naming" title="Permanent link">¤</a></h2>
+<p>In order to avoid name clashes and to keep consistency, we have a naming convention for all new classes.</p>
+<p>If an operation is called <code>&lt;X&gt;</code> then:</p>
+<ul>
+<li><code>&lt;X&gt;Estimator</code> = Spark estimator (if applicable)</li>
+<li><code>&lt;X&gt;Transformer</code> = Spark transformer</li>
+<li><code>&lt;X&gt;Layer</code> = Tensorflow/Keras layer</li>
+<li><code>&lt;X&gt;Params</code> = Spark params class</li>
+</ul>
+<p>We just keep the verb stem. E.g string indexing is StringIndexTransformer, not StringIndexerTransformer.</p>
+<p>The name of the file should then be <code>&lt;X&gt;.py</code>. E.g. <code>src/kame/spark/transformers/string_index.py</code> and <code>src/kame/tensorflow/layers/string_index.py</code>.</p>
+<p>Finally, if you need to create an estimator, then the estimator and its corresponding transformer should be in different files. E.g. <code>src/kame/spark/transformers/string_index.py</code> and <code>src/kame/spark/estimators/string_index.py</code>.</p>
+<h2 id="keras-layer">Keras layer<a class="headerlink" href="#keras-layer" title="Permanent link">¤</a></h2>
+<p>Your Keras layer should extend <a href="../reference/src/kamae/tensorflow/layers/base">BaseLayer</a> and implement the <code>_call</code> method. Furthermore, you will need to define the <code>compatible_dtypes</code> property which should return a list of compatible dtypes for the layer (or <code>None</code> if the layer is compatible with all dtypes).
+You should ensure your layer is serializable by implementing the <code>get_config</code> method. 
+You also need to add the decorator <code>@tf.keras.utils.register_keras_serializable(package=kamae.__name__)</code> to the class.</p>
+<h3 id="example">Example<a class="headerlink" href="#example" title="Permanent link">¤</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">tensorflow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tf</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">kamae</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseLayer</span>
+
+<span class="nd">@tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">register_keras_serializable</span><span class="p">(</span><span class="n">package</span><span class="o">=</span><span class="n">kamae</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MyLayer</span><span class="p">(</span><span class="n">BaseLayer</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">input_dtype</span><span class="p">,</span> <span class="n">output_dtype</span><span class="p">,</span> <span class="n">my_param</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># Ensure that the name, input_dtype, and output_dtype are passed to the super constructor</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">input_dtype</span><span class="o">=</span><span class="n">input_dtype</span><span class="p">,</span> <span class="n">output_dtype</span><span class="o">=</span><span class="n">output_dtype</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">my_param</span> <span class="o">=</span> <span class="n">my_param</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compatible_dtypes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">DType</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+        <span class="c1"># do something with inputs</span>
+        <span class="k">return</span> <span class="n">outputs</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">get_config</span><span class="p">()</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;my_param&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">my_param</span><span class="p">})</span>
+        <span class="k">return</span> <span class="n">config</span>
+</code></pre></div>
+<h3 id="checklist">Checklist<a class="headerlink" href="#checklist" title="Permanent link">¤</a></h3>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox" disabled/> I have implemented a Keras layer that extends <a href="../reference/src/kamae/tensorflow/layers/base">BaseLayer</a></li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have implemented the <code>_call</code> method of my Keras layer.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have defined the <code>compatible_dtypes</code> property of my Keras layer.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have added the decorator <code>@tf.keras.utils.register_keras_serializable(package=kamae.__name__)</code> to my Keras layer.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have ensured that my layer takes a <code>name</code>, <code>input_dtype</code>, and <code>output_dtype</code> as arguments to the constructor and that this is passed to the super constructor.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> My Keras layer is serializable. I have implemented the <code>get_config</code> method and added the decorator seen above to the class.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have unit tests of my implementation. </li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have a specific test of layer serialisation added <a href="../reference/../tests/tensorflow/test_layer_serialisation">here</a>.</li>
+</ul>
+<h2 id="spark-transformerestimator">Spark Transformer/Estimator<a class="headerlink" href="#spark-transformerestimator" title="Permanent link">¤</a></h2>
+<p>Your Spark Transformer should extend <a href="../reference/src/kamae/spark/transformers/base">BaseTransformer</a>. 
+In this it should implement the <code>get_tf_layer</code> method, which should return an instance of your Keras layer.
+If your transformer needs a fit method, you should also implement a Spark Estimator (which extends <a href="../reference/src/kamae/spark/estimators/base">BaseEstimator</a>) whose fit method returns an instance of your transformer.</p>
+<p>Spark has a peculiar way of building constructors, in that the <code>__init__</code> calls a <code>setParams</code> method, which sets the parameters of the transformer.
+See the example below for how this works. All estimators and transformers follow this boilerplate code.
+The <code>setParams</code> method is implemented in the base transformer and estimator classes, so you do not need to implement it yourself.
+However, you do need to call it from your <code>__init__</code> method, as shown below. You also need to ensure that all custom parameters have a setter method,
+which is in the form <code>set&lt;ParamName&gt;</code>, as the <code>setParams</code> method will look for this method.</p>
+<p>Your transformer should use one (or more) of the input/output mixin classes from <a href="../reference/src/kamae/spark/params/base">base.py</a>
+- <code>SingleInputSingleOutputParams</code>
+- <code>SingleInputMultiOutputParams</code>
+- <code>MultiInputSingleOutputParams</code>
+- <code>MultiInputMultiOutputParams</code></p>
+<p>Only use more than one if you want to support two usages of your transformer, e.g. <code>MyTransformer(inputCol="a", outputCol="b")</code> and <code>MyTransformer(inputCols=["a", "b"], outputCols=["c", "d"])</code>.
+See for example the <a href="../reference/src/kamae/spark/transformers/sum">SumTransformer</a>, which supports single input with a constant to add, or multiple inputs to sum.</p>
+<p>These mixins provide the <code>inputCol(s)</code> and <code>outputCol(s)</code> parameters, which are used to specify the input and output columns of your transformer.</p>
+<p>If your transformer requires more parameters that would need to be serialised to the Spark ML pipeline, you should add create a parameter class by extending the <code>Params</code> class <a href="https://spark.apache.org/latest/api/python/reference/api/pyspark.ml.param.Params.html">here</a>.</p>
+<p>Lastly, we have provided utils for transformers &amp; estimators to natively transform nested Spark array columns. 
+You can use one of the following functions from <a href="../reference/src/kamae/spark/utils/transform_utils">here</a> according to your usecase if you need to add support for nested columns:</p>
+<ul>
+<li><code>single_input_single_output_scalar_transform</code></li>
+<li><code>single_input_single_output_array_transform</code></li>
+<li><code>single_input_single_output_scalar_udf_transform</code></li>
+<li><code>single_input_single_output_array_udf_transform</code></li>
+<li><code>multi_input_single_output_scalar_transform</code></li>
+<li><code>multi_input_single_output_array_transform</code></li>
+</ul>
+<h3 id="example_1">Example<a class="headerlink" href="#example_1" title="Permanent link">¤</a></h3>
+<p>Note that the methods are named <code>_fit</code> and <code>_transform</code>. <code>fit</code> and <code>transform</code> wrap these internal methods and should not be overridden.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark</span><span class="w"> </span><span class="kn">import</span> <span class="n">keyword_only</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.ml.param</span><span class="w"> </span><span class="kn">import</span> <span class="n">Param</span><span class="p">,</span> <span class="n">Params</span><span class="p">,</span> <span class="n">TypeConverters</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrame</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataType</span><span class="p">,</span> <span class="n">StringType</span><span class="p">,</span> <span class="n">BinaryType</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">kamae.spark.params</span><span class="w"> </span><span class="kn">import</span> <span class="n">SingleInputSingleOutputParams</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kamae.spark.transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseTransformer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kamae.spark.estimators</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseEstimator</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MyCustomParams</span><span class="p">(</span><span class="n">Params</span><span class="p">):</span>
+    <span class="n">myParam</span> <span class="o">=</span> <span class="n">Param</span><span class="p">(</span>
+        <span class="n">Params</span><span class="o">.</span><span class="n">_dummy</span><span class="p">(),</span>
+        <span class="s2">&quot;myParam&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Description of myParam&quot;</span><span class="p">,</span>
+        <span class="n">typeConverter</span><span class="o">=</span><span class="n">TypeConverters</span><span class="o">.</span><span class="n">toFloat</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Setter method must be in the form set&lt;ParamName&gt; otherwise </span>
+    <span class="c1"># the setParams method will not find the set method. </span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setMyParam</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;MyCustomParams&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">myParam</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">getMyParam</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getOrDefault</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">myParam</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MyEstimator</span><span class="p">(</span>
+    <span class="n">BaseEstimator</span><span class="p">,</span>
+    <span class="n">SingleInputSingleOutputParams</span><span class="p">,</span>
+    <span class="n">MyCustomParams</span>
+<span class="p">):</span>
+
+    <span class="nd">@keyword_only</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">inputCol</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">outputCol</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">layerName</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">inputDtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">outputDtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">myParam</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setParams</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compatible_dtypes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">DataType</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">StringType</span><span class="p">(),</span> <span class="n">BinaryType</span><span class="p">()]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;MyTransformer&quot;</span><span class="p">:</span>
+        <span class="c1"># Do some fitting...</span>
+        <span class="k">return</span> <span class="n">MyTransformer</span><span class="p">(</span>
+            <span class="n">inputCol</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getInputCol</span><span class="p">(),</span>
+            <span class="n">outputCol</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getOutputCol</span><span class="p">(),</span>
+            <span class="n">layerName</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getLayerName</span><span class="p">(),</span>
+            <span class="n">inputDtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getInputDtype</span><span class="p">(),</span>
+            <span class="n">outputDtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getOutputDtype</span><span class="p">(),</span>
+            <span class="n">myParam</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getMyParam</span><span class="p">(),</span>
+        <span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MyTransformer</span><span class="p">(</span>
+    <span class="n">BaseTransformer</span><span class="p">,</span>
+    <span class="n">SingleInputSingleOutputParams</span><span class="p">,</span>
+    <span class="n">MyCustomParams</span>
+<span class="p">):</span>
+
+    <span class="nd">@keyword_only</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">inputCol</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">outputCol</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">layerName</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">inputDtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">outputDtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">myParam</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setParams</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compatible_dtypes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">DataType</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">StringType</span><span class="p">(),</span> <span class="n">BinaryType</span><span class="p">()]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_tf_layer</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Layer</span><span class="p">:</span>
+        <span class="c1"># Ensure that the layer has the layer name, input dtype, and output dtype</span>
+        <span class="c1"># as arguments `name`, `input_dtype`, and `output_dtype` respectively.</span>
+        <span class="k">return</span> <span class="n">MyLayer</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getLayerName</span><span class="p">(),</span>
+            <span class="n">input_dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getInputTFDtype</span><span class="p">(),</span>
+            <span class="n">out_dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getOutputTFDtype</span><span class="p">(),</span>
+            <span class="n">my_param</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getMyParam</span><span class="p">(),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+        <span class="c1"># Do some transformation...</span>
+        <span class="k">return</span> <span class="n">dataset</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">getOutputCol</span><span class="p">(),</span>
+            <span class="n">output_of_transform</span><span class="p">,</span>
+        <span class="p">)</span>
+</code></pre></div>
+<h3 id="checklist_1">Checklist<a class="headerlink" href="#checklist_1" title="Permanent link">¤</a></h3>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox" disabled/> I have implemented a Spark Transformer that extends <a href="../reference/src/kamae/spark/transformers/base">BaseTransformer</a>.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> If my transformer needs a fit method, I have implemented a Spark Estimator that extends <a href="../reference/src/kamae/spark/estimators/base">BaseEstimator</a>.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have followed the instructions for the <code>__init__</code> and <code>setParams</code> methods.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have used one (or more) of the input/output mixin classes from <a href="../reference/src/kamae/spark/params/base">base.py</a>.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> If my transformer requires more parameters that would need to be serialised to the Spark ML pipeline, I have added a parameter class by extending the <code>Params</code> class <a href="https://spark.apache.org/latest/api/python/reference/api/pyspark.ml.param.Params.html">here</a>.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have defined the <code>compatible_dtypes</code> property to specify the input/output data types that my transformer/estimator supports.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I used a Keras subclassed layer for my <code>get_tf_layer</code> method.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have unit tests of my implementation. In particular, I have parity tests between the Spark and Keras implementations.</li>
+</ul>
+<h2 id="scikit-learn-transformerestimator">Scikit-learn Transformer/Estimator<a class="headerlink" href="#scikit-learn-transformerestimator" title="Permanent link">¤</a></h2>
+<p>If your transformer is a wrapper around an existing Scikit-Learn transformer, you should
+also extend the <a href="../reference/src/kamae/sklearn/transformers/base">BaseTransformerMixin</a> class. This will provide the required functionality
+to be incorporated into the Kamae framework. </p>
+<p>If you are writing a custom transformer, you should extend the <a href="../reference/src/kamae/sklearn/transformers/base">BaseTransformer</a> class.
+The only difference between these classes is that the <code>BaseTransformer</code> class also extends
+the <code>BaseEstimator</code> and <code>TransformerMixin</code> classes from scikit-learn. If you are wrapping
+an existing transformer, these are already extended by the transformer you are wrapping.
+See the <a href="../reference/src/kamae/sklearn/estimators/standard_scale">StandardScaleEstimator</a> for an example of a wrapper around an existing transformer.
+See the <a href="../reference/src/kamae/sklearn/transformers/identity">IdentityTransformer</a> for an example of a custom transformer.</p>
+<p>Additionally, your transformer should use one (or more) of the input/output mixin classes from <a href="../reference/src/kamae/sklearn/params/base">base.py</a>
+- SingleInputSingleOutputMixin
+- SingleInputMultiOutputMixin
+- MultiInputSingleOutputMixin
+- MultiInputMultiOutputMixin</p>
+<p>Only use more than one if you want to support two usages of your transformer.
+We have no scikit-learn examples of this yet, only Spark. The behaviour is the same.
+See above to the Spark section to understand why you may want to do this.</p>
+<p>In scikit-learn, everything is an estimator. If your transformer does not require a fit method,
+just return <code>self</code> from the <code>fit</code> method. If your transformer does require a fit method, you
+should implement it within the <code>fit</code> method of your transformer.</p>
+<h3 id="example_2">Example<a class="headerlink" href="#example_2" title="Permanent link">¤</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tensorflow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tf</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kamae.sklearn.params</span><span class="w"> </span><span class="kn">import</span> <span class="n">SingleInputSingleOutputMixin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kamae.sklearn.transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseTransformer</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MyTransformer</span><span class="p">(</span>
+    <span class="n">BaseTransformer</span><span class="p">,</span> <span class="n">SingleInputSingleOutputMixin</span>
+<span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">output_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">layer_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_col</span> <span class="o">=</span> <span class="n">input_col</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_col</span> <span class="o">=</span> <span class="n">output_col</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer_name</span> <span class="o">=</span> <span class="n">layer_name</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;MyTransformer&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="n">X</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">output_col</span><span class="p">]</span> <span class="o">=</span> <span class="n">output_of_transform</span>
+        <span class="k">return</span> <span class="n">X</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_tf_layer</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Layer</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MyLayer</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">layer_name</span><span class="p">,</span>
+        <span class="p">)</span>
+</code></pre></div>
+<h3 id="checklist_2">Checklist<a class="headerlink" href="#checklist_2" title="Permanent link">¤</a></h3>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox" disabled/> I have implemented a Scikit-learn Transformer that extends <a href="../reference/src/kamae/sklearn/transformers/base">BaseTransformer</a> (if custom) or <a href="../reference/src/kamae/sklearn/transformers/base">BaseTransformerMixin</a> (if wrapping an existing transformer).</li>
+<li class="task-list-item"><input type="checkbox" disabled/> If my transformer needs a fit method, I have implemented it within the <code>fit</code> method of my transformer.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have used one (or more) of the input/output mixin classes from <a href="../reference/src/kamae/sklearn/params/base">base.py</a>.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I used a Keras subclassed layer for my <code>get_tf_layer</code> method.</li>
+<li class="task-list-item"><input type="checkbox" disabled/> I have unit tests of my implementation. In particular, I have parity tests between the scikit-learn and Keras implementations.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.f1b6f286.min.js"></script>
+      
+    
+  </body>
+</html>
