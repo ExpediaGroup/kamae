@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import keras
+import keras_tuner
 import networkx as nx
 import tensorflow as tf
 from packaging.version import Version
@@ -56,7 +57,9 @@ class PipelineGraph:
         self.layer_store = {}
         self.inputs = {}
 
-    def update_layer_store_with_key(self, layer_key, layer_output) -> None:
+    def update_layer_store_with_key(
+        self, layer_key: str, layer_output: tf.Tensor
+    ) -> None:
         """
         Updates the layer store at a specific key with the layer output and whether
         it was reused. A layer is deemed to be reused if it is already present in
@@ -91,7 +94,7 @@ class PipelineGraph:
         """
         return self.layer_store[layer_output_name]["output"]
 
-    def add_stage_edges(self, graph):
+    def add_stage_edges(self, graph: nx.DiGraph) -> nx.DiGraph:
         """
         Add edges to the graph based on the inputs and outputs of each stage.
         Specifically for each stage, we connect the inputs of a stage to itself and the
@@ -356,7 +359,9 @@ class PipelineGraph:
         self.update_layer_store(layer_dict=layer_outputs_with_name)
 
     @staticmethod
-    def get_keras_hyperparam_from_config(hp, config):
+    def get_keras_hyperparam_from_config(
+        hp: keras_tuner.HyperParameters, config: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Returns a keras hyperparameter object from a config dictionary.
 
@@ -395,7 +400,7 @@ class PipelineGraph:
         tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
         hp_dict: Dict[str, List[Dict[str, Any]]],
         output_names: Optional[List[str]] = None,
-    ):
+    ) -> Callable[[keras_tuner.HyperParameters], tf.keras.Model]:
         """
         Returns a Keras tuner model builder function for the current graph.
         This allows the user to tune the hyperparameters of the preprocessing model.
@@ -426,7 +431,7 @@ class PipelineGraph:
 
         transform_order = self.transform_order
 
-        def keras_model_builder(hp):
+        def keras_model_builder(hp: keras_tuner.HyperParameters) -> tf.keras.Model:
             # We need to clear the layer store and inputs each time we build a model.
             self.layer_store = {}
             self.inputs = {}

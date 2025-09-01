@@ -31,11 +31,11 @@ class StringConcatenateLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         separator: str = "_",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the Concat layer.
@@ -59,7 +59,7 @@ class StringConcatenateLayer(BaseLayer):
         return [tf.string]
 
     @enforce_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs) -> Tensor:
+    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
         """
         Concatenates the input tensors.
 

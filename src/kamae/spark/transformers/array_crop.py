@@ -108,7 +108,9 @@ class ArrayCropTransformer(
         }
 
     @staticmethod
-    def _get_pad_value_type(pad_value) -> Optional[DataType]:
+    def _get_pad_value_type(
+        pad_value: Union[int, str, float, bool]
+    ) -> Optional[DataType]:
         if isinstance(pad_value, int):
             return IntegerType()
         if isinstance(pad_value, str):

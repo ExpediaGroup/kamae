@@ -43,16 +43,16 @@ class ListMinLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        top_n: int = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        top_n: Optional[int] = None,
         sort_order: str = "asc",
-        min_filter_value: float = None,
+        min_filter_value: Optional[float] = None,
         nan_fill_value: float = 0.0,
         axis: int = 1,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """
         Initializes the Listwise Min layer.
 
@@ -103,7 +103,7 @@ class ListMinLayer(BaseLayer):
         ]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs) -> Tensor:
+    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
         """
         Calculate the listwise min, optionally sorting and
         filtering based on the second input tensor.

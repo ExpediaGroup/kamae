@@ -31,11 +31,11 @@ class StringArrayConstantLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        constant_string_array: List[str] = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        constant_string_array: Optional[List[str]] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the String Array Constant layer.
@@ -59,7 +59,7 @@ class StringArrayConstantLayer(BaseLayer):
         return None
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Returns the constant string array with the same shape as the input tensor.
 

@@ -39,10 +39,10 @@ class LambdaFunctionLayer(BaseLayer, tf.keras.layers.Lambda):
     def __init__(
         self,
         function: Callable[[Union[Tensor, List[Tensor]]], Union[Tensor, List[Tensor]]],
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the LambdaFunction layer
@@ -71,7 +71,7 @@ class LambdaFunctionLayer(BaseLayer, tf.keras.layers.Lambda):
 
     @allow_single_or_multiple_tensor_input
     def _call(
-        self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs
+        self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any
     ) -> Union[Tensor, Iterable[Tensor]]:
         """
         Transforms the input tensor(s) by applying the lambda function.

@@ -52,10 +52,10 @@ class IfStatementLayer(BaseLayer):
         value_to_compare: Union[float, int, str, bool] = None,
         result_if_true: Union[float, int, str, bool] = None,
         result_if_false: Union[float, int, str, bool] = None,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the IfStatementLayer layer.
@@ -166,7 +166,7 @@ class IfStatementLayer(BaseLayer):
         )
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs) -> Tensor:
+    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
         Performs the numerical if statement on the inputs. If the inputs are a tensor,
         we assume that the value_to_compare, result_if_true, and result_if_false are

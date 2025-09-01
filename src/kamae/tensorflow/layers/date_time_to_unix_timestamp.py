@@ -35,11 +35,11 @@ class DateTimeToUnixTimestampLayer(BaseLayer):
 
     def __init__(
         self,
-        name=None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         unit: str = "s",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises an instance of the DateTimeToUnixTimstamp layer.
@@ -73,7 +73,7 @@ class DateTimeToUnixTimestampLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> tf.Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Returns the unix timestamp from a datetime in either yyyy-MM-dd HH:mm:ss.SSS
         or yyyy-MM-dd format.

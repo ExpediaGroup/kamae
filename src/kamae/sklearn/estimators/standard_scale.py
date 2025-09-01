@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Any
 
 import pandas as pd
 import tensorflow as tf
@@ -55,7 +56,9 @@ class StandardScaleEstimator(
         self.output_col = output_col
         self.layer_name = layer_name
 
-    def fit(self, X: pd.DataFrame, y=None, **kwargs) -> "StandardScaleEstimator":
+    def fit(
+        self, X: pd.DataFrame, y: None = None, **kwargs: Any
+    ) -> "StandardScaleEstimator":
         """
         Fits the transformer to the data. Since the scikit-learn StandardScaler
         takes scalar values, we need to convert the numpy array to a list of scalars.
@@ -73,7 +76,7 @@ class StandardScaleEstimator(
         super().fit(X=feature_array, y=y, sample_weight=None)
         return self
 
-    def transform(self, X: pd.DataFrame, y=None) -> pd.DataFrame:
+    def transform(self, X: pd.DataFrame, y: None = None) -> pd.DataFrame:
         """
         Transforms the data using the transformer. Standardises the array `input_col`,
         creating a new standardised `output_col`.

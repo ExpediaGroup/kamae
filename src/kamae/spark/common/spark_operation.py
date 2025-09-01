@@ -15,7 +15,7 @@
 from abc import ABC, abstractmethod
 from random import choice
 from string import ascii_uppercase
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import pyspark.sql.functions as F
 from pyspark import keyword_only
@@ -42,7 +42,7 @@ class SparkOperation(
     param setting, input/output dtype casting, and layer name setting.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initializes the spark operation class.
         """
@@ -62,7 +62,7 @@ class SparkOperation(
         raise NotImplementedError
 
     @keyword_only
-    def setParams(self, **kwargs) -> "SparkOperation":
+    def setParams(self, **kwargs: Any) -> "SparkOperation":
         """
         Sets all given keyword parameters.
 
@@ -87,7 +87,7 @@ class SparkOperation(
         return self
 
     @staticmethod
-    def generate_tmp_column_suffix(str_len: int = 25):
+    def generate_tmp_column_suffix(str_len: int = 25) -> str:
         """
         Returns a random string of length `str_len` to append to temporary columns.
 
@@ -102,7 +102,7 @@ class SparkOperation(
     @staticmethod
     def _resolve_tmp_from_true_column_name(
         column_name: str, suffix: str, reverse: bool = False
-    ):
+    ) -> str:
         """
         Resolves the temporary column name from the true column name or vice versa.
 

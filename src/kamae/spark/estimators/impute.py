@@ -20,6 +20,7 @@ from typing import List, Optional, Union
 
 import pyspark.sql.functions as F
 from pyspark import keyword_only
+from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
 from kamae.spark.params import (
@@ -94,7 +95,7 @@ class ImputeEstimator(
         """
         return [FloatType(), DoubleType()]
 
-    def _fit(self, dataset) -> "ImputeTransformer":
+    def _fit(self, dataset: DataFrame) -> "ImputeTransformer":
         """
         Fits the ImputeEstimator estimator to the given dataset.
         Calculates the imputation statistic of the input feature column and

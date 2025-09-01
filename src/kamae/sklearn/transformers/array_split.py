@@ -38,7 +38,7 @@ class ArraySplitTransformer(
         self.output_cols = output_cols
         self.layer_name = layer_name
 
-    def fit(self, X: pd.DataFrame, y=None) -> "ArraySplitTransformer":
+    def fit(self, X: pd.DataFrame, y: None = None) -> "ArraySplitTransformer":
         """
         Fits the transformer to the data. Does nothing since
         this is transformer not an estimator.
@@ -49,7 +49,7 @@ class ArraySplitTransformer(
         """
         return self
 
-    def transform(self, X: pd.DataFrame, y=None) -> pd.DataFrame:
+    def transform(self, X: pd.DataFrame, y: None = None) -> pd.DataFrame:
         """
         Transforms the input dataset. Creates a new column for each output column equal
         to the value of the input column at the given index.

@@ -33,13 +33,13 @@ class StringListToStringLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         axis: int = -1,
         separator: str = "",
         keepdims: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the StringListToStringLayer layer.
@@ -70,7 +70,7 @@ class StringListToStringLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Joins the strings along the specified axis with the specified separator.
         If `keepdims` is `True`, the shape is retained. Otherwise the shape is
