@@ -100,7 +100,7 @@ class StringReplaceLayer(BaseLayer):
         is either a single tensor or an iterable of tensors. Returns this result as a
         list of tensors for easier use here.
 
-        :param: inputs: A string tensor or iterable of up to three string
+        :param inputs: A string tensor or iterable of up to three string
             tensors.
             In the case multiple tensors are passed, require that the order of inputs is
              [string input, {string match tensor}, {string replace tensor}].
@@ -195,7 +195,7 @@ class StringReplaceLayer(BaseLayer):
     ) -> Union[str, Tensor]:
         """
         Escapes special characters in a string so they are not parsed as regex.
-        :param string: The string or string tensor to escape special characters in.
+        :param string_to_escape: The string or string tensor to escape special characters in.
         :returns: The escaped string or string tensor.
         """
 

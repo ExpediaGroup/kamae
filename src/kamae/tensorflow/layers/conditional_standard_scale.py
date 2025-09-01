@@ -74,8 +74,6 @@ class ConditionalStandardScaleLayer(NormalizeLayer):
         :param output_dtype: The dtype to cast the output to. Defaults to `None`.
         :param epsilon: Small value to add to conditional check of zeros. Valid only
         when skipZeros is True. Defaults to 1e-4.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
         """
         super().__init__(
             name=name,

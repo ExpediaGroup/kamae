@@ -71,7 +71,7 @@ class StringIsInListLayer(BaseLayer):
         is a single tensor. Raises an error if multiple tensors are passed
         in as an iterable.
 
-        :param: inputs: Input string tensor.
+        :param inputs: Input string tensor.
         :returns: A boolean tensor indicating whether any of the string is matched.
         """
         strings = tf.constant(self.string_constant_list)
