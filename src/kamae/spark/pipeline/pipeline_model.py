@@ -38,7 +38,7 @@ class KamaeSparkPipelineModel(PipelineModel):
     as pyspark.ml.PipelineModel e.g. serialisation.
     """
 
-    def __init__(self, stages: List[BaseTransformer]):
+    def __init__(self, stages: List[BaseTransformer]) -> None:
         """
         Initialises the KamaeSparkPipelineModel object.
 
@@ -161,7 +161,7 @@ class KamaeSparkPipelineModelReader(PipelineModelReader):
     Util class for reading a pipeline model from a persistent storage path.
     """
 
-    def __init__(self, cls: Type["KamaeSparkPipelineModel"]):
+    def __init__(self, cls: Type["KamaeSparkPipelineModel"]) -> None:
         super().__init__(cls=cls)
 
     def load(self, path: str) -> "KamaeSparkPipelineModel":
@@ -183,5 +183,5 @@ class KamaeSparkPipelineModelWriter(PipelineModelWriter):
     Util class for writing a pipeline model to a persistent storage path.
     """
 
-    def __init__(self, instance: "KamaeSparkPipelineModel"):
+    def __init__(self, instance: "KamaeSparkPipelineModel") -> None:
         super().__init__(instance=instance)

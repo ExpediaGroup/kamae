@@ -43,7 +43,7 @@ class IdentityTransformer(BaseTransformer, SingleInputSingleOutputMixin):
         self.output_col = output_col
         self.layer_name = layer_name
 
-    def fit(self, X: pd.DataFrame, y=None) -> "IdentityTransformer":
+    def fit(self, X: pd.DataFrame, y: None = None) -> "IdentityTransformer":
         """
         Fits the transformer to the data. Does nothing since
         this is an identity transformer.
@@ -54,7 +54,7 @@ class IdentityTransformer(BaseTransformer, SingleInputSingleOutputMixin):
         """
         return self
 
-    def transform(self, X: pd.DataFrame, y=None) -> pd.DataFrame:
+    def transform(self, X: pd.DataFrame, y: None = None) -> pd.DataFrame:
         """
         Transforms the data using the transformer. Creates a new column with name
         `output_col`, which is the same as the `input_col`.

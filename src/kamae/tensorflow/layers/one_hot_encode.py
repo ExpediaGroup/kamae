@@ -39,14 +39,14 @@ class OneHotEncodeLayer(BaseLayer):
     def __init__(
         self,
         vocabulary: Union[str, List[str]],
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        mask_token: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        mask_token: Optional[str] = None,
         num_oov_indices: int = 1,
         drop_unseen: bool = False,
         encoding: str = "utf-8",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Intialises the OneHotLayer layer.
@@ -96,7 +96,7 @@ class OneHotEncodeLayer(BaseLayer):
         return [tf.int16, tf.int32, tf.int64, tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the one-hot encoding on the input tensor.
 
@@ -157,8 +157,9 @@ class OneHotEncodeLayer(BaseLayer):
 
 # TODO: Remove this alias in next breaking change,
 #  it is maintained for backwards compatibility
+@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class OneHotLayer(OneHotEncodeLayer):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         warnings.warn(
             "OneHotLayer is deprecated and will be removed in a future release. "
             "Use OneHotEncodeLayer instead.",

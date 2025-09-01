@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import tensorflow as tf
 
@@ -35,12 +35,12 @@ class OrdinalArrayEncodeLayer(BaseLayer):
 
     def __init__(
         self,
-        pad_value: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        pad_value: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         axis: int = -1,
-        name: str = None,
-        **kwargs,
+        name: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the OrdinalArrayEncodeLayer layer
@@ -67,7 +67,7 @@ class OrdinalArrayEncodeLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the ordinal encoding on the input dataset.
         Example:
@@ -124,7 +124,7 @@ class OrdinalArrayEncodeLayer(BaseLayer):
 
         return output
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         """
         Gets the configuration of the OrdinalArrayEncoder layer.
         Used for saving and loading from a model.

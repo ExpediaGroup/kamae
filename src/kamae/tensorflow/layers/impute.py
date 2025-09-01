@@ -37,10 +37,10 @@ class ImputeLayer(BaseLayer):
         self,
         impute_value: Union[float, str, int],
         mask_value: Union[float, str, int],
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialise the ImputeLayer layer.
@@ -71,7 +71,7 @@ class ImputeLayer(BaseLayer):
         return None
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs imputation on the input tensor(s) by calling the keras
         ImputeLayer layer. It imputes over values which are equal to the

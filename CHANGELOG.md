@@ -2,6 +2,107 @@
 
 
 
+## v2.37.0 (2025-08-28)
+
+### Feature
+
+* feat: Add rank transformer (#26)
+
+* feat: Add transformer and layer
+
+* refactor: Restructure listwise params
+
+* refactor: Formatting
+
+* Add tests
+
+* docs: Update README
+
+* fix: Add top-level imports
+
+* fix: Add top-level imports
+
+* fix: Update tests
+
+* fix: Update tests
+
+* feat: Add test cases
+
+* fix: Update tests
+
+* feat: Add serialisation test
+
+* fix: Add default layer name
+
+* docs: Tidy up docstrings
+
+* feat: Add sort order option
+
+* fix: Make desc default
+
+* docs: Tidy up type hints/defaults
+
+* test: Add test cases for more axes
+
+* fix: Fix type hint
+
+* fix: Add sort order to layer config
+
+* tests: Expand serialisation test
+
+* fix: Remove unused methods
+
+---------
+
+Co-authored-by: James Shinner &lt;jshinner@expediagroup.com&gt; ([`a8af8dc`](https://github.com/ExpediaGroup/kamae/commit/a8af8dc5edd1e6a8c76ace4f9596df72c97172ee))
+
+
+## v2.36.0 (2025-08-18)
+
+### Feature
+
+* feat: Add MinHashIndex transform &amp; layer (#25)
+
+* feat: Add MinHashIndex transform &amp; layer
+
+Adds a transformer that takes an array of strings and returns a integer bit representation using the MinHash algorithm: https://en.wikipedia.org/wiki/MinHash. This can be used to approximate Jaccard similarity between sets.
+
+* docs: Update readme and fix linting
+
+* refactor: Add check on numPermutations and docstring changes
+
+* fix: add default to num permutations ([`f83c51d`](https://github.com/ExpediaGroup/kamae/commit/f83c51d216d29589856ece02b29aa1ed2aeb3a86))
+
+
+## v2.35.0 (2025-08-14)
+
+### Documentation
+
+* docs: Update PULL_REQUEST_TEMPLATE.md (#23) ([`510e70f`](https://github.com/ExpediaGroup/kamae/commit/510e70fb88ae37955b8cca3062e6cfb742f8c9b2))
+
+### Feature
+
+* feat: Add MinMaxScale estimator, transformer &amp; layer (#21)
+
+* feat: Add MinMaxScale estimator, transformer &amp; layer
+
+Adds a min max scaling op in similar vein to the standard scaler
+
+* docs: Add missing warnings and docstrings
+
+* refactor: Align subtract calls
+
+* tests: Add tests for None min/max values
+
+* chore: Align both to math.
+
+* docs: Improve docstrings and typos ([`0aebfd4`](https://github.com/ExpediaGroup/kamae/commit/0aebfd47b6a482ae6b6d1f32de0228e6c3051a30))
+
+### Unknown
+
+* tests: Remove show commands in tests (#24) ([`8005828`](https://github.com/ExpediaGroup/kamae/commit/8005828f574108e200ca0cfc261f5c97fa1fd600))
+
+
 ## v2.34.1 (2025-06-27)
 
 ### Fix

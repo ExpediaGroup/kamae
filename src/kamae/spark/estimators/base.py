@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 class BaseEstimator(Estimator, SparkOperation):
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initializes the estimator.
         """

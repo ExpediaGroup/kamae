@@ -30,7 +30,7 @@ class BaseTransformer(Transformer, SparkOperation):
     Abstract class for all transformers.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initializes the transformer.
         """

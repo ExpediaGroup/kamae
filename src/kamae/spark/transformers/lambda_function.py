@@ -370,7 +370,7 @@ class LambdaFunctionTransformer(
             :returns: Function that can be used within a Spark UDF.
             """
 
-            def wrapper(*args):
+            def wrapper(*args: Any) -> Union[Any, tuple[Any, ...]]:
                 # Wrap args in a list if they are not already a list. This ensures
                 # that scalar inputs have shape (1, 1) in tensorflow.
                 args = [a if isinstance(a, list) else [a] for a in args]

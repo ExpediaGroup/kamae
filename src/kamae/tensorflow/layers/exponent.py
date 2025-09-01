@@ -30,11 +30,11 @@ class ExponentLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        exponent: float = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        exponent: Optional[float] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the exponent layer
@@ -65,7 +65,7 @@ class ExponentLayer(BaseLayer):
         ]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the x^exponent operation on a given input tensor.
 

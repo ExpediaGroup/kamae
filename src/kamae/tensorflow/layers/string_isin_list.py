@@ -34,10 +34,10 @@ class StringIsInListLayer(BaseLayer):
         self,
         string_constant_list: List[str],
         name: Optional[str] = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         negation: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the StringIsInListLayer layer.
@@ -63,7 +63,7 @@ class StringIsInListLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Checks if the input tensor is matching any string in the string_constant_list.
 

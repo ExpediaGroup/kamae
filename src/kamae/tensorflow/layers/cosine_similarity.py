@@ -31,12 +31,12 @@ class CosineSimilarityLayer(BaseLayer):
 
     def __init__(
         self,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
         axis: int = -1,
         keepdims: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the CosineSimilarityLayer layer
@@ -72,7 +72,7 @@ class CosineSimilarityLayer(BaseLayer):
         ]
 
     @enforce_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs) -> Tensor:
+    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
         """
         Computes the cosine similarity between two input tensors. If `keepdims` is
         `True`, the shape is retained. Otherwise, the shape is reduced along the

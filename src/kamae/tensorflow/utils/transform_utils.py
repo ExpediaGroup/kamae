@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Optional, Union
 
 import tensorflow as tf
 
@@ -24,10 +24,10 @@ def map_fn_w_axis(
     fn: Callable[[Tensor], Tensor],
     fn_output_signature: tf.dtypes.DType,
     axis: int = -1,
-    parallel_iterations=None,
-    swap_memory=False,
-    infer_shape=True,
-    name=None,
+    parallel_iterations: Optional[int] = None,
+    swap_memory: bool = False,
+    infer_shape: bool = True,
+    name: Optional[str] = None,
 ) -> Tensor:
     """
     Applies a function to a specific axis of a tensor using map_fn.

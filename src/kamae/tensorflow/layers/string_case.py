@@ -33,10 +33,10 @@ class StringCaseLayer(BaseLayer):
     def __init__(
         self,
         string_case_type: str = "lower",
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the StringCaseLayer layer.
@@ -62,7 +62,7 @@ class StringCaseLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the string case transform on the input tensor.
 

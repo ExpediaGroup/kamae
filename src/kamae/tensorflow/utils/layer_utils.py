@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import tensorflow as tf
@@ -30,13 +30,13 @@ class NormalizeLayer(BaseLayer):
 
     def __init__(
         self,
-        mean,
-        variance,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        axis: int = -1,
-        **kwargs,
+        mean: Union[List[float], np.array],
+        variance: Union[List[float], np.array],
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        axis: Optional[Union[int, tuple[int]]] = -1,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes the NormalizeLayer
@@ -88,7 +88,7 @@ class NormalizeLayer(BaseLayer):
         """
         return [tf.bfloat16, tf.float16, tf.float32, tf.float64]
 
-    def build(self, input_shape) -> None:
+    def build(self, input_shape: Tuple[int]) -> None:
         """
         Builds shapes for the mean and variance tensors.
 
@@ -156,10 +156,10 @@ class NormalizeLayer(BaseLayer):
         )
         return config
 
-    def get_build_config(self):
+    def get_build_config(self) -> Optional[Dict[str, Any]]:
         if self._build_input_shape:
             return {"input_shape": self._build_input_shape}
 
-    def build_from_config(self, config):
+    def build_from_config(self, config: Dict[str, Any]) -> None:
         if config:
             self.build(config["input_shape"])

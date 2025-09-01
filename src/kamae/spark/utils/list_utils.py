@@ -59,10 +59,10 @@ def check_listwise_columns(
 def get_listwise_condition_and_window(
     query_col: Column,
     value_col: Column,
-    sort_col: Column = None,
+    sort_col: Optional[Column] = None,
     sort_order: str = "asc",
-    sort_top_n: int = None,
-    min_filter_value: float = None,
+    sort_top_n: Optional[int] = None,
+    min_filter_value: Optional[float] = None,
     segment_col: Column = None,
 ) -> (Column, WindowSpec):
     """

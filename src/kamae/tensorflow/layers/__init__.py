@@ -43,6 +43,7 @@ from .list_max import ListMaxLayer  # noqa: F401
 from .list_mean import ListMeanLayer  # noqa: F401
 from .list_median import ListMedianLayer  # noqa: F401
 from .list_min import ListMinLayer  # noqa: F401
+from .list_rank import ListRankLayer  # noqa: F401
 from .list_std_dev import ListStdDevLayer  # noqa: F401
 from .log import LogLayer  # noqa: F401
 from .logical_and import LogicalAndLayer  # noqa: F401
@@ -51,6 +52,8 @@ from .logical_or import LogicalOrLayer  # noqa: F401
 from .max import MaxLayer  # noqa: F401
 from .mean import MeanLayer  # noqa: F401
 from .min import MinLayer  # noqa: F401
+from .min_hash_index import MinHashIndexLayer  # noqa: F401
+from .min_max_scale import MinMaxScaleLayer  # noqa: F401
 from .modulo import ModuloLayer  # noqa: F401
 from .multiply import MultiplyLayer  # noqa: F401
 from .numerical_if_statement import NumericalIfStatementLayer  # noqa: F401

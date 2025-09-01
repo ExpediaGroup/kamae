@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import joblib
 import keras_tuner as kt
 import tensorflow as tf
 from sklearn.pipeline import Pipeline
 
 from kamae.graph import PipelineGraph
+from kamae.sklearn.transformers import BaseTransformer
 
 
 class KamaeSklearnPipeline(Pipeline):
@@ -28,7 +30,13 @@ class KamaeSklearnPipeline(Pipeline):
     as sklearn.pipeline.Pipeline e.g. serialisation.
     """
 
-    def __init__(self, steps, *, memory=None, verbose=False) -> None:
+    def __init__(
+        self,
+        steps: List[Tuple[str, BaseTransformer]],
+        *,
+        memory: Optional[Union[str, joblib.Memory]] = None,
+        verbose: bool = False,
+    ) -> None:
         """
         Initializes a KamaeSklearnPipeline object.
 

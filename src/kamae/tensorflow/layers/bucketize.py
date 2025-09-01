@@ -38,10 +38,10 @@ class BucketizeLayer(BaseLayer):
     def __init__(
         self,
         splits: List[float],
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the BucketizeLayer layer.
@@ -68,7 +68,7 @@ class BucketizeLayer(BaseLayer):
         return [tf.int32, tf.int64, tf.float32, tf.float64]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the bucketing operation on the input tensor.
 

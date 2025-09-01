@@ -33,11 +33,11 @@ class StringMapLayer(BaseLayer):
         self,
         string_match_values: List[str],
         string_replace_values: List[str],
-        default_replace_value: str = None,
-        name: str = None,
-        input_dtype: str = None,
-        output_dtype: str = None,
-        **kwargs,
+        default_replace_value: Optional[str] = None,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialises the StringMapLayer layer.
@@ -68,7 +68,7 @@ class StringMapLayer(BaseLayer):
         return [tf.string]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs) -> Tensor:
+    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Checks if the input tensor is matching any of the string_match_values
         and replaces it with the corresponding string_replace_values.

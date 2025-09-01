@@ -232,7 +232,7 @@ class BloomEncodeTransformer(
 
         # The salting process nests the input column into another array. Thus, the array
         # nesting level is increased by 1.
-        def bloom_encode(x):
+        def bloom_encode(x: List[str]) -> List[int]:
             return [
                 hash_udf(
                     label=y,

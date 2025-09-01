@@ -48,6 +48,7 @@ from .list_max import ListMaxTransformer  # noqa: F401
 from .list_mean import ListMeanTransformer  # noqa: F401
 from .list_median import ListMedianTransformer  # noqa: F401
 from .list_min import ListMinTransformer  # noqa: F401
+from .list_rank import ListRankTransformer  # noqa: F401
 from .list_std_dev import ListStdDevTransformer  # noqa: F401
 from .log import LogTransformer  # noqa: F401
 from .logical_and import LogicalAndTransformer  # noqa: F401
@@ -56,6 +57,8 @@ from .logical_or import LogicalOrTransformer  # noqa: F401
 from .max import MaxTransformer  # noqa: F401
 from .mean import MeanTransformer  # noqa: F401
 from .min import MinTransformer  # noqa: F401
+from .min_hash_index import MinHashIndexTransformer  # noqa: F401
+from .min_max_scale import MinMaxScaleTransformer  # noqa: F401
 from .modulo import ModuloTransformer  # noqa: F401
 from .multiply import MultiplyTransformer  # noqa: F401
 from .numerical_if_statement import NumericalIfStatementTransformer  # noqa: F401
