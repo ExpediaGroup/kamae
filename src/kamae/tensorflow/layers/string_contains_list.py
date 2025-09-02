@@ -75,7 +75,7 @@ class StringContainsListLayer(BaseLayer):
         is a single tensor. Raises an error if multiple tensors are passed
         in as an iterable.
 
-        :param: inputs: Input string tensor.
+        :param inputs: Input string tensor.
         :returns: A boolean tensor indicating whether any of the string constants are
         matched.
         """

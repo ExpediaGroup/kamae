@@ -75,7 +75,7 @@ class SharedOneHotEncodeEstimator(
         transforming.
         :param outputDtype: Output data type to cast the output column(s) to after
         transforming.
-        :param: stringOrderType: How to order the string indices.
+        :param stringOrderType: How to order the string indices.
         Options are 'frequencyAsc', 'frequencyDesc', 'alphabeticalAsc',
         'alphabeticalDesc'. Defaults to 'frequencyDesc'.
         :param maskToken: Token to use for masking.

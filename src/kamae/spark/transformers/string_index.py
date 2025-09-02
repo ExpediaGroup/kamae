@@ -74,7 +74,7 @@ class StringIndexTransformer(
         transforming.
         :param layerName: Name of the layer. Used as the name of the tensorflow layer
         in the keras model. If not set, we use the uid of the Spark transformer.
-        :param: stringOrderType: How to order the string indices.
+        :param stringOrderType: How to order the string indices.
         Options are 'frequencyAsc', 'frequencyDesc', 'alphabeticalAsc',
         'alphabeticalDesc'.
         :param maskToken: Token to use for masking.

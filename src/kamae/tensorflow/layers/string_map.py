@@ -81,7 +81,7 @@ class StringMapLayer(BaseLayer):
         is a single tensor. Raises an error if multiple tensors are passed
         in as an iterable.
 
-        :param: inputs: Input string tensor.
+        :param inputs: Input string tensor.
         :returns: A string tensor with the matched strings replaced.
         """
 
