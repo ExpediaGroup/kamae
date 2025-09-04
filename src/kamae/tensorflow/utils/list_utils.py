@@ -82,3 +82,19 @@ def listify_tensors(x: Union[tf.Tensor, np.ndarray, List[Any]]) -> List[Any]:
     if isinstance(x, np.ndarray):
         x = x.tolist()
     return x
+
+
+def segmented_operation(values, fn):
+    """
+    Function for reshaping a list of input tensors
+    before applying the specified segmented statistic calculation.
+    :param values: List of two tensors.
+    :param fn: Function to apply an operation taking the two tensors as inputs.
+
+    :returns: Single tensor in shape of the original inputs.
+    """
+    unique_segments, segment_indices = tf.unique(values[1])
+    num_segments = tf.size(unique_segments)
+    vals = fn(values[0], segment_indices, num_segments)
+    gathered = tf.gather(vals, segment_indices)
+    return tf.reshape(gathered, tf.shape(values[0]))

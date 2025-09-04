@@ -22,6 +22,7 @@ from kamae.tensorflow.utils import (
     allow_single_or_multiple_tensor_input,
     get_top_n,
     map_fn_w_axis,
+    segmented_operation,
 )
 
 from .base import BaseLayer
@@ -154,25 +155,15 @@ class ListMinLayer(BaseLayer):
             val_tensor = val_tensor
 
         # Apply segmented calculation
-        if self.with_segment:
-
-            def segment_min(values):
-                unique_segments, segment_indices = tf.unique(values[1])
-                num_segments = tf.size(unique_segments)
-                # Cast
-                flat_v = tf.cast(values[0], tf.float32)
-                min_vals = tf.math.unsorted_segment_min(
-                    flat_v, segment_indices, num_segments
-                )
-                gathered = tf.gather(min_vals, segment_indices)
-                return tf.reshape(gathered, tf.shape(values[0]))
-
+        if (
+            self.with_segment
+        ):  # TODO: What happens if I pass in one column and this is True? Handle that gracefully.
             listwise_min = map_fn_w_axis(
                 elems=[val_tensor, segment_tensor],
-                fn=segment_min,
+                fn=lambda x: segmented_operation(x, tf.math.unsorted_segment_min),
                 axis=self.axis,
                 fn_output_signature=tf.TensorSpec(
-                    shape=val_tensor.shape[self.axis], dtype=tf.float32
+                    shape=val_tensor.shape[self.axis], dtype=val_tensor.dtype
                 ),
             )
         # Apply global calculation

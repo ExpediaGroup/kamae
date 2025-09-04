@@ -22,6 +22,7 @@ from kamae.tensorflow.utils import (
     allow_single_or_multiple_tensor_input,
     get_top_n,
     map_fn_w_axis,
+    segmented_operation,
 )
 
 from .base import BaseLayer
@@ -155,24 +156,12 @@ class ListMaxLayer(BaseLayer):
 
         # Apply segmented calculation
         if self.with_segment:
-
-            def segment_max(values):
-                unique_segments, segment_indices = tf.unique(values[1])
-                num_segments = tf.size(unique_segments)
-                # Cast
-                flat_v = tf.cast(values[0], tf.float32)
-                max_vals = tf.math.unsorted_segment_max(
-                    flat_v, segment_indices, num_segments
-                )
-                gathered = tf.gather(max_vals, segment_indices)
-                return tf.reshape(gathered, tf.shape(values[0]))
-
             listwise_max = map_fn_w_axis(
                 elems=[val_tensor, segment_tensor],
-                fn=segment_max,
+                fn=lambda x: segmented_operation(x, tf.math.unsorted_segment_max),
                 axis=self.axis,
                 fn_output_signature=tf.TensorSpec(
-                    shape=val_tensor.shape[self.axis], dtype=tf.float32
+                    shape=val_tensor.shape[self.axis], dtype=val_tensor.dtype
                 ),
             )
         else:

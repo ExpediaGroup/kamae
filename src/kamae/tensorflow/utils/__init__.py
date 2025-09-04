@@ -35,7 +35,7 @@ from .input_utils import (  # noqa: F401
     enforce_multiple_tensor_input,
     enforce_single_tensor_input,
 )
-from .list_utils import get_top_n, listify_tensors  # noqa: F401
+from .list_utils import get_top_n, listify_tensors, segmented_operation  # noqa: F401
 from .shape_utils import reshape_to_equal_rank  # noqa: F401
 from .transform_utils import map_fn_w_axis  # noqa: F401
 
