@@ -105,14 +105,6 @@ class ListMeanLayer(BaseLayer):
             tf.float16,
             tf.float32,
             tf.float64,
-            tf.uint8,
-            tf.int8,
-            tf.uint16,
-            tf.int16,
-            tf.int32,
-            tf.int64,
-            tf.complex64,
-            tf.complex128,
             tf.string,
         ]
 

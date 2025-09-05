@@ -128,10 +128,6 @@ class ListMinTransformer(
         return [
             FloatType(),
             DoubleType(),
-            ByteType(),
-            ShortType(),
-            IntegerType(),
-            LongType(),
             StringType(),
         ]
 

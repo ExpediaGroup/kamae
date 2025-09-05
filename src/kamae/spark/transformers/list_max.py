@@ -128,10 +128,6 @@ class ListMaxTransformer(
         return [
             FloatType(),
             DoubleType(),
-            ByteType(),
-            ShortType(),
-            IntegerType(),
-            LongType(),
             StringType(),
         ]
 
