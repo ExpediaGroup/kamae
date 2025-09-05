@@ -116,10 +116,6 @@ class ListMaxTransformer(
         return [
             FloatType(),
             DoubleType(),
-            ByteType(),
-            ShortType(),
-            IntegerType(),
-            LongType(),
         ]
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
