@@ -22,6 +22,7 @@ from kamae.tensorflow.utils import (
     allow_single_or_multiple_tensor_input,
     get_top_n,
     map_fn_w_axis,
+    segmented_operation,
 )
 
 from .base import BaseLayer
@@ -153,32 +154,36 @@ class ListMeanLayer(BaseLayer):
         if self.with_segment:
 
             def segment_mean(values):
-                unique_segments, segment_indices = tf.unique(values[1])
-                num_segments = tf.size(unique_segments)
-                # Cast
-                flat_v = tf.cast(values[0], tf.float32)
-                mask = tf.math.is_finite(flat_v)
-                sum_vals = tf.math.unsorted_segment_sum(
-                    tf.where(mask, flat_v, tf.zeros_like(flat_v)),
-                    segment_indices,
-                    num_segments,
+                mask = tf.math.is_finite(values[0])
+                val_tensor = values[0]
+                segment_tensor = values[1]
+                sum_vals = segmented_operation(
+                    [
+                        tf.where(
+                            mask,
+                            val_tensor,
+                            tf.zeros_like(val_tensor),
+                        ),
+                        segment_tensor,
+                    ],
+                    tf.math.unsorted_segment_sum,
+                )
+                count_vals = segmented_operation(
+                    [tf.cast(mask, val_tensor.dtype), segment_tensor],
+                    tf.math.unsorted_segment_sum,
                 )
 
-                count_vals = tf.math.unsorted_segment_sum(
-                    tf.cast(mask, dtype=sum_vals.dtype), segment_indices, num_segments
-                )
-
-                gathered = tf.gather(
-                    tf.math.divide_no_nan(sum_vals, count_vals), segment_indices
-                )
-                return tf.reshape(gathered, tf.shape(values[0]))
+                return tf.math.divide_no_nan(sum_vals, count_vals)
 
             listwise_mean = map_fn_w_axis(
-                elems=[val_tensor, segment_tensor],
+                elems=[
+                    val_tensor,
+                    segment_tensor,
+                ],
                 fn=segment_mean,
                 axis=self.axis,
                 fn_output_signature=tf.TensorSpec(
-                    shape=val_tensor.shape[self.axis], dtype=tf.float32
+                    shape=val_tensor.shape[self.axis], dtype=val_tensor.dtype
                 ),
             )
         else:

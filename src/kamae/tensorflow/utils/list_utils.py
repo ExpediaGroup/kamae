@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, List, Union
+from typing import Any, Callable, List, Union
 
 import numpy as np
 import tensorflow as tf
@@ -84,7 +84,7 @@ def listify_tensors(x: Union[tf.Tensor, np.ndarray, List[Any]]) -> List[Any]:
     return x
 
 
-def segmented_operation(values, fn):
+def segmented_operation(values: List, fn: Callable):
     """
     Function for reshaping a list of input tensors
     before applying the specified segmented statistic calculation.
