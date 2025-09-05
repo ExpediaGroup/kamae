@@ -138,6 +138,10 @@ class ListMaxLayer(BaseLayer):
                     sort_order=self.sort_order,
                     top_n=self.top_n,
                 )
+        else:
+            if self.with_segment:
+                raise ValueError("with_segment set to True, expected two inputs.")
+
         # Apply the mask to filter out elements less than or equal to the threshold
         if self.min_filter_value is not None:
             mask = tf.greater_equal(val_tensor, self.min_filter_value)
@@ -161,10 +165,8 @@ class ListMaxLayer(BaseLayer):
             listwise_max = tf.broadcast_to(listwise_max, output_shape)
 
         if self.min_filter_value is not None:
-            is_integer = listwise_max.dtype.is_integer
-            nan_val = int(self.nan_fill_value) if is_integer else self.nan_fill_value
             listwise_max = tf.where(
-                listwise_max != listwise_max.dtype.min, listwise_max, nan_val
+                listwise_max != neg_inf, listwise_max, self.nan_fill_value
             )
 
         return listwise_max

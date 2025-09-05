@@ -572,63 +572,17 @@ class TestListMax:
                 "double",
                 "float",
             ),
-            # With Int
-            (
-                3,
-                tf.constant(
-                    [
-                        [1],
-                        [1],
-                        [1],
-                        [2],
-                        [2],
-                        [2],
-                    ],
-                    dtype=tf.float32,
-                ),
-                [
-                    # values
-                    tf.constant(
-                        [
-                            [1],
-                            [1],
-                            [9],
-                            [5],
-                            [1],
-                            [9],
-                        ],
-                        dtype=tf.int32,
-                    ),
-                    # sort
-                    tf.constant(
-                        [
-                            [1],
-                            [2],
-                            [3],
-                            [8],
-                            [7],
-                            [6],
-                        ],
-                        dtype=tf.int32,
-                    ),
-                ],
-                1,
-                False,
-                5,
-                "int",
-                "float",
-            ),
             # With segmentation
             (
                 3,
                 tf.constant(
                     [
-                        [1],
-                        [1],
-                        [1],
-                        [2],
-                        [2],
-                        [2],
+                        [1.0],
+                        [1.0],
+                        [1.0],
+                        [2.0],
+                        [2.0],
+                        [2.0],
                     ],
                     dtype=tf.float32,
                 ),

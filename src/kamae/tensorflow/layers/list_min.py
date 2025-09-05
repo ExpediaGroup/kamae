@@ -117,7 +117,7 @@ class ListMinLayer(BaseLayer):
         based on the second input tensor. Behaviour is set by with_segment.
 
         :param inputs: The iterable tensor for the feature.
-        :returns: Thew new tensor result column.
+        :returns: The new tensor result column.
         """
         val_tensor = inputs[0]
         output_shape = tf.shape(val_tensor)
@@ -137,6 +137,9 @@ class ListMinLayer(BaseLayer):
                     sort_order=self.sort_order,
                     top_n=self.top_n,
                 )
+        else:
+            if self.with_segment:
+                raise ValueError("with_segment set to True, expected two inputs.")
 
         # Apply the mask to filter out elements less than or equal to the threshold
         if self.min_filter_value is not None:
@@ -168,9 +171,7 @@ class ListMinLayer(BaseLayer):
             is_integer = listwise_min.dtype.is_integer
             nan_val = int(self.nan_fill_value) if is_integer else self.nan_fill_value
             fill_val = tf.constant(nan_val, dtype=listwise_min.dtype)
-            listwise_min = tf.where(
-                listwise_min != listwise_min.dtype.max, listwise_min, fill_val
-            )
+            listwise_min = tf.where(listwise_min != inf, listwise_min, fill_val)
 
         return listwise_min
 

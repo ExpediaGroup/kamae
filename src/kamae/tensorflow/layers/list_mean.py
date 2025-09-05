@@ -136,6 +136,9 @@ class ListMeanLayer(BaseLayer):
                     sort_order=self.sort_order,
                     top_n=self.top_n,
                 )
+        else:
+            if self.with_segment:
+                raise ValueError("with_segment set to True, expected two inputs.")
 
         # Apply the mask to filter out elements less than or equal to the threshold
         if self.min_filter_value is not None:
