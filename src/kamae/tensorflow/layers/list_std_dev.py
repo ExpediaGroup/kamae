@@ -101,7 +101,7 @@ class ListStdDevLayer(BaseLayer):
         filtering based on the second input tensor.
 
         :param inputs: The iterable tensor for the feature.
-        :returns: Thew new tensor result column.
+        :returns: The new tensor result column.
         """
         val_tensor = inputs[0]
         output_shape = tf.shape(val_tensor)

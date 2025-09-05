@@ -118,7 +118,7 @@ class ListMaxLayer(BaseLayer):
         based on the second input tensor. Behaviour is set by with_segment.
 
         :param inputs: The iterable tensor for the feature.
-        :returns: Thew new tensor result column.
+        :returns: The new tensor result column.
         """
         val_tensor = inputs[0]
         output_shape = tf.shape(val_tensor)
