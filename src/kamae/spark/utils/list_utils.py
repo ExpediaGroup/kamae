@@ -116,12 +116,12 @@ def check_and_apply_listwise_op(
     val_col_name: str,
     sort_col_name: Optional[str] = None,
     segment_col_name: Optional[str] = None,
-    sort_order: Optional[str] = None,
+    sort_order: Optional[str] = "asc",
     top_n: Optional[int] = None,
     min_filter_val: Optional[float] = None,
-):
+) -> Column:
     """
-    Function for applying the specific fn to the dataset. Validation of the input columns is first performed
+    Function for applying the specified fn to the dataset. Validation of the input columns is first performed
     by check_listwise_columns, followed by creation of the condition and window to be used.
     Finally, the function is called and returns a Column.
     :param dataset: Dataframe to apply to operation to. Only used for schema validation.
@@ -136,7 +136,7 @@ def check_and_apply_listwise_op(
     Default is None.
     :param segment_col_name: Column by which to segment the statistics calculation.
     Default is None.
-    :returns: Tuple of the condition and window operations.
+    :returns: Column with the operation applied.
     """
     check_listwise_columns(
         dataset=dataset,
