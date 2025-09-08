@@ -84,7 +84,7 @@ def listify_tensors(x: Union[tf.Tensor, np.ndarray, List[Any]]) -> List[Any]:
     return x
 
 
-def segmented_operation(values: List, fn: Callable):
+def segmented_operation(values: List, fn: Callable) -> Tensor:
     """
     Function for applying an operation to one tensor, segmented by the values of another.
 

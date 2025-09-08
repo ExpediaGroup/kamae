@@ -49,14 +49,14 @@ def map_fn_w_axis(
     :param name: The name of the operation. Defaults to None.
     """
 
-    def apply_transpose_and_reshape(tensor):
+    def apply_transpose_and_reshape(tensor: Tensor) -> Tensor:
         transposed = tf.transpose(tensor, perm=transpose_perm)
         reshaped = tf.reshape(transposed, tf.stack([-1, tf.shape(tensor)[axis]]))
         return reshaped
 
     def apply_undo_transpose_and_reshape(
-        output, transposed_shape, identity_perm, shift_axis
-    ):
+        output: Tensor, transposed_shape: Tensor, identity_perm: Tensor, shift_axis: int
+    ) -> Tensor:
         reshaped = tf.reshape(output, transposed_shape)
         perm = tf.roll(identity_perm, shift=shift_axis, axis=0)
         return tf.transpose(reshaped, perm=perm)

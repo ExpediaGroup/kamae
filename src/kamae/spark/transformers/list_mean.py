@@ -35,7 +35,7 @@ from kamae.spark.params import (
     NanFillValueParams,
     SingleInputSingleOutputParams,
 )
-from kamae.spark.utils import check_listwise_columns, get_listwise_condition_and_window
+from kamae.spark.utils import check_and_apply_listwise_op
 from kamae.tensorflow.layers import ListMeanLayer
 
 from .base import BaseTransformer
@@ -161,28 +161,19 @@ class ListMeanTransformer(
             sort_col_name = None
             segment_col_name = None
 
-        check_listwise_columns(
-            dataset=dataset,
-            query_col_name=self.getQueryIdCol(),
-            value_col_name=val_col_name,
-            sort_col_name=sort_col_name,
-            segment_col_name=segment_col_name,
-        )
-
-        condition_col, window_spec = get_listwise_condition_and_window(
-            query_col=F.col(self.getQueryIdCol()),
-            value_col=F.col(val_col_name),
-            sort_col=F.col(sort_col_name) if sort_col_name else None,
-            sort_order=self.getSortOrder(),
-            segment_col=F.col(segment_col_name) if segment_col_name else None,
-            sort_top_n=self.getTopN(),
-            min_filter_value=self.getMinFilterValue(),
-        )
-
-        # Calculate the statistics under the conditions
         dataset = dataset.withColumn(
             self.getOutputCol(),
-            F.avg(F.when(condition_col, F.col(val_col_name))).over(window_spec),
+            check_and_apply_listwise_op(
+                dataset,
+                F.mean,
+                self.getQueryIdCol(),
+                val_col_name,
+                sort_col_name,
+                segment_col_name,
+                self.getSortOrder(),
+                self.getTopN(),
+                self.getMinFilterValue(),
+            ),
         )
 
         # Replace Nulls/Nans

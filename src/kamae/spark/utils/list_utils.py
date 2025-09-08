@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional
+from typing import Callable, Optional
 
 import pyspark.sql.functions as F
 from pyspark.sql import Column, DataFrame, Window, WindowSpec
@@ -107,3 +107,53 @@ def get_listwise_condition_and_window(
         condition_col = condition_col & (value_col >= F.lit(min_filter_value))
 
     return condition_col, window_spec
+
+
+def check_and_apply_listwise_op(
+    dataset: DataFrame,
+    fn: Callable,
+    query_id_col_name: str,
+    val_col_name: str,
+    sort_col_name: Optional[str] = None,
+    segment_col_name: Optional[str] = None,
+    sort_order: Optional[str] = None,
+    top_n: Optional[int] = None,
+    min_filter_val: Optional[float] = None,
+):
+    """
+    Function for applying the specific fn to the dataset. Validation of the input columns is first performed
+    by check_listwise_columns, followed by creation of the condition and window to be used.
+    Finally, the function is called and returns a Column.
+    :param dataset: Dataframe to apply to operation to. Only used for schema validation.
+    :param fn: Spark function to apply.
+    :param query_id_col_name: Column containing the query id.
+    :param val_col_name: Column containing the value to calculate statistics on.
+    :param sort_col_name: Column to sort the values by. Default is None.
+    :param sort_order: Order to sort the values by. Default is "asc".
+    :param top_n: Number of top values to consider for statistics calculation.
+    Default is None.
+    :param min_filter_val: Minimum value to consider for statistics calculation.
+    Default is None.
+    :param segment_col_name: Column by which to segment the statistics calculation.
+    Default is None.
+    :returns: Tuple of the condition and window operations.
+    """
+    check_listwise_columns(
+        dataset=dataset,
+        query_col_name=query_id_col_name,
+        value_col_name=val_col_name,
+        sort_col_name=sort_col_name,
+        segment_col_name=segment_col_name,
+    )
+
+    condition_col, window_spec = get_listwise_condition_and_window(
+        query_col=F.col(query_id_col_name),
+        value_col=F.col(val_col_name),
+        sort_col=F.col(sort_col_name) if sort_col_name else None,
+        sort_order=sort_order,
+        segment_col=F.col(segment_col_name) if segment_col_name else None,
+        sort_top_n=top_n,
+        min_filter_value=min_filter_val,
+    )
+
+    return fn(F.when(condition_col, F.col(val_col_name))).over(window_spec)

@@ -148,7 +148,7 @@ class ListMeanLayer(BaseLayer):
 
         if self.with_segment:
 
-            def segment_mean(values):
+            def segment_mean(values: List[Tensor]) -> Tensor:
                 mask = tf.math.is_finite(values[0])
                 val_tensor = values[0]
                 segment_tensor = values[1]
