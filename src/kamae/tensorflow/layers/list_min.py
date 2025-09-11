@@ -168,9 +168,7 @@ class ListMinLayer(BaseLayer):
 
         if self.min_filter_value is not None:
             # Fill NaNs
-            is_integer = listwise_min.dtype.is_integer
-            nan_val = int(self.nan_fill_value) if is_integer else self.nan_fill_value
-            fill_val = tf.constant(nan_val, dtype=listwise_min.dtype)
+            fill_val = tf.constant(self.nan_fill_value, dtype=listwise_min.dtype)
             listwise_min = tf.where(listwise_min != inf, listwise_min, fill_val)
 
         return listwise_min

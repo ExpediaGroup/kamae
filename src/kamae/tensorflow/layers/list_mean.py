@@ -207,11 +207,9 @@ class ListMeanLayer(BaseLayer):
             listwise_mean = tf.broadcast_to(listwise_mean, output_shape)
 
         # Fill nan
-        is_integer = listwise_mean.dtype.is_integer
-        nan_val = int(self.nan_fill_value) if is_integer else self.nan_fill_value
         listwise_mean = tf.where(
             tf.math.is_nan(tf.cast(listwise_mean, tf.float32)),
-            tf.constant(nan_val, dtype=listwise_mean.dtype),
+            tf.constant(self.nan_fill_value, dtype=listwise_mean.dtype),
             listwise_mean,
         )
 

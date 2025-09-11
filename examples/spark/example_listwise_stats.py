@@ -131,8 +131,8 @@ if __name__ == "__main__":
 
     # Create input schema for keras model. A list of tf.TypeSpec objects.
     tf_input_schema = [
-        tf.TensorSpec(name="col2", dtype=tf.int32, shape=(None, None, 1)),
-        tf.TensorSpec(name="col3", dtype=tf.int32, shape=(None, None, 1)),
+        tf.TensorSpec(name="col2", dtype=tf.float32, shape=(None, None, 1)),
+        tf.TensorSpec(name="col3", dtype=tf.float32, shape=(None, None, 1)),
         tf.TensorSpec(name="col4", dtype=tf.string, shape=(None, None, 1)),
     ]
     keras_model = fit_pipeline.build_keras_model(tf_input_schema=tf_input_schema)

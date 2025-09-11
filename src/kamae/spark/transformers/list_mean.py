@@ -128,10 +128,6 @@ class ListMeanTransformer(
         return [
             FloatType(),
             DoubleType(),
-            ByteType(),
-            ShortType(),
-            IntegerType(),
-            LongType(),
             StringType(),
         ]
 
