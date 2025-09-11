@@ -29,6 +29,7 @@ from .indexer_utils import (  # noqa: F401
     collect_labels_array_from_multiple_columns,
 )
 from .list_utils import (  # noqa: F401
+    check_and_apply_listwise_op,
     check_listwise_columns,
     get_listwise_condition_and_window,
 )

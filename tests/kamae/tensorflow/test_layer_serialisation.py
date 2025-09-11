@@ -235,6 +235,9 @@ from kamae.tensorflow.layers import (
             False,
         ),
         (IdentityLayer, [tf.random.normal((100, 10, 5))], None, False),
+        (ListMaxLayer, [tf.random.normal((100, 10, 5))], None, False),
+        (ListMeanLayer, [tf.random.normal((100, 10, 5))], None, False),
+        (ListMinLayer, [tf.random.normal((100, 10, 5))], None, False),
         (
             IfStatementLayer,
             [tf.random.normal((100, 10, 5)), tf.random.normal((100, 10, 5))],

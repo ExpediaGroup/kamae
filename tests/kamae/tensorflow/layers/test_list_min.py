@@ -20,7 +20,7 @@ from kamae.tensorflow.layers import ListMinLayer
 
 class TestListMin:
     @pytest.mark.parametrize(
-        "inputs, min_filter_value, top_n, sort_order, input_dtype, output_dtype, expected_output",
+        "inputs, min_filter_value, top_n, with_segment, sort_order, input_dtype, output_dtype, expected_output",
         [
             # Base case
             (
@@ -54,6 +54,7 @@ class TestListMin:
                 ],
                 None,
                 None,
+                False,
                 "asc",
                 "float64",
                 "float32",
@@ -115,6 +116,7 @@ class TestListMin:
                 ],
                 1,
                 None,
+                False,
                 "asc",
                 "float64",
                 "float32",
@@ -202,6 +204,7 @@ class TestListMin:
                 ],
                 None,
                 5,
+                False,
                 "asc",
                 "float64",
                 "float32",
@@ -289,6 +292,7 @@ class TestListMin:
                 ],
                 1,
                 5,
+                False,
                 "asc",
                 "float64",
                 "float32",
@@ -356,6 +360,7 @@ class TestListMin:
                 ],
                 1,
                 5,
+                False,
                 "asc",
                 "float64",
                 "float32",
@@ -375,6 +380,122 @@ class TestListMin:
                     dtype=tf.float32,
                 ),
             ),
+            # With segmentation
+            (
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [
+                                [1.0],
+                                [1.0],
+                                [9.0],
+                            ],
+                            [
+                                [5.0],
+                                [1.0],
+                                [9.0],
+                            ],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    # segment
+                    tf.constant(
+                        [
+                            [
+                                [1.0],
+                                [2.0],
+                                [2.0],
+                            ],
+                            [
+                                [1.0],
+                                [2.0],
+                                [2.0],
+                            ],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                ],
+                None,
+                None,
+                True,
+                "asc",
+                "float64",
+                "float32",
+                tf.constant(
+                    [
+                        [
+                            [1.0],
+                            [1.0],
+                            [1.0],
+                        ],
+                        [
+                            [5.0],
+                            [1.0],
+                            [1.0],
+                        ],
+                    ],
+                    dtype=tf.float32,
+                ),
+            ),
+            # With segmentation and min_filter_val
+            (
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [
+                                [1.0],
+                                [1.0],
+                                [9.0],
+                            ],
+                            [
+                                [5.0],
+                                [1.0],
+                                [9.0],
+                            ],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    # segment
+                    tf.constant(
+                        [
+                            [
+                                ["1.0"],
+                                ["2.0"],
+                                ["2.0"],
+                            ],
+                            [
+                                ["1.0"],
+                                ["2.0"],
+                                ["2.0"],
+                            ],
+                        ],
+                        dtype=tf.string,
+                    ),
+                ],
+                2.0,
+                None,
+                True,
+                "asc",
+                "float64",
+                "float32",
+                tf.constant(
+                    [
+                        [
+                            [0.0],
+                            [9.0],
+                            [9.0],
+                        ],
+                        [
+                            [5.0],
+                            [9.0],
+                            [9.0],
+                        ],
+                    ],
+                    dtype=tf.float32,
+                ),
+            ),
         ],
     )
     def test_listwise_min(
@@ -382,6 +503,7 @@ class TestListMin:
         inputs,
         min_filter_value,
         top_n,
+        with_segment,
         sort_order,
         input_dtype,
         output_dtype,
@@ -396,6 +518,7 @@ class TestListMin:
             output_dtype=output_dtype,
             sort_order=sort_order,
             top_n=top_n,
+            with_segment=with_segment,
         )
         inputs = inputs if len(inputs) > 1 else inputs[0]
         output_tensor = layer(inputs)

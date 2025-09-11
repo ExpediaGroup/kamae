@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, List, Union
+from typing import Any, Callable, List, Union
 
 import numpy as np
 import tensorflow as tf
@@ -82,3 +82,24 @@ def listify_tensors(x: Union[tf.Tensor, np.ndarray, List[Any]]) -> List[Any]:
     if isinstance(x, np.ndarray):
         x = x.tolist()
     return x
+
+
+def segmented_operation(values: List[Tensor], fn: Callable) -> Tensor:
+    """
+    Function for applying an operation to one tensor, segmented by the values of another.
+
+    Primarily intended for use with Tensorflow's unsorted segment operations, which require flattened inputs.
+    e.g. tf.math.unsorted_segment_min
+    :param values: List of two tensors, the first containing values, the second containing segment identifiers.
+    :param fn: Function to apply an operation taking the two tensors as inputs.
+
+    :returns: Single tensor in shape of the first of the original inputs.
+    """
+    # Get segment indices and their IDs
+    unique_segments, segment_indices = tf.unique(values[1])
+    num_segments = tf.size(unique_segments)
+    # Apply segment function
+    vals = fn(values[0], segment_indices, num_segments)
+    # Reshape and return
+    gathered = tf.gather(vals, segment_indices)
+    return tf.reshape(gathered, tf.shape(values[0]))
