@@ -520,9 +520,10 @@ class ListwiseParams(Params):
 
     def setWithSegment(self, value: bool) -> "ListwiseStatisticsParams":
         """
-        Sets the query id parameter.
+        Sets the withSegment parameter.
 
-        :param value: String for column name to aggregate upon.
+        :param value: Boolean specifying whether the second
+        input column should be used for segmentation (True) or sorting (False)
         :returns: Instance of class mixed in.
         """
         return self._set(withSegment=value)

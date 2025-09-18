@@ -62,7 +62,7 @@ class ListMeanTransformer(
         with the same query id column value, based on second column's topN items.
         When using the second input as sorting column, topN must be provided.
         By using the topN items to calculate the statistics, we can better approximate
-        the real statistics in production. It should be used a large enough topN to get a
+        the real statistics in production. A large enough topN should be used, to obtain a
         good approximation of the statistics, and an important feature to sort on, such as
         item's production.
 
