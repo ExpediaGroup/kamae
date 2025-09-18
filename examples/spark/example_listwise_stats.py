@@ -116,7 +116,6 @@ if __name__ == "__main__":
         inputCols=["col2", "col3"],
         outputCol="overall_sorted_mean",
         queryIdCol="query_id",
-        # withSegment=False,
         topN=3,  # mean of col2 for top 3 values of col3
     )
 
