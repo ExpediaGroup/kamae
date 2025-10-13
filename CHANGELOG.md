@@ -2,6 +2,72 @@
 
 
 
+## v2.38.0 (2025-10-13)
+
+### Feature
+
+* feat: Adding segmented mean/min/max in TF and Pypark (#20)
+
+* Adding segmented mean/min/max in TF and Pypark
+
+* Delete output
+
+* reduce line length
+
+* fix: Listwise statistic transforms don&#39;t support integers
+
+If you try and use integers with these layers they error due to the `float(nan)` and `is_finite` checks. Therefore we remove support for int here so we get a better error message.
+
+* Add segmentation to existing listwise ops
+
+* fix test
+
+* remove unwanted model file
+
+* remove repitition, remove casting
+
+* adding typing and clean up mean
+
+* handle edge case, remove redundant test with ints
+
+* Update doc string for segmented op fn
+
+* typo in some docstrings
+
+* Remove repetition from Spark side
+
+* Typo in doc string
+
+* Fix wrong types, add type hint to segment function, fix examples.
+
+* Correct some doc string issues
+
+* remove comemnt from example
+
+---------
+
+Co-authored-by: Andrew Woods &lt;anwoods@expediagroup.com&gt;
+Co-authored-by: George Barrowclough &lt;george.d.b@hotmail.com&gt; ([`35ad82b`](https://github.com/ExpediaGroup/kamae/commit/35ad82bfc3d38ead25449939d6cf55e484df11e8))
+
+### Refactor
+
+* refactor: Add type hints everywhere and force type hints going forward (#27)
+
+* docs: Add type hints everywhere and force type hints going forward
+
+- Add flake8 config to ensure type hints are enforced via linting.
+
+* docs: Remove unneeded self typehint
+
+* tests: Add more layer serialisation tests (#30)
+
+* fix: add serialisation wrapper to OneHotLayer alias
+
+* chore: Update typehints for list rank
+
+* chore: Fix linting ([`80d0bc7`](https://github.com/ExpediaGroup/kamae/commit/80d0bc7d036d809c7e4440e0f31fedbdc4b2cfa4))
+
+
 ## v2.37.0 (2025-08-28)
 
 ### Feature
