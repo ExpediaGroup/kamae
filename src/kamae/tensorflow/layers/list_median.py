@@ -39,6 +39,8 @@ class ListMedianLayer(BaseLayer):
 
     Example: calculate the median price in the same query, based only on the top N
     items sorted by descending production.
+
+    WARNING: ListMedianLayer requires at least rank 3 tensor input.
     """
 
     def __init__(
@@ -92,14 +94,6 @@ class ListMedianLayer(BaseLayer):
             tf.float16,
             tf.float32,
             tf.float64,
-            tf.uint8,
-            tf.int8,
-            tf.uint16,
-            tf.int16,
-            tf.int32,
-            tf.int64,
-            tf.complex64,
-            tf.complex128,
         ]
 
     def sort_with_nans_last(self, tensor: Tensor) -> Tensor:

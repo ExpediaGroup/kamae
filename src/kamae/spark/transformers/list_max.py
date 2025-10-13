@@ -18,15 +18,7 @@ import pyspark.sql.functions as F
 import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
-from pyspark.sql.types import (
-    ByteType,
-    DataType,
-    DoubleType,
-    FloatType,
-    IntegerType,
-    LongType,
-    ShortType,
-)
+from pyspark.sql.types import DataType, DoubleType, FloatType, StringType
 
 from kamae.spark.params import (
     ListwiseStatisticsParams,
@@ -34,7 +26,7 @@ from kamae.spark.params import (
     NanFillValueParams,
     SingleInputSingleOutputParams,
 )
-from kamae.spark.utils import check_listwise_columns, get_listwise_condition_and_window
+from kamae.spark.utils import check_and_apply_listwise_op
 from kamae.tensorflow.layers import ListMaxLayer
 
 from .base import BaseTransformer
@@ -50,31 +42,40 @@ class ListMaxTransformer(
     """
     Calculate the listwise maximum across the query id column.
     - If inputCol is set, the transformer calculates the maximum of the input column
-    based on all the items in the same query id column.
-    - If inputCols is set, the transformer calculates the maximum of the first column
-    based on second column's topN items in the same query id column.
+    based on all the items with the same query id column value.
+    - If inputCols is set, behaviour depends on the value of withSegment:
+        - If withSegment = True: the transformer calculates the maximum of the first column
+        with the same query id column value, segmented by values of the second column.
 
-    By using the topN items to calculate the statistics, we can better approximate
-    the real statistics in production. It should be used a large enough topN to get a
-    good approximation of the statistics, and an important feature to sort on, such as
-    item's production.
+        Example: calculate the maximum price of hotels within star ratings, in the same query.
 
-    Example: calculate the maximum price in the same query, based on the top N
-    items sorted by descending production.
+        - If withSegment = False: the transformer calculates the maximum of the first column
+        with the same query id column value, based on second column's topN items.
+        When using the second input as sorting column, topN must be provided.
+        By using the topN items to calculate the statistics, we can better approximate
+        the real statistics in production. A large enough topN should be used, to obtain a
+        good approximation of the statistics, and an important feature to sort on, such as
+        item's production.
+
+        Example: calculate the maximum price in the same query, based on the top N
+        items sorted by descending production.
 
     :param inputCol: Value column, on which to calculate the maximum.
-    :param inputCols: Input column name.
+    :param inputCols: Input column names.
     - The first is the value column, on which to calculate the maximum.
-    - The second is the sort column, based on which to sort the items.
+    - The second is the sort or segment column. The role of the second input is governed
+    by the value of withSegment as described above.
     :param outputCol: Name of output col.
     :param inputDtype: Data Type of input.
     :param outputDtype: Data Type of output.
     :param layerName: The name of the transformer, which typically
     should be the name of the produced feature.
     :param queryIdCol: Name of column to aggregate upon. It is required.
-    :param topN: Filter for limiting the items to calculate the statistics.
+    :param topN: Filter for limiting the items to calculate the statistics. Not used when withSegment = True.
     :param sortOrder: Option of 'asc' or 'desc' which defines order
-    for listwise operation. Default is 'asc'.
+    for listwise operation. Default is 'asc'. Not used when withSegment = True.
+    :param withSegment: Whether to use the second input column to partition the statistic
+    calculation. Defaults to False.
     :param minFilterValue: Minimum value to remove padded values
     defaults to >= 0.
     :nanFillValue: Value to fill NaNs results with. Defaults to 0.
@@ -92,6 +93,7 @@ class ListMaxTransformer(
         queryIdCol: Optional[str] = None,
         topN: Optional[int] = None,
         sortOrder: str = "asc",
+        withSegment: bool = False,
         minFilterValue: Optional[float] = None,
         nanFillValue: float = 0.0,
     ) -> None:
@@ -101,6 +103,7 @@ class ListMaxTransformer(
             sortOrder="asc",
             minFilterValue=None,
             nanFillValue=0,
+            withSegment=False,
         )
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
@@ -116,10 +119,7 @@ class ListMaxTransformer(
         return [
             FloatType(),
             DoubleType(),
-            ByteType(),
-            ShortType(),
-            IntegerType(),
-            LongType(),
+            StringType(),
         ]
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
@@ -133,34 +133,34 @@ class ListMaxTransformer(
             raise ValueError("queryIdCol must be set on listwise transformers.")
 
         # Define the columns to use for the calculation
-        with_sort = self.isDefined("inputCols")
-        if with_sort:
-            val_col_name = self.getInputCols()[0]
-            sort_col_name = self.getInputCols()[1]
+        if self.isDefined("inputCols"):
+            with_segment = self.getWithSegment()
+            if with_segment:
+                val_col_name = self.getInputCols()[0]
+                segment_col_name = self.getInputCols()[1]
+                sort_col_name = None
+            else:
+                val_col_name = self.getInputCols()[0]
+                sort_col_name = self.getInputCols()[1]
+                segment_col_name = None
         else:
             val_col_name = self.getInputCol()
             sort_col_name = None
+            segment_col_name = None
 
-        check_listwise_columns(
-            dataset=dataset,
-            query_col_name=self.getQueryIdCol(),
-            value_col_name=val_col_name,
-            sort_col_name=sort_col_name,
-        )
-
-        condition_col, window_spec = get_listwise_condition_and_window(
-            query_col=F.col(self.getQueryIdCol()),
-            value_col=F.col(val_col_name),
-            sort_col=F.col(sort_col_name) if with_sort else None,
-            sort_order=self.getSortOrder(),
-            sort_top_n=self.getTopN(),
-            min_filter_value=self.getMinFilterValue(),
-        )
-
-        # Calculate the statistics under the conditions
         dataset = dataset.withColumn(
             self.getOutputCol(),
-            F.max(F.when(condition_col, F.col(val_col_name))).over(window_spec),
+            check_and_apply_listwise_op(
+                dataset,
+                F.max,
+                self.getQueryIdCol(),
+                val_col_name,
+                sort_col_name,
+                segment_col_name,
+                self.getSortOrder(),
+                self.getTopN(),
+                self.getMinFilterValue(),
+            ),
         )
 
         # Replace Nulls/Nans
@@ -181,6 +181,7 @@ class ListMaxTransformer(
             output_dtype=self.getOutputTFDtype(),
             top_n=self.getTopN(),
             sort_order=self.getSortOrder(),
+            with_segment=self.getWithSegment(),
             min_filter_value=self.getMinFilterValue(),
             nan_fill_value=self.getNanFillValue(),
             axis=1,

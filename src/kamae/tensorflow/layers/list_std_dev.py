@@ -92,14 +92,6 @@ class ListStdDevLayer(BaseLayer):
             tf.float16,
             tf.float32,
             tf.float64,
-            tf.uint8,
-            tf.int8,
-            tf.uint16,
-            tf.int16,
-            tf.int32,
-            tf.int64,
-            tf.complex64,
-            tf.complex128,
         ]
 
     @allow_single_or_multiple_tensor_input
@@ -109,7 +101,7 @@ class ListStdDevLayer(BaseLayer):
         filtering based on the second input tensor.
 
         :param inputs: The iterable tensor for the feature.
-        :returns: Thew new tensor result column.
+        :returns: The new tensor result column.
         """
         val_tensor = inputs[0]
         output_shape = tf.shape(val_tensor)
