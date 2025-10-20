@@ -12,11 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import keras
 import tensorflow as tf
+from packaging.version import Version
 from pyspark.sql import SparkSession
 
 from kamae.spark.pipeline import KamaeSparkPipeline
 from kamae.spark.transformers import DateDiffTransformer
+
+is_keras_3 = Version(keras.__version__) >= Version("3.0.0")
 
 if __name__ == "__main__":
     print("Starting test of Spark pipeline and integration with Tensorflow")
@@ -53,7 +57,7 @@ if __name__ == "__main__":
     fit_pipeline = test_pipeline.fit(fake_data)
     fit_pipeline.transform(fake_data).show(20, False)
 
-    # Create input schema for keras model. A list of tf.TypeSpec objects.
+    # Create input schema for keras model.
     # Or a list of dicts.
     tf_input_schema = [
         {
@@ -79,22 +83,53 @@ if __name__ == "__main__":
     ]
     keras_model = fit_pipeline.build_keras_model(tf_input_schema=tf_input_schema)
     print(keras_model.summary())
-    keras_model.save("./output/test_keras_model/")
+    model_path = "./output/test_saved_model"
+    if is_keras_3:
+        model_path += ".keras"
+    keras_model.save(model_path)
 
     print("Loading keras model from disk")
-    loaded_keras_model = tf.keras.models.load_model("./output/test_keras_model/")
+    loaded_keras_model = tf.keras.models.load_model(model_path)
     inputs = [
         tf.constant(
-            ["2019-01-01", "2019-01-03", "2019-01-01 00:00:00", "2019-01-05 00:00:00"]
+            [
+                [
+                    ["2019-01-01"],
+                    ["2019-01-03"],
+                    ["2019-01-01 00:00:00"],
+                    ["2019-01-05 00:00:00"],
+                ]
+            ]
         ),  # col1
         tf.constant(
-            ["2019-01-02", "2019-01-06", "2019-01-01 00:00:00", "2019-01-03 00:00:00"]
+            [
+                [
+                    ["2019-01-02"],
+                    ["2019-01-06"],
+                    ["2019-01-01 00:00:00"],
+                    ["2019-01-03 00:00:00"],
+                ]
+            ]
         ),  # col2
         tf.constant(
-            ["2019-01-01", "2019-01-03", "2019-01-01 00:00:00", "2019-01-05 00:00:00"]
+            [
+                [
+                    ["2019-01-01"],
+                    ["2019-01-03"],
+                    ["2019-01-01 00:00:00"],
+                    ["2019-01-05 00:00:00"],
+                ]
+            ]
         ),
         tf.constant(
-            ["2019-01-02", "2019-01-06", "2019-01-01 00:00:00", "2019-01-03 00:00:00"]
+            [
+                [
+                    ["2019-01-02"],
+                    ["2019-01-06"],
+                    ["2019-01-01 00:00:00"],
+                    ["2019-01-03 00:00:00"],
+                ]
+            ]
         ),
     ]
 

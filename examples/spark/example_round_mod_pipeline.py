@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import keras
 import tensorflow as tf
+from packaging.version import Version
 from pyspark.sql import SparkSession
 
-from kamae.spark.estimators import OneHotEncodeEstimator, StandardScaleEstimator
 from kamae.spark.pipeline import KamaeSparkPipeline, KamaeSparkPipelineModel
 from kamae.spark.transformers import (
-    ArrayConcatenateTransformer,
-    IdentityTransformer,
-    LogTransformer,
     ModuloTransformer,
     RoundToDecimalTransformer,
     RoundTransformer,
 )
+
+is_keras_3 = Version(keras.__version__) >= Version("3.0.0")
 
 if __name__ == "__main__":
     print("Starting test of Spark pipeline and integration with Tensorflow")
@@ -113,20 +113,35 @@ if __name__ == "__main__":
     )
 
     print("Building keras model from fit pipeline")
-    # Create input schema for keras model. A list of tf.TypeSpec objects.
+    # Create input schema for keras model.
     tf_input_schema = [
-        tf.TensorSpec(name="col1", dtype=tf.float32, shape=(None, None, 1)),
-        tf.TensorSpec(name="col2", dtype=tf.float32, shape=(None, None, 1)),
-        tf.TensorSpec(name="col3", dtype=tf.float32, shape=(None, None, 1)),
+        {
+            "name": "col1",
+            "dtype": tf.float32,
+            "shape": (None, 1),
+        },
+        {
+            "name": "col2",
+            "dtype": tf.float32,
+            "shape": (None, 1),
+        },
+        {
+            "name": "col3",
+            "dtype": tf.float32,
+            "shape": (None, 1),
+        },
     ]
     keras_model = loaded_fitted_pipeline.build_keras_model(
         tf_input_schema=tf_input_schema
     )
     print(keras_model.summary())
-    keras_model.save("./output/test_keras_model/")
+    model_path = "./output/test_keras_model"
+    if is_keras_3:
+        model_path += ".keras"
+    keras_model.save(model_path)
 
     print("Loading keras model from disk")
-    loaded_keras_model = tf.keras.models.load_model("./output/test_keras_model/")
+    loaded_keras_model = tf.keras.models.load_model(model_path)
     inputs = [
         tf.constant([[[1.4567], [4.2343], [7.1234435]]]),
         tf.constant([[[2.23424], [5.46456], [8.45657567]]]),
