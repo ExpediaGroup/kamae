@@ -101,7 +101,6 @@ class ListMedianLayer(BaseLayer):
         Sorts a tensor while placing NaN values at the end along the specified axis.
 
         :param tensor: The input tensor.
-        :param axis: The axis along which to sort.
         :returns: The sorted tensor with NaN values placed at the end.
         """
         # Replace NaNs with a very large value to move them to the end

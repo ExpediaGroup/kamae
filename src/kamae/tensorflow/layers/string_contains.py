@@ -85,7 +85,7 @@ class StringContainsLayer(BaseLayer):
         is either a single tensor or an iterable of tensors. Returns this result as a
         list of tensors for easier use here.
 
-        :param: inputs: A string tensor or iterable of up to two string tensors.
+        :param inputs: A string tensor or iterable of up to two string tensors.
             In the case two tensors are passed, require that the first tensor is the
             tensor to match a pattern/substring against.
         :returns: A boolean tensor whether the string/string elements are matched.

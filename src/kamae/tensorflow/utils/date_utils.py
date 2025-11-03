@@ -62,7 +62,7 @@ def datetime_days_to_month(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Helper function for some datetime functions.
     Gets the number of days to the month of the given datetime tensor.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -99,7 +99,7 @@ def datetime_year(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a year tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -118,7 +118,7 @@ def datetime_month(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a month tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -137,7 +137,7 @@ def datetime_day(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a day tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -156,7 +156,7 @@ def datetime_hour(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into an hour tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -178,7 +178,7 @@ def datetime_minute(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a minute tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -200,7 +200,7 @@ def datetime_second(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a second tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -222,7 +222,7 @@ def datetime_millisecond(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a millisecond tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -242,7 +242,7 @@ def datetime_total_days(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a total days tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -287,7 +287,7 @@ def datetime_total_seconds(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a total seconds tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -317,7 +317,7 @@ def datetime_total_milliseconds(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a total milliseconds tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -347,7 +347,7 @@ def datetime_weekday(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a weekday tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -366,7 +366,7 @@ def datetime_is_weekend(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a weekend tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
@@ -385,7 +385,7 @@ def datetime_day_of_year(datetime_tensor: tf.Tensor) -> tf.Tensor:
     Utility function to parse a date(time) tensor into a day of year tensor.
     Uses native tf functions only to avoid serialization issues.
 
-    :param: datetime_tensor: date(time) string tensor.
+    :param datetime_tensor: date(time) string tensor.
     Must be in yyyy-MM-dd (HH:mm:ss.SSS) format.
 
     WARNING: Dates are not checked for validity, so if you pass in a date such
