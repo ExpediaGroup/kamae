@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import keras
 import tensorflow as tf
+from packaging.version import Version
 from pyspark.sql import SparkSession
 
-from kamae.spark.pipeline import KamaeSparkPipeline, KamaeSparkPipelineModel
+from kamae.spark.pipeline import KamaeSparkPipeline
 from kamae.spark.transformers import StringReplaceTransformer
-from kamae.tensorflow.layers import StringReplaceLayer
+
+is_keras_3 = Version(keras.__version__) >= Version("3.0.0")
 
 if __name__ == "__main__":
     print("Starting test of Spark pipeline and integration with Tensorflow")
@@ -60,15 +63,30 @@ if __name__ == "__main__":
     fit_pipeline = test_pipeline.fit(fake_data)
     fit_pipeline.transform(fake_data).show(20, False)
 
-    # Create input schema for keras model. A list of tf.TypeSpec objects.
+    # Create input schema for keras model.
     tf_input_schema = [
-        tf.TensorSpec(name="col4", dtype=tf.string, shape=(None, None, 1)),
-        tf.TensorSpec(name="col5", dtype=tf.string, shape=(None, None, 1)),
-        tf.TensorSpec(name="col6", dtype=tf.string, shape=(None, None, 1)),
+        {
+            "name": "col4",
+            "dtype": tf.string,
+            "shape": (None, 1),
+        },
+        {
+            "name": "col5",
+            "dtype": tf.string,
+            "shape": (None, 1),
+        },
+        {
+            "name": "col6",
+            "dtype": tf.string,
+            "shape": (None, 1),
+        },
     ]
     keras_model = fit_pipeline.build_keras_model(tf_input_schema=tf_input_schema)
     print(keras_model.summary())
-    keras_model.save("./output/test_keras_model/")
+    model_path = "./output/test_keras_model"
+    if is_keras_3:
+        model_path += ".keras"
+    keras_model.save(model_path)
 
     # print("Loading keras model from disk")
     # loaded_keras_model = tf.keras.models.load_model("./output/test_keras_model/")

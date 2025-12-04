@@ -174,7 +174,12 @@ if __name__ == "__main__":
     fit_pipeline.transform(fit_data).show()
 
     tf_input_schema = [
-        tf.TensorSpec(name=col, dtype=tf.float32, shape=(None, 1)) for col in x_schema
+        {
+            "name": col,
+            "dtype": tf.float32,
+            "shape": (1,),
+        }
+        for col in x_schema
     ]
 
     tf_preproc_model = fit_pipeline.build_keras_model(tf_input_schema=tf_input_schema)
