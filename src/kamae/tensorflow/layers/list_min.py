@@ -153,14 +153,30 @@ class ListMinLayer(BaseLayer):
         if (
             self.with_segment
         ):  # TODO: What happens if I pass in one column and this is True? Handle that gracefully.
+            # Preserve the feature dimension in the output
+            items_dim = val_tensor.shape[self.axis]
+            feature_dim = (
+                val_tensor.shape[self.axis + 1]
+                if len(val_tensor.shape) > self.axis + 1
+                else None
+            )
+            output_shape_static = (
+                [items_dim, feature_dim] if feature_dim is not None else [items_dim]
+            )
+
             listwise_min = map_fn_w_axis(
                 elems=[val_tensor, segment_tensor],
-                fn=lambda x: segmented_operation(x, tf.math.unsorted_segment_min),
+                fn=lambda x: segmented_operation(
+                    x, tf.math.unsorted_segment_min, feature_dim=feature_dim
+                ),
                 axis=self.axis,
                 fn_output_signature=tf.TensorSpec(
-                    shape=val_tensor.shape[self.axis], dtype=val_tensor.dtype
+                    shape=output_shape_static, dtype=val_tensor.dtype
                 ),
             )
+
+            # Restore static shape information that map_fn_w_axis loses during reshape
+            listwise_min = tf.ensure_shape(listwise_min, val_tensor.shape)
         # Apply global calculation
         else:
             listwise_min = tf.reduce_min(val_tensor, axis=self.axis, keepdims=True)
