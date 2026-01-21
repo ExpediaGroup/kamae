@@ -181,9 +181,7 @@ class ListMaxLayer(BaseLayer):
 
         if self.min_filter_value is not None:
             fill_val = tf.constant(self.nan_fill_value, dtype=listwise_max.dtype)
-            listwise_max = tf.where(
-                listwise_max != neg_inf, listwise_max, fill_val
-            )
+            listwise_max = tf.where(listwise_max != neg_inf, listwise_max, fill_val)
 
         return listwise_max
 
