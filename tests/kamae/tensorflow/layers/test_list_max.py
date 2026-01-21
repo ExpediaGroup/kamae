@@ -438,6 +438,28 @@ class TestListMax:
                     dtype=tf.float32,
                 ),
             ),
+            # With segmentation and multiple features
+            (
+                [
+                    # values
+                    tf.constant(
+                        [[[1.0, 10.0], [2.0, 20.0], [3.0, 30.0]]], dtype=tf.float32
+                    ),
+                    # segment
+                    tf.constant(
+                        [[[1.0, 1.0], [2.0, 2.0], [2.0, 2.0]]], dtype=tf.float32
+                    ),
+                ],
+                None,
+                None,
+                True,
+                "asc",
+                "float64",
+                "float32",
+                tf.constant(
+                    [[[1.0, 10.0], [3.0, 30.0], [3.0, 30.0]]], dtype=tf.float32
+                ),
+            ),
             # With segmentation ID as string
             (
                 [

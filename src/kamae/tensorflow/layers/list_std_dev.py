@@ -140,7 +140,7 @@ class ListStdDevLayer(BaseLayer):
                 axis=self.axis,
                 keepdims=True,
             )
-            listwise_mean = tf.truediv(numerator, denominator)
+            listwise_mean = tf.math.divide_no_nan(numerator, denominator)
 
         else:
             # Calculate the mean without filtering
@@ -173,7 +173,7 @@ class ListStdDevLayer(BaseLayer):
         nan_val = int(self.nan_fill_value) if is_integer else self.nan_fill_value
         listwise_stddev = tf.where(
             tf.math.is_nan(listwise_stddev),
-            tf.constant(nan_val, dtype=listwise_mean.dtype),
+            tf.constant(nan_val, dtype=listwise_stddev.dtype),
             listwise_stddev,
         )
 

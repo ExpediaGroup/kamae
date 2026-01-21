@@ -84,7 +84,9 @@ def listify_tensors(x: Union[tf.Tensor, np.ndarray, List[Any]]) -> List[Any]:
     return x
 
 
-def segmented_operation(values: List[Tensor], fn: Callable) -> Tensor:
+def segmented_operation(
+    values: List[Tensor], fn: Callable, feature_dim: int = None
+) -> Tensor:
     """
     Function for applying an operation to one tensor, segmented by the values of another.
 
@@ -92,14 +94,25 @@ def segmented_operation(values: List[Tensor], fn: Callable) -> Tensor:
     e.g. tf.math.unsorted_segment_min
     :param values: List of two tensors, the first containing values, the second containing segment identifiers.
     :param fn: Function to apply an operation taking the two tensors as inputs.
+    :param feature_dim: Optional static feature dimension to add back to output. When map_fn_w_axis
+        flattens the input, the feature dimension is lost. Set this to restore it (e.g., 1).
 
-    :returns: Single tensor in shape of the first of the original inputs.
+    :returns: Single tensor in shape of the first of the original inputs (with feature_dim if provided).
     """
     # Get segment indices and their IDs
     unique_segments, segment_indices = tf.unique(values[1])
     num_segments = tf.size(unique_segments)
+
     # Apply segment function
     vals = fn(values[0], segment_indices, num_segments)
+
     # Reshape and return
     gathered = tf.gather(vals, segment_indices)
-    return tf.reshape(gathered, tf.shape(values[0]))
+    result = tf.reshape(gathered, tf.shape(values[0]))
+
+    # If feature_dim is provided, expand dims to restore the feature dimension
+    # that map_fn_w_axis flattened away
+    if feature_dim is not None:
+        result = tf.expand_dims(result, axis=-1)
+
+    return result

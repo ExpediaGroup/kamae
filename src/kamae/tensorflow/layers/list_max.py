@@ -152,21 +152,37 @@ class ListMaxLayer(BaseLayer):
 
         # Apply segmented calculation
         if self.with_segment:
+            items_dim = val_tensor.shape[self.axis]
+            feature_dim = (
+                val_tensor.shape[self.axis + 1]
+                if len(val_tensor.shape) > self.axis + 1
+                else None
+            )
+            restore_feature_dim = feature_dim if feature_dim == 1 else None
+            output_shape_static = (
+                [items_dim, feature_dim]
+                if restore_feature_dim is not None
+                else [items_dim]
+            )
             listwise_max = map_fn_w_axis(
                 elems=[val_tensor, segment_tensor],
-                fn=lambda x: segmented_operation(x, tf.math.unsorted_segment_max),
+                fn=lambda x: segmented_operation(
+                    x, tf.math.unsorted_segment_max, feature_dim=restore_feature_dim
+                ),
                 axis=self.axis,
                 fn_output_signature=tf.TensorSpec(
-                    shape=val_tensor.shape[self.axis], dtype=val_tensor.dtype
+                    shape=output_shape_static, dtype=val_tensor.dtype
                 ),
             )
+            listwise_max = tf.ensure_shape(listwise_max, val_tensor.shape)
         else:
             listwise_max = tf.reduce_max(val_tensor, axis=self.axis, keepdims=True)
             listwise_max = tf.broadcast_to(listwise_max, output_shape)
 
         if self.min_filter_value is not None:
+            fill_val = tf.constant(self.nan_fill_value, dtype=listwise_max.dtype)
             listwise_max = tf.where(
-                listwise_max != neg_inf, listwise_max, self.nan_fill_value
+                listwise_max != neg_inf, listwise_max, fill_val
             )
 
         return listwise_max
