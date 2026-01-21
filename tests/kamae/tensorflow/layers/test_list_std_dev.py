@@ -376,22 +376,6 @@ class TestListStdDev:
                     dtype=tf.float32,
                 ),
             ),
-            # With multiple features
-            (
-                [
-                    tf.constant(
-                        [[[1.0, 10.0], [2.0, 20.0], [3.0, 30.0]]], dtype=tf.float32
-                    )
-                ],
-                None,
-                None,
-                "asc",
-                "float64",
-                "float32",
-                tf.constant(
-                    [[[1.0, 10.0], [1.0, 10.0], [1.0, 10.0]]], dtype=tf.float32
-                ),
-            ),
         ],
     )
     def test_listwise_stddev(

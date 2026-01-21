@@ -147,18 +147,6 @@ class ListMeanLayer(BaseLayer):
             val_tensor = tf.where(mask, val_tensor, nan_tensor)
 
         if self.with_segment:
-            items_dim = val_tensor.shape[self.axis]
-            feature_dim = (
-                val_tensor.shape[self.axis + 1]
-                if len(val_tensor.shape) > self.axis + 1
-                else None
-            )
-            restore_feature_dim = feature_dim if feature_dim == 1 else None
-            output_shape_static = (
-                [items_dim, feature_dim]
-                if restore_feature_dim is not None
-                else [items_dim]
-            )
 
             def segment_mean(values: List[Tensor]) -> Tensor:
                 mask = tf.math.is_finite(values[0])
@@ -174,12 +162,10 @@ class ListMeanLayer(BaseLayer):
                         segment_tensor,
                     ],
                     tf.math.unsorted_segment_sum,
-                    feature_dim=restore_feature_dim,
                 )
                 count_vals = segmented_operation(
                     [tf.cast(mask, val_tensor.dtype), segment_tensor],
                     tf.math.unsorted_segment_sum,
-                    feature_dim=restore_feature_dim,
                 )
 
                 return tf.math.divide_no_nan(sum_vals, count_vals)
@@ -192,7 +178,7 @@ class ListMeanLayer(BaseLayer):
                 fn=segment_mean,
                 axis=self.axis,
                 fn_output_signature=tf.TensorSpec(
-                    shape=output_shape_static, dtype=val_tensor.dtype
+                    shape=val_tensor.shape[self.axis :], dtype=val_tensor.dtype
                 ),
             )
             listwise_mean = tf.ensure_shape(listwise_mean, val_tensor.shape)

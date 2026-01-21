@@ -84,9 +84,7 @@ def listify_tensors(x: Union[tf.Tensor, np.ndarray, List[Any]]) -> List[Any]:
     return x
 
 
-def segmented_operation(
-    values: List[Tensor], fn: Callable, feature_dim: int = None
-) -> Tensor:
+def segmented_operation(values: List[Tensor], fn: Callable) -> Tensor:
     """
     Function for applying an operation to one tensor, segmented by the values of another.
 
@@ -94,13 +92,68 @@ def segmented_operation(
     e.g. tf.math.unsorted_segment_min
     :param values: List of two tensors, the first containing values, the second containing segment identifiers.
     :param fn: Function to apply an operation taking the two tensors as inputs.
-    :param feature_dim: Optional static feature dimension to add back to output. When map_fn_w_axis
-        flattens the input, the feature dimension is lost. Set this to restore it (e.g., 1).
 
-    :returns: Single tensor in shape of the first of the original inputs (with feature_dim if provided).
+    :returns: Single tensor in shape of the first of the original inputs.
     """
+    segment_ids = values[1]
+
+    # Segment ids are expected to be 1D. In some pipelines they arrive with a trailing
+    # "feature" dimension, e.g. (items, 1) or (items, feature). When feature > 1 we
+    # only support the common case where the segment ids are duplicated across the
+    # feature dimension (so we can safely take the first column).
+    if segment_ids.shape.rank is not None:
+        if segment_ids.shape.rank > 1:
+            if segment_ids.shape[-1] == 1:
+                segment_ids = tf.squeeze(segment_ids, axis=-1)
+            else:
+                first = segment_ids[..., 0]
+                tf.debugging.assert_equal(
+                    segment_ids,
+                    tf.broadcast_to(
+                        tf.expand_dims(first, axis=-1), tf.shape(segment_ids)
+                    ),
+                    message=(
+                        "Segment identifiers must be 1D, or duplicated across the trailing "
+                        "feature dimension."
+                    ),
+                )
+                segment_ids = first
+    else:
+
+        def _normalize_segment_ids() -> Tensor:
+            rank = tf.rank(segment_ids)
+            feature_dim = tf.shape(segment_ids)[-1]
+
+            def _squeeze() -> Tensor:
+                return tf.squeeze(segment_ids, axis=-1)
+
+            def _take_first() -> Tensor:
+                first = segment_ids[..., 0]
+                tf.debugging.assert_equal(
+                    segment_ids,
+                    tf.broadcast_to(
+                        tf.expand_dims(first, axis=-1), tf.shape(segment_ids)
+                    ),
+                    message=(
+                        "Segment identifiers must be 1D, or duplicated across the trailing "
+                        "feature dimension."
+                    ),
+                )
+                return first
+
+            return tf.cond(
+                tf.equal(rank, 1),
+                lambda: segment_ids,
+                lambda: tf.cond(tf.equal(feature_dim, 1), _squeeze, _take_first),
+            )
+
+        segment_ids = _normalize_segment_ids()
+    tf.debugging.assert_rank(
+        segment_ids, 1, message="Segment identifiers must be a 1D tensor."
+    )
+
     # Get segment indices and their IDs
-    unique_segments, segment_indices = tf.unique(values[1])
+    unique_segments, segment_indices = tf.unique(segment_ids)
     num_segments = tf.size(unique_segments)
 
     # Apply segment function
@@ -109,10 +162,5 @@ def segmented_operation(
     # Reshape and return
     gathered = tf.gather(vals, segment_indices)
     result = tf.reshape(gathered, tf.shape(values[0]))
-
-    # If feature_dim is provided, expand dims to restore the feature dimension
-    # that map_fn_w_axis flattened away
-    if feature_dim is not None:
-        result = tf.expand_dims(result, axis=-1)
 
     return result

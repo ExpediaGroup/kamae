@@ -158,32 +158,31 @@ class ListMedianLayer(BaseLayer):
         else:
             filtered_tensor = filtered_tensor
 
-        if self.axis != 1:
-            raise ValueError("ListMedianLayer is only fully supported for axis=1.")
-
+        # Get the number of non-nan values
         num_valid_values = tf.reduce_sum(
             tf.cast(tf.math.is_finite(filtered_tensor), tf.int32), axis=self.axis
         )
 
+        # Sort the values along the list dimension
         sorted_filtered_tensor = self.sort_with_nans_last(filtered_tensor)
 
-        lower_index = tf.maximum((num_valid_values - 1) // 2, 0)
-        upper_index = tf.maximum(tf.minimum(lower_index + 1, num_valid_values - 1), 0)
+        # Calculate the indices of the median values
+        lower_index = (num_valid_values - 1) // 2
+        upper_index = tf.minimum(lower_index + 1, num_valid_values - 1)
 
-        sorted_bfl = tf.transpose(sorted_filtered_tensor, perm=[0, 2, 1])
-        lower_medians = tf.gather(sorted_bfl, lower_index, batch_dims=2, axis=2)
-        upper_medians = tf.gather(sorted_bfl, upper_index, batch_dims=2, axis=2)
+        # Gather the median values for each feature
+        batch_size = tf.shape(filtered_tensor)[0]
+        batch_indices = tf.range(batch_size)[:, tf.newaxis, tf.newaxis]
+        lower_indices = tf.concat([batch_indices, lower_index[:, tf.newaxis]], axis=-1)
+        lower_medians = tf.gather_nd(sorted_filtered_tensor, lower_indices)
+        upper_indices = tf.concat([batch_indices, upper_index[:, tf.newaxis]], axis=-1)
+        upper_medians = tf.gather_nd(sorted_filtered_tensor, upper_indices)
 
-        even_mask = tf.equal(tf.math.mod(num_valid_values, 2), 0)
+        # Calculate the average of lower and upper medians for even cases
         listwise_median = tf.where(
-            even_mask,
+            tf.math.mod(num_valid_values[:, tf.newaxis], 2) == 0,
             (lower_medians + upper_medians) / 2.0,
             lower_medians,
-        )
-        listwise_median = tf.where(
-            num_valid_values > 0,
-            listwise_median,
-            tf.constant(float("nan"), dtype=listwise_median.dtype),
         )
 
         # Fill nan
@@ -195,9 +194,9 @@ class ListMedianLayer(BaseLayer):
             listwise_median,
         )
 
-        listwise_median = tf.broadcast_to(
-            listwise_median[:, tf.newaxis, :], output_shape
-        )
+        # Broadcast the stat to each item in the list
+        # WARNING: If filter creates empty items list, the result will be NaN
+        listwise_median = tf.broadcast_to(listwise_median, output_shape)
 
         return listwise_median
 
