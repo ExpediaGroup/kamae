@@ -50,6 +50,12 @@ def map_fn_w_axis(
     :param name: The name of the operation. Defaults to None.
     """
 
+    if not isinstance(fn_output_signature, (tf.dtypes.DType, tf.TypeSpec)):
+        raise TypeError(
+            "`fn_output_signature` must be a `tf.dtypes.DType` or `tf.TypeSpec`, "
+            f"got {type(fn_output_signature).__name__}."
+        )
+
     if isinstance(fn_output_signature, tf.TypeSpec):
 
         def reshape_for_map(
