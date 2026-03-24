@@ -44,7 +44,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["42<=setuptools<=81", "wheel"]
+requires = ["setuptools<=81", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.dynamic]
