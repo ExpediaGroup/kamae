@@ -87,12 +87,11 @@ jobs:
       - name: Fix Python Pyspark & Tensorflow Versions
         run: |
           uv venv --python 3.12
+          uv add "setuptools<81.0.0"
           uv add pyspark==${{ matrix.pyspark-version }}
           uv add "tensorflow==${{ matrix.tensorflow-version }}; python_version >='3.9' and python_version <='3.12'"
       - name: Run tests
-        run: |
-          uv pip install setuptools==80.10.2
-          uv run -p 3.12 python -m pytest -n auto .
+        run: uv run -p 3.12 python -m pytest -n auto .
   formatting:
     name: Formatting Checks
     runs-on: [ ubuntu-latest ]
