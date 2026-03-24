@@ -90,7 +90,7 @@ jobs:
           uv add pyspark==${{ matrix.pyspark-version }}
           uv add "tensorflow==${{ matrix.tensorflow-version }}; python_version >='3.9' and python_version <='3.12'"
       - name: Run tests
-        run: uv run -p 3.12 python -m pytest -n auto .
+        run: uv run --with setuptools==80.10.2 -p 3.12 python -m pytest -n auto .
   formatting:
     name: Formatting Checks
     runs-on: [ ubuntu-latest ]
