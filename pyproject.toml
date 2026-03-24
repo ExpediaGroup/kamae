@@ -44,7 +44,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["setuptools<=81", "wheel"]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.dynamic]
@@ -53,7 +53,8 @@ version = {attr = "kamae.__version__"}
 [tool.uv]
 index-strategy = "unsafe-best-match"
 
-
+[tool.uv.extra-build-dependencies]
+pandas = ["setuptools<=81.0.0"]
 
 [tool.black]
 includes = "src"
