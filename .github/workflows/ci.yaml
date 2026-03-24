@@ -86,7 +86,9 @@ jobs:
           pip install "uv==$UV_VERSION"
       - name: Fix Python Pyspark & Tensorflow Versions
         run: |
-          uv venv --python 3.12 --with setuptools==80.10.2
+          uv venv --python 3.12
+          uv add setuptools==75.8.0
+          uv add pandas==1.5.3
           uv add pyspark==${{ matrix.pyspark-version }}
           uv add "tensorflow==${{ matrix.tensorflow-version }}; python_version >='3.9' and python_version <='3.12'"
       - name: Run tests
