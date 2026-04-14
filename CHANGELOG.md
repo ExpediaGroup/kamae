@@ -2,6 +2,52 @@
 
 
 
+## v2.39.1 (2026-04-14)
+
+### Fix
+
+* fix: add Python 3.12 support with version-specific pandas constraints (#38)
+
+* chore: Update Python 3.12 CI
+
+* chore: uv add setuptools
+
+* chore: restrict setuptools version
+
+* chore: revert to pip
+
+* chore: move to run
+
+* chore: add with lt bound
+
+* chore: change build system deps
+
+* chore: fix syntax
+
+* chore: extra deps
+
+* chore: constraint deps
+
+* chore: try --with
+
+* chore: try --with somewhere else
+
+* chore: try add one last time...
+
+* chore: try add one last time again...
+
+* fix: fix python 3.12 pandas incompatibility
+
+* chore: drop unneeded line
+
+* chore: try expanding pandas up to &lt;3.0.0
+
+---------
+
+Co-authored-by: James Shinner &lt;jshinner@expediagroup.com&gt;
+Co-authored-by: Marian Andrecki &lt;t-mandreki@expediagroup.com&gt; ([`627be01`](https://github.com/ExpediaGroup/kamae/commit/627be01d22d53c5a5a897773b30c195d7301a2df))
+
+
 ## v2.39.0 (2026-03-26)
 
 ### Feature
