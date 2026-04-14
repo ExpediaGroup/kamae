@@ -2,51 +2,76 @@
 [![CI](https://github.com/ExpediaGroup/kamae/actions/workflows/ci.yaml/badge.svg)](https://github.com/ExpediaGroup/kamae/actions/workflows/ci.yaml)
 ![PyPI - Version](https://img.shields.io/pypi/v/kamae)
 
+Kamae bridges the gap between offline data processing and online model serving. Build preprocessing pipelines in [Spark](https://spark.apache.org/) for big data workloads, then export them as [Keras](https://keras.io/) models for low-latency inference.
 
-Kamae is a Python package comprising a set of reusable components
-for preprocessing inputs offline (Spark) and online (TensorFlow).
+## Why Kamae?
 
-Build all your big-data preprocessing pipelines in [Spark](https://spark.apache.org/), and get your [Keras](https://keras.io/) preprocessing model for free!
+Training and serving often happen on different platforms. Spark for batch processing at scale, TensorFlow for low-latency inference. Manually reimplementing preprocessing logic in both places creates:
+- **Training/serving skew**: Subtle bugs from inconsistent implementations
+- **Development overhead**: Writing and maintaining duplicate code
+- **Deployment friction**: Changes require updates in multiple systems
+
+Kamae solves this by generating the inference model directly from your Spark pipeline, guaranteeing consistency between training and serving.
+
+## Installation
+
+```bash
+pip install kamae
+```
+
+**Platform notes**: Kamae supports `tensorflow>=2.9.1,<2.19.0`. For Mac ARM with `tensorflow<2.13.0`, install `tensorflow-macos` manually. TensorFlow no longer supports Mac x86_64 from version 2.18.0 onwards.
+
+## Quick Start
+
+```python
+from pyspark.sql import SparkSession
+from kamae.spark.estimators import StandardScaleEstimator, StringIndexEstimator
+from kamae.spark.pipeline import KamaeSparkPipeline
+from kamae.spark.transformers import LogTransformer, ArrayConcatenateTransformer
+
+# Define preprocessing in Spark
+spark = SparkSession.builder.getOrCreate()
+data = spark.createDataFrame(
+    [(1, 2, "a"), (4, 5, "b"), (7, 8, "c")],
+    ["col1", "col2", "category"]
+)
+
+pipeline = KamaeSparkPipeline(stages=[
+    LogTransformer(inputCol="col1", outputCol="log_col1", alpha=1, inputDtype="float"),
+    ArrayConcatenateTransformer(inputCols=["log_col1", "col2"], outputCol="features", inputDtype="float"),
+    StandardScaleEstimator(inputCol="features", outputCol="scaled_features"),
+    StringIndexEstimator(inputCol="category", outputCol="category_indexed"),
+])
+
+fitted_pipeline = pipeline.fit(data)
+fitted_pipeline.transform(data).show()  # Use in Spark
+
+# Export for TensorFlow Serving
+tf_input_schema = [
+    {"name": "col1", "dtype": "int32", "shape": (None, 1)},
+    {"name": "col2", "dtype": "int32", "shape": (None, 1)},
+    {"name": "category", "dtype": "string", "shape": (None, 1)},
+]
+keras_model = fitted_pipeline.build_keras_model(tf_input_schema=tf_input_schema)
+keras_model.save("./preprocessing_model.keras")
+```
 
 ## Usage
-The library is designed with three main usage patterns in mind:
 
-1. **Import and use Keras preprocessing layers directly.** 
+**Spark Pipeline (Recommended)**: Build preprocessing pipelines using Spark transformers and estimators, fit on DataFrames, then export as Keras models. See [examples](examples/spark) for common patterns.
 
-This is the recommended usage pattern for complex use-cases.
-For example when your data is not tabular, or when you need to apply preprocessing steps that are not supported by the provided Spark Pipeline interface.
-The library provides a set of Keras subclassed layers that can be imported and used directly in a Keras model. 
-You can chain these layers together to create complex preprocessing steps, and then use the resulting model as the input to a trainable model.
+**Direct Keras Layers**: Import and compose Keras layers directly for non-tabular data or custom workflows. Browse available layers in the [transformation table](#supported-preprocessing-layers) below.
 
-2. **Use the provided Spark Pipeline interface to build Keras preprocessing models.**
+For Scikit-learn support (experimental, unmaintained), see [sklearn examples](examples/sklearn).
 
-This is the recommended usage pattern for big data use-cases, (classification, regression, ranking) where your data is tabular, 
-and you want to apply standard preprocessing steps such as normalization, one-hot encoding, etc.
-The library provides Spark transformers, estimators and pipelining so that a user can chain
-together preprocessing steps in Spark, fit the pipeline on a Spark DataFrame, and then export the result as a Keras model.
-Unit tests ensure parity between the Spark and Keras implementations of the preprocessing layers.
+## Documentation
 
-3. **Use the provided Sklearn Pipeline interface to build Keras preprocessing models.**
-
-_**Note: This is provided as an example of how Kamae could be extended to support other pipeline SDKs but it is NOT actively supported. It is far behind the Spark interface in terms of transformer coverage & enhancements we have made such as [type](docs/achieving_type_parity.md) & [shape](docs/achieving_shape_parity.md) parity. Contributions are welcome, but please use at your own risk.**_
-
-Works in the same way as the Spark pipeline interface, just using Scikit-learn transformers, estimators and pipelines.
-This is the recommended usage pattern for small data use-cases, (classification, regression, ranking) where your data is tabular,
-and you want to apply standard preprocessing steps such as normalization, one-hot encoding, etc.
-
-[Keras Tuner](https://keras.io/keras_tuner/) support is also provided for the Spark & Scikit-learn Pipeline interface, whereby a
-model builder function is returned so that the hyperparameters of the preprocessing steps can be tuned using the Keras Tuner API.
-
-Once you have created a Kamae preprocessing model, you can use it as the input to a trainable model. See [these](docs/chaining_models.md) docs for more information.
-
-For advice on achieving type parity between the Spark and Keras implementations of the preprocessing layers, see [these](docs/achieving_type_parity.md) docs.
-
-For information on achieving shape parity between the Spark and Keras implementations of the preprocessing layers, see [these](docs/achieving_shape_parity.md) docs.
-
-## Pipeline Examples
-See the [examples](examples/spark) directory for various examples of how to use the Spark Pipeline interface.
-Similarly, see the [examples](examples/sklearn) directory for various examples of how to use the Scikit-learn Pipeline interface.
-Follow the development instructions below to run the examples locally.
+- **[Examples](examples/spark)**: Full working examples for common use cases
+- **[Chaining models](docs/chaining_models.md)**: Use Kamae preprocessing models as inputs to trainable models
+- **[Type parity](docs/achieving_type_parity.md)**: Ensuring consistent dtypes between Spark and Keras
+- **[Shape parity](docs/achieving_shape_parity.md)**: Ensuring consistent shapes between Spark and Keras
+- **[Testing inference](docs/testing_inference.md)**: Validate model outputs with TensorFlow Serving
+- **[Adding transformers](docs/adding_transformer.md)**: Contributing new transformations
 
 ## Supported Preprocessing Layers
 
@@ -123,110 +148,34 @@ Follow the development instructions below to run the examples locally.
 |               Sum               |                                                     Adds a constant to a single feature or sums multiple features together.                                                     |             [Link](src/kamae/tensorflow/layers/sum.py)             |                [Link](src/kamae/spark/transformers/sum.py)                |                     Not yet implemented                     |
 |     UnixTimestampToDateTime     |                                                               Converts a unix timestamp to a UTC datetime string.                                                               | [Link](src/kamae/tensorflow/layers/unix_timestamp_to_date_time.py) |    [Link](src/kamae/spark/transformers/unix_timestamp_to_date_time.py)    |                     Not yet implemented                     |
 
-## Mac ARM/x86_64 Support
-From `tensorflow>=2.13.0` onwards, TensorFlow directly releases builds for Mac ARM chips. 
-
-Kamae supports `tensorflow>=2.9.1,<2.19.0`, however, if you require `tensorflow<2.13.0` and are using a Mac ARM chip, you will need to install `tensorflow-macos<2.13.0` yourself.
-
-From `tensorflow>=2.18.0` onwards, TensorFlow does not release builds for Mac x86_64 chips. If you are on an old Mac chip, please bear this in mind when using the library.
-
-
-## Installation
-
-The Kamae package is pushed to PyPI, and can be installed using the command:
-```bash
-pip install kamae
-```
-Alternatively, the package can be installed from the source code by downloading the latest release .tar file from the [Releases](https://github.com/ExpediaGroup/kamae/releases) page and running the following command:
-```bash
-pip install kamae-<version>.tar
-```
-
 ## Development
 
-### Getting Started
+### Setup
 
-#### Installing Python
-
-Local development is in Python 3.10. uv can install this for you, once you have run `make setup-uv`. Then run `make install`
-
-The final package supports Python 3.8 -> 3.12.
-
-#### Installing `pipx`
-
-`pipx` is used to install `uv` and `pre-commit` in isolated environments.
-
-Installing `pipx` depends on your operating system. See the [pipx installation instructions](https://github.com/pypa/pipx?tab=readme-ov-file#install-pipx).
-
-#### Setting up the project
-
-Once python 3.10 and `pipx` are installed, run the below make command to set up the project:
-```bash
-make setup
-```
-
-### Helpful Commands
-
-A Makefile is provided to simplify common development tasks. The available commands can be listed by running:
-```bash
-make help
-```
-
-In order to get setup for local development, you will need to install the project dependencies and pre-commit hooks. This can be done by running:
-```bash
-make setup
-```
-
-Once the dependencies are installed, tests, formatting & linting can be run by running:
+Requirements: Python 3.10 (for development), `pipx` ([installation instructions](https://github.com/pypa/pipx?tab=readme-ov-file#install-pipx))
 
 ```bash
-make all
+make setup      # Install dependencies and pre-commit hooks
+make all        # Run tests, formatting, and linting
+make help       # See all available commands
 ```
 
-You can run an example of the package by running:
+The package supports Python 3.8-3.12 in production.
+
+### Common Commands
+
 ```bash
-make run-example
+make run-example        # Run example pipeline
+make test-tf-serving    # Test TensorFlow Serving inference
+make test-end-to-end    # Run example + test serving
 ```
-
-You can test the inference of a model served by TensorFlow Serving by running:
-```bash
-make test-tf-serving
-```
-
-Lastly, you can run both an example and test the inference of a model (above two commands) in one command by running:
-```bash
-make test-end-to-end
-```
-
-See the docs here for more details on [testing inference](docs/testing_inference.md).
-
-### Dependencies
-
-For local development, dependency management is controlled with the [uv](https://docs.astral.sh/uv/) package, which can be installed by following the instructions [here](https://docs.astral.sh/uv/getting-started/installation/).
 
 ### Contributing
 
-To contribute to the project, a branch should be created from the `main` branch, and a pull request should be opened when the changes are ready to be reviewed.
-Please follow [these](/docs/adding_transformer.md) docs for contributing new transformers.
+Create a branch from `main` and open a pull request. Follow the [adding transformers guide](docs/adding_transformer.md) for new transformers.
 
-### Code Quality
+**Code quality**: Pre-commit hooks enforce formatting and linting. Install with `uv run pre-commit install`. PRs must pass all tests in `tests/`.
 
-The project uses pre-commit hooks to enforce linting and formatting standards. You should install the pre-commit hooks before committing for the first time by running:
-```bash
-uv run pre-commit install
-```
+**Versioning**: Automated via [semantic-release](https://semantic-release.gitbook.io/semantic-release/). Use conventional commit prefixes in PR titles: `fix:` (patch), `feat:` (minor), `BREAKING CHANGE:` (major).
 
-Additionally, for a pull request to be accepted, the code must pass the unit tests found in the `tests/` directory. The full suite of formatting, linting, coverage checks, and tests can be run locally with the command:
-```bash
-make all
-```
-
-### Versioning
-
-Versioning for the project is performed by the [semantic-release](https://semantic-release.gitbook.io/semantic-release/) package. When a pull request is merged into the `main` branch, the package version will be automatically updated based on the squashed commit message from the PR title.
-
-Commits prefixed with `fix:` will trigger a patch version update, `feat:` will trigger a minor version update, and `BREAKING CHANGE:` will trigger a major version update. Note `BREAKING CHANGE:` needs to be in the commit body/footer as detailed [here](https://www.conventionalcommits.org/en/v1.0.0/#summary). All other commit prefixes will trigger no version update. PR titles should therefore be prefixed accordingly.
-
-
-### Contact
-For any questions or concerns please reach out to the [team](https://github.com/orgs/ExpediaGroup/teams/kamae-admins).
+**Contact**: Questions? Reach out to the [Kamae team](https://github.com/orgs/ExpediaGroup/teams/kamae-admins).
