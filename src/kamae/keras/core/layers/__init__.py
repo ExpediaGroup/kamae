@@ -19,6 +19,10 @@ Portable layers that work across TensorFlow, JAX, and PyTorch backends.
 """
 
 from .absolute_value import AbsoluteValueLayer
+from .array_concatenate import ArrayConcatenateLayer
+from .array_crop import ArrayCropLayer
+from .array_split import ArraySplitLayer
+from .array_subtract_minimum import ArraySubtractMinimumLayer
 from .base import BaseLayer
 from .divide import DivideLayer
 from .exp import ExpLayer
@@ -60,4 +64,8 @@ __all__ = [
     "LogicalOrLayer",
     "LogicalNotLayer",
     "NumericalIfStatementLayer",
+    "ArrayConcatenateLayer",
+    "ArraySplitLayer",
+    "ArrayCropLayer",
+    "ArraySubtractMinimumLayer",
 ]
