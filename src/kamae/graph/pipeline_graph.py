@@ -18,11 +18,8 @@ import keras
 import keras_tuner
 import networkx as nx
 import tensorflow as tf
-from packaging.version import Version
 
 from kamae.tensorflow.layers import IdentityLayer
-
-keras_version = Version(keras.__version__)
 
 
 class PipelineGraph:
@@ -147,9 +144,7 @@ class PipelineGraph:
             if k in output_names
         }
 
-    def build_keras_inputs(
-        self, tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]]
-    ) -> None:
+    def build_keras_inputs(self, tf_input_schema: List[Dict[str, Any]]) -> None:
         """
         Builds a Keras input layer for the given node.
 
@@ -161,32 +156,17 @@ class PipelineGraph:
         keras input layer. We then store this layer as an input and update the
         layer store.
 
-        :param tf_input_schema: List of tf.TypeSpec objects containing the input schema
-        for the model or a list of dict config to be passed to the Input constructor.
+        :param tf_input_schema: List of dict config to be passed to the Input constructor.
         :returns: None - layer store is updated and input layer is stored in the
         inputs dict.
         """
 
-        if isinstance(tf_input_schema, list) and all(
-            isinstance(x, tf.TypeSpec) for x in tf_input_schema
-        ):
-            if keras_version >= Version("3.0.0"):
-                raise ValueError(
-                    "tf.TypeSpec is not supported in Keras 3, please use a dict config"
-                )
-            input_config = [
-                {
-                    "name": spec.name,
-                    "type_spec": spec,
-                }
-                for spec in tf_input_schema
-            ]
-        elif isinstance(tf_input_schema, list) and all(
+        if not isinstance(tf_input_schema, list) or not all(
             isinstance(x, dict) for x in tf_input_schema
         ):
-            input_config = tf_input_schema
-        else:
-            raise ValueError("tf_input_schema must be a list of tf.TypeSpec or dict!")
+            raise ValueError("tf_input_schema must be a list of dict!")
+
+        input_config = tf_input_schema
 
         for conf in input_config:
             name = conf.get("name", None)
@@ -397,7 +377,7 @@ class PipelineGraph:
 
     def get_keras_tuner_model_builder(
         self,
-        tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
+        tf_input_schema: List[Dict[str, Any]],
         hp_dict: Dict[str, List[Dict[str, Any]]],
         output_names: Optional[List[str]] = None,
     ) -> Callable[[keras_tuner.HyperParameters], tf.keras.Model]:
@@ -407,7 +387,7 @@ class PipelineGraph:
         Useful for scenarios where the best preprocessing variables are not known
         a priori. For example, the num_bins to use for a HashIndexLayer.
 
-        :param tf_input_schema: List of tf.TypeSpec objects containing the input schema
+        :param tf_input_schema: List of dict config containing the input schema
         for the model. Specifically the name, shape and dtype of each input.
         These will be passed as is to the Keras Input layer.
         :param hp_dict: Dictionary of possible hyperparameters for each layer.
@@ -462,14 +442,14 @@ class PipelineGraph:
 
     def build_keras_model(
         self,
-        tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
+        tf_input_schema: List[Dict[str, Any]],
         output_names: Optional[List[str]] = None,
     ) -> tf.keras.Model:
         """
         Builds a Keras model from the graph.
 
-        :param tf_input_schema: List of tf.TypeSpec objects containing the input schema
-        for the model. Each TypeSpec object must define a unique `name` attribute.
+        :param tf_input_schema: List of dict config containing the input schema
+        for the model. Each dict must have a 'name' key.
         These will be passed as is to the Keras Input layer.
         :param output_names: Optional list of output names for the Keras model. If
         provided, only the outputs specified are used as model outputs.
