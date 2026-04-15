@@ -85,6 +85,26 @@ class BaseLayer(keras.layers.Layer, ABC):
         raise NotImplementedError
 
     @staticmethod
+    def _check_string_dtype_backend_compatibility(dtype_str: str) -> None:
+        """
+        Check if string dtype is used on a non-TensorFlow backend.
+
+        String operations are only supported on TensorFlow backend. JAX and PyTorch
+        do not support string tensors.
+
+        :param dtype_str: Dtype string to check (e.g., 'float32', 'string')
+        :raises RuntimeError: If string dtype is used on JAX or PyTorch backend.
+        """
+        if dtype_str == "string":
+            backend = keras.backend.backend()
+            if backend != "tensorflow":
+                raise RuntimeError(
+                    f"String dtype is not supported on '{backend}' backend. "
+                    f"String operations require TensorFlow backend. "
+                    f"Set KERAS_BACKEND=tensorflow before importing keras."
+                )
+
+    @staticmethod
     def _numeric_cast(inputs: Tensor, cast_dtype: str) -> Tensor:
         """
         Casts a numeric tensor to the desired dtype using keras.ops.
@@ -189,6 +209,8 @@ class BaseLayer(keras.layers.Layer, ABC):
             cast_dtype = self._output_dtype
 
         if cast_dtype is not None:
+            # Check if string dtype is being used on non-TF backend
+            self._check_string_dtype_backend_compatibility(cast_dtype)
             # Check if tensors is a single tensor
             if not isinstance(tensors, list):
                 current_dtype = keras.backend.standardize_dtype(tensors.dtype)
@@ -241,7 +263,10 @@ class BaseLayer(keras.layers.Layer, ABC):
         :returns: None
         """
         if self.compatible_dtypes is None:
-            # Any dtype is compatible
+            # Any dtype is compatible, but check for string dtype on non-TF backends
+            for inp in inputs:
+                inp_dtype = keras.backend.standardize_dtype(inp.dtype)
+                self._check_string_dtype_backend_compatibility(inp_dtype)
             return
 
         for inp in inputs:
