@@ -13,5 +13,29 @@
 # limitations under the License.
 
 """
-TensorFlow-specific utility functions.
+TensorFlow-specific utilities for TF-only layers.
+
+These utilities use TensorFlow-specific operations and are only available
+when using the TensorFlow backend.
 """
+
+from .date_utils import (  # noqa: F401
+    datetime_add_days,
+    datetime_day,
+    datetime_day_of_year,
+    datetime_hour,
+    datetime_is_weekend,
+    datetime_millisecond,
+    datetime_minute,
+    datetime_month,
+    datetime_second,
+    datetime_to_unix_timestamp,
+    datetime_total_days,
+    datetime_total_milliseconds,
+    datetime_total_seconds,
+    datetime_weekday,
+    datetime_year,
+    unix_timestamp_to_datetime,
+)
+from .list_utils import get_top_n, listify_tensors, segmented_operation  # noqa: F401
+from .transform_utils import map_fn_w_axis  # noqa: F401
