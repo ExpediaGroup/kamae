@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import ArrayConcatenateLayer
+from kamae.keras.core.layers import ArrayConcatenateLayer
 
 
 class TestArrayConcatenate:

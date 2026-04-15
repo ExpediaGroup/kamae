@@ -17,7 +17,7 @@ import datetime
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import DateTimeToUnixTimestampLayer
+from kamae.keras.tensorflow.layers import DateTimeToUnixTimestampLayer
 
 
 class TestDateTimeToUnixTimestamp:

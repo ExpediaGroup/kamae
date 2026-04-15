@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import StringContainsListLayer
+from kamae.keras.tensorflow.layers import StringContainsListLayer
 
 
 # TODO: Rename and repurpose

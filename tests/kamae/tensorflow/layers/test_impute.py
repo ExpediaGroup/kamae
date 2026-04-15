@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import ImputeLayer
+from kamae.keras.core.layers import ImputeLayer
 
 
 class TestImpute:

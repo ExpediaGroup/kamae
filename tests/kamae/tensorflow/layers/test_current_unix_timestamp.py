@@ -17,7 +17,7 @@ from unittest.mock import patch
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import CurrentUnixTimestampLayer
+from kamae.keras.tensorflow.layers import CurrentUnixTimestampLayer
 
 
 class TestCurrentUnixTimestamp:

@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers.ordinal_array_encode import OrdinalArrayEncodeLayer
+from kamae.keras.tensorflow.layers import OrdinalArrayEncodeLayer
 
 
 class TestOrdinalArrayEncode:

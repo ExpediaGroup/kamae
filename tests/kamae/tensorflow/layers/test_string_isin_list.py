@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import StringIsInListLayer
+from kamae.keras.tensorflow.layers import StringIsInListLayer
 
 
 class TestStringIsInList:

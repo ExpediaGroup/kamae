@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import StringListToStringLayer
+from kamae.keras.tensorflow.layers import StringListToStringLayer
 
 
 class TestStringListToString:

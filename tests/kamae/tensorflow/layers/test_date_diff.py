@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import DateDiffLayer
+from kamae.keras.tensorflow.layers import DateDiffLayer
 
 
 class TestDateDiff:

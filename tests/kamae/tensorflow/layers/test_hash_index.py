@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import HashIndexLayer
+from kamae.keras.tensorflow.layers import HashIndexLayer
 
 
 class TestHashIndex:

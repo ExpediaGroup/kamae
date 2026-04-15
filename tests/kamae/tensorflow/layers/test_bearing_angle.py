@@ -19,7 +19,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import BearingAngleLayer
+from kamae.keras.core.layers import BearingAngleLayer
 
 
 class TestBearingAngle:

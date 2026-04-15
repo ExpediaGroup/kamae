@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import DivideLayer
+from kamae.keras.core.layers import DivideLayer
 
 
 class TestDivide:

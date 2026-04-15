@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import ListMinLayer
+from kamae.keras.tensorflow.layers import ListMinLayer
 
 
 class TestListMin:

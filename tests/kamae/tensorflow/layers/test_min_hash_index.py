@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import MinHashIndexLayer
+from kamae.keras.tensorflow.layers import MinHashIndexLayer
 
 
 class TestMinHashIndex:

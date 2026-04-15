@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import StandardScaleLayer
+from kamae.keras.core.layers import StandardScaleLayer
 
 
 class TestStandardScale:

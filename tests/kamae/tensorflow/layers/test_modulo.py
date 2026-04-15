@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import ModuloLayer
+from kamae.keras.core.layers import ModuloLayer
 
 
 class TestModulo:

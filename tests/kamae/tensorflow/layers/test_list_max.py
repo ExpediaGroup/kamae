@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import ListMaxLayer
+from kamae.keras.tensorflow.layers import ListMaxLayer
 
 
 class TestListMax:

@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import BloomEncodeLayer
+from kamae.keras.tensorflow.layers import BloomEncodeLayer
 
 
 class TestBloomEncode:

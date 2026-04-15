@@ -19,7 +19,7 @@ from unittest.mock import patch
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.layers import CurrentDateLayer
+from kamae.keras.tensorflow.layers import CurrentDateLayer
 
 
 class TestCurrentDate:
