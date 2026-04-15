@@ -24,10 +24,13 @@ from .array_crop import ArrayCropLayer
 from .array_split import ArraySplitLayer
 from .array_subtract_minimum import ArraySubtractMinimumLayer
 from .base import BaseLayer
+from .bin import BinLayer
+from .conditional_standard_scale import ConditionalStandardScaleLayer
 from .divide import DivideLayer
 from .exp import ExpLayer
 from .exponent import ExponentLayer
 from .identity import IdentityLayer
+from .impute import ImputeLayer
 from .log import LogLayer
 from .logical_and import LogicalAndLayer
 from .logical_not import LogicalNotLayer
@@ -35,11 +38,13 @@ from .logical_or import LogicalOrLayer
 from .max import MaxLayer
 from .mean import MeanLayer
 from .min import MinLayer
+from .min_max_scale import MinMaxScaleLayer
 from .modulo import ModuloLayer
 from .multiply import MultiplyLayer
 from .numerical_if_statement import NumericalIfStatementLayer
 from .round import RoundLayer
 from .round_to_decimal import RoundToDecimalLayer
+from .standard_scale import StandardScaleLayer
 from .subtract import SubtractLayer
 from .sum import SumLayer
 
@@ -68,4 +73,9 @@ __all__ = [
     "ArraySplitLayer",
     "ArrayCropLayer",
     "ArraySubtractMinimumLayer",
+    "StandardScaleLayer",
+    "ConditionalStandardScaleLayer",
+    "MinMaxScaleLayer",
+    "ImputeLayer",
+    "BinLayer",
 ]

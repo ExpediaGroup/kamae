@@ -146,14 +146,14 @@ class BaseLayer(keras.layers.Layer, ABC):
         input_dtype = keras.backend.standardize_dtype(inputs.dtype)
 
         # Check if dtype is floating point
-        if "float" in input_dtype or "bfloat" in input_dtype:
+        if "float" in input_dtype:
             # Input is float - cast constant to same precision
             if isinstance(constant, float):
                 return inputs, ops.convert_to_tensor(constant, dtype=input_dtype)
             return inputs, ops.convert_to_tensor(float(constant), dtype=input_dtype)
 
         # Check if dtype is integer
-        if "int" in input_dtype or "uint" in input_dtype:
+        if "int" in input_dtype:
             # Input is integer
             if isinstance(constant, int):
                 # Constant is also int - keep as int
