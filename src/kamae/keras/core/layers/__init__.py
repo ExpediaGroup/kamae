@@ -20,10 +20,15 @@ Portable layers that work across TensorFlow, JAX, and PyTorch backends.
 
 from .absolute_value import AbsoluteValueLayer
 from .base import BaseLayer
+from .divide import DivideLayer
 from .exp import ExpLayer
 from .identity import IdentityLayer
 from .log import LogLayer
+from .modulo import ModuloLayer
 from .multiply import MultiplyLayer
+from .round import RoundLayer
+from .round_to_decimal import RoundToDecimalLayer
+from .subtract import SubtractLayer
 
 __all__ = [
     "BaseLayer",
@@ -32,4 +37,9 @@ __all__ = [
     "MultiplyLayer",
     "ExpLayer",
     "LogLayer",
+    "DivideLayer",
+    "SubtractLayer",
+    "RoundLayer",
+    "RoundToDecimalLayer",
+    "ModuloLayer",
 ]
