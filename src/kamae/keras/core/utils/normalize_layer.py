@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Portable normalization base layer for backend-agnostic scaling operations.
+Multi-backend normalization base layer for backend-agnostic scaling operations.
 """
 
 from typing import Any, Dict, List, Optional, Tuple, Union

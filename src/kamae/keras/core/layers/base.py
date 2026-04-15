@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Portable base layer for backend-agnostic numeric operations.
+Multi-backend base layer for backend-agnostic numeric operations.
 
 This base layer provides numeric casting and dtype validation for layers
 that work across TensorFlow, JAX, and PyTorch backends.
@@ -119,7 +119,7 @@ class BaseLayer(keras.layers.Layer, ABC):
         """
         Casts inputs to the desired dtype.
 
-        For the portable base layer, this only supports numeric casting.
+        For the multi-backend base layer, this only supports numeric casting.
         Subclasses (like TfBaseLayer) can override to add string support.
 
         :param inputs: Input tensor.

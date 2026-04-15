@@ -21,6 +21,7 @@ from keras import ops
 import kamae
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.keras.core.utils.ops_utils import divide_no_nan
 from kamae.keras.core.utils.tensor_utils import listify_tensors
 
 from .base import BaseLayer
@@ -149,6 +150,7 @@ class MinMaxScaleLayer(BaseLayer):
                 "min": listify_tensors(self.input_min),
                 "max": listify_tensors(self.input_max),
                 "axis": self.axis,
+                "mask_value": self.mask_value,
             }
         )
         return config
@@ -194,14 +196,10 @@ class MinMaxScaleLayer(BaseLayer):
         min_tensor = self._cast(self.min, input_dtype_str)
         max_tensor = self._cast(self.max, input_dtype_str)
 
-        # Portable divide_no_nan: (input - min) / (max - min)
+        # Compute (input - min) / (max - min) using safe division
         numerator = ops.subtract(inputs, min_tensor)
         denominator = ops.subtract(max_tensor, min_tensor)
-        # Use ops.where to handle division by zero gracefully
-        is_zero = ops.equal(denominator, ops.convert_to_tensor(0.0, dtype=inputs.dtype))
-        normalized_outputs = ops.where(
-            is_zero, ops.zeros_like(numerator), ops.divide(numerator, denominator)
-        )
+        normalized_outputs = divide_no_nan(numerator, denominator)
 
         if self.mask_value is not None:
             mask = ops.equal(inputs, self.mask_value)

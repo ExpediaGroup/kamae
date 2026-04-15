@@ -22,6 +22,7 @@ import kamae
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.core.utils.normalize_layer import NormalizeLayer
+from kamae.keras.core.utils.ops_utils import divide_no_nan
 
 
 @keras.saving.register_keras_serializable(package=kamae.__name__)
@@ -106,16 +107,12 @@ class StandardScaleLayer(NormalizeLayer):
         mean = self._cast(self.mean, input_dtype_str)
         variance = self._cast(self.variance, input_dtype_str)
 
-        # Portable divide_no_nan: (input - mean) / max(sqrt(variance), epsilon)
+        # Compute (input - mean) / sqrt(variance) using safe division
         numerator = ops.subtract(inputs, mean)
         denominator = ops.maximum(
             ops.sqrt(variance), ops.convert_to_tensor(1e-8, dtype=inputs.dtype)
         )
-        # Use ops.where to handle division by zero gracefully
-        is_zero = ops.equal(denominator, ops.convert_to_tensor(0.0, dtype=inputs.dtype))
-        normalized_outputs = ops.where(
-            is_zero, ops.zeros_like(numerator), ops.divide(numerator, denominator)
-        )
+        normalized_outputs = divide_no_nan(numerator, denominator)
 
         if self.mask_value is not None:
             mask = ops.equal(inputs, self.mask_value)

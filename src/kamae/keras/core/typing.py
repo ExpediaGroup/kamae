@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Portable type hints for backend-agnostic Keras layers.
+Multi-backend type hints for backend-agnostic Keras layers.
 
 These type hints work across TensorFlow, JAX, and PyTorch backends.
 """

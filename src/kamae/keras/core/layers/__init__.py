@@ -15,7 +15,7 @@
 """
 Backend-agnostic Keras layers.
 
-Portable layers that work across TensorFlow, JAX, and PyTorch backends.
+Multi-backend layers that work across TensorFlow, JAX, and PyTorch backends.
 """
 
 from .absolute_value import AbsoluteValueLayer

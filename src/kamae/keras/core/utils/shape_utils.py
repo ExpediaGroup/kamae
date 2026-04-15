@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Portable shape utility functions for backend-agnostic operations.
+Multi-backend shape utility functions for backend-agnostic operations.
 """
 
 from typing import Iterable, List

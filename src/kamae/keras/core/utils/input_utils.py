@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Portable input validation utilities for backend-agnostic layers."""
+"""Multi-backend input validation utilities for backend-agnostic layers."""
 
 from typing import Any, Callable, Iterable, List, Union
 

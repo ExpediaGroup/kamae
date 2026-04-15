@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Portable tensor utility functions for backend-agnostic operations.
+Multi-backend tensor utility functions for backend-agnostic operations.
 """
 
 from typing import Any, List, Union

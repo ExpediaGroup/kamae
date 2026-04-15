@@ -21,6 +21,7 @@ from keras import ops
 import kamae
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.keras.core.utils.ops_utils import divide_no_nan
 
 from .base import BaseLayer
 
@@ -73,22 +74,6 @@ class DivideLayer(BaseLayer):
             "float64",
         ]
 
-    def _divide_no_nan(self, x: Tensor, y: Tensor) -> Tensor:
-        """
-        Portable implementation of divide_no_nan.
-        Returns 0 when dividing by 0, instead of NaN or Inf.
-
-        :param x: Numerator tensor
-        :param y: Denominator tensor
-        :returns: Result of x / y, with 0 where y == 0
-        """
-        result = ops.divide(x, y)
-        # Replace NaN and Inf with 0
-        is_nan = ops.isnan(result)
-        is_inf = ops.isinf(result)
-        is_invalid = ops.logical_or(is_nan, is_inf)
-        return ops.where(is_invalid, ops.zeros_like(result), result)
-
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
@@ -107,11 +92,11 @@ class DivideLayer(BaseLayer):
             if len(inputs) > 1:
                 raise ValueError("If divisor is set, cannot have multiple inputs")
             divisor_tensor = ops.cast(self.divisor, dtype=inputs[0].dtype)
-            return self._divide_no_nan(inputs[0], divisor_tensor)
+            return divide_no_nan(inputs[0], divisor_tensor)
         else:
             if not len(inputs) > 1:
                 raise ValueError("If divisor is not set, must have multiple inputs")
-            return reduce(self._divide_no_nan, inputs)
+            return reduce(divide_no_nan, inputs)
 
     def get_config(self) -> Dict[str, Any]:
         """
