@@ -23,7 +23,6 @@ from .array_concatenate import ArrayConcatenateLayer
 from .array_crop import ArrayCropLayer
 from .array_split import ArraySplitLayer
 from .array_subtract_minimum import ArraySubtractMinimumLayer
-from .base import BaseLayer
 from .bearing_angle import BearingAngleLayer
 from .bin import BinLayer
 from .conditional_standard_scale import ConditionalStandardScaleLayer
@@ -52,7 +51,6 @@ from .subtract import SubtractLayer
 from .sum import SumLayer
 
 __all__ = [
-    "BaseLayer",
     "IdentityLayer",
     "AbsoluteValueLayer",
     "MultiplyLayer",

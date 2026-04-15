@@ -17,16 +17,15 @@ from typing import Any, Dict, Iterable, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 from kamae.keras.tensorflow.utils.list_utils import get_top_n, segmented_operation
 from kamae.keras.tensorflow.utils.transform_utils import map_fn_w_axis
 
-from .base import TfBaseLayer
-
 
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
-class ListMinLayer(TfBaseLayer):
+class ListMinLayer(BaseLayer):
     """
     Calculate the min across the axis dimension.
     - If one tensor is passed, the transformer calculates the min of the tensor

@@ -37,11 +37,13 @@ def reshape_to_equal_rank(inputs: Iterable[Tensor]) -> List[Tensor]:
     for x in inputs:
         rank_diff = max_rank - len(x.shape)
         if rank_diff > 0:
+            # Get shape as tensor (handles both static and dynamic shapes)
+            shape_tensor = ops.convert_to_tensor(ops.shape(x))
             reshape_dim = ops.concatenate(
                 [
-                    ops.shape(x)[:-1],
+                    shape_tensor[:-1],
                     ops.ones(rank_diff, dtype="int32"),
-                    ops.shape(x)[-1:],
+                    shape_tensor[-1:],
                 ],
                 axis=0,
             )

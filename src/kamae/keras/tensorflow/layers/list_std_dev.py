@@ -17,15 +17,14 @@ from typing import Any, Dict, Iterable, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 from kamae.keras.tensorflow.utils.list_utils import get_top_n
 
-from .base import TfBaseLayer
-
 
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
-class ListStdDevLayer(TfBaseLayer):
+class ListStdDevLayer(BaseLayer):
     """
     Calculate the average across the axis dimension.
     - If one tensor is passed, the transformer calculates the average of the tensor

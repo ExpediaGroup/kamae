@@ -17,15 +17,14 @@ from typing import Any, Dict, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.tensorflow.utils.transform_utils import map_fn_w_axis
 
-from .base import TfBaseLayer
-
 
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
-class OrdinalArrayEncodeLayer(TfBaseLayer):
+class OrdinalArrayEncodeLayer(BaseLayer):
     """
     Transformer that encodes an array of strings into an array of integers.
 

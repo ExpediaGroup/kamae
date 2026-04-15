@@ -13,19 +13,14 @@
 # limitations under the License.
 
 """
-TensorFlow-only layers that require TensorFlow backend.
+TensorFlow-specific Keras layers.
 
-These layers use TensorFlow-specific operations (strings, datetime, etc.)
-and cannot be made backend-agnostic.
+These layers use TensorFlow-specific operations and are the canonical location
+for TF-only layers. All layers use the unified BaseLayer from kamae.keras.core.base.
 """
 
-from .base import TfBaseLayer  # noqa: F401
-
-# Hash/encoding layers
 from .bloom_encode import BloomEncodeLayer  # noqa: F401
 from .bucketize import BucketizeLayer  # noqa: F401
-
-# Datetime layers
 from .current_date import CurrentDateLayer  # noqa: F401
 from .current_date_time import CurrentDateTimeLayer  # noqa: F401
 from .current_unix_timestamp import CurrentUnixTimestampLayer  # noqa: F401
@@ -34,14 +29,8 @@ from .date_diff import DateDiffLayer  # noqa: F401
 from .date_parse import DateParseLayer  # noqa: F401
 from .date_time_to_unix_timestamp import DateTimeToUnixTimestampLayer  # noqa: F401
 from .hash_index import HashIndexLayer  # noqa: F401
-
-# Control flow (string support)
 from .if_statement import IfStatementLayer  # noqa: F401
-
-# Lambda function (TF operations)
 from .lambda_function import LambdaFunctionLayer  # noqa: F401
-
-# List operations (use tf.map_fn)
 from .list_max import ListMaxLayer  # noqa: F401
 from .list_mean import ListMeanLayer  # noqa: F401
 from .list_median import ListMedianLayer  # noqa: F401
@@ -49,10 +38,8 @@ from .list_min import ListMinLayer  # noqa: F401
 from .list_rank import ListRankLayer  # noqa: F401
 from .list_std_dev import ListStdDevLayer  # noqa: F401
 from .min_hash_index import MinHashIndexLayer  # noqa: F401
-from .one_hot_encode import OneHotEncodeLayer  # noqa: F401
+from .one_hot_encode import OneHotEncodeLayer, OneHotLayer  # noqa: F401
 from .ordinal_array_encode import OrdinalArrayEncodeLayer  # noqa: F401
-
-# String layers
 from .string_affix import StringAffixLayer  # noqa: F401
 from .string_array_constant import StringArrayConstantLayer  # noqa: F401
 from .string_case import StringCaseLayer  # noqa: F401
@@ -68,3 +55,43 @@ from .string_replace import StringReplaceLayer  # noqa: F401
 from .string_to_string_list import StringToStringListLayer  # noqa: F401
 from .sub_string_delim_at_index import SubStringDelimAtIndexLayer  # noqa: F401
 from .unix_timestamp_to_date_time import UnixTimestampToDateTimeLayer  # noqa: F401
+
+__all__ = [
+    "BloomEncodeLayer",
+    "BucketizeLayer",
+    "CurrentDateLayer",
+    "CurrentDateTimeLayer",
+    "CurrentUnixTimestampLayer",
+    "DateAddLayer",
+    "DateDiffLayer",
+    "DateParseLayer",
+    "DateTimeToUnixTimestampLayer",
+    "HashIndexLayer",
+    "IfStatementLayer",
+    "LambdaFunctionLayer",
+    "ListMaxLayer",
+    "ListMeanLayer",
+    "ListMedianLayer",
+    "ListMinLayer",
+    "ListRankLayer",
+    "ListStdDevLayer",
+    "MinHashIndexLayer",
+    "OneHotEncodeLayer",
+    "OneHotLayer",
+    "OrdinalArrayEncodeLayer",
+    "StringAffixLayer",
+    "StringArrayConstantLayer",
+    "StringCaseLayer",
+    "StringConcatenateLayer",
+    "StringContainsLayer",
+    "StringContainsListLayer",
+    "StringEqualsIfStatementLayer",
+    "StringIndexLayer",
+    "StringIsInListLayer",
+    "StringListToStringLayer",
+    "StringMapLayer",
+    "StringReplaceLayer",
+    "StringToStringListLayer",
+    "SubStringDelimAtIndexLayer",
+    "UnixTimestampToDateTimeLayer",
+]

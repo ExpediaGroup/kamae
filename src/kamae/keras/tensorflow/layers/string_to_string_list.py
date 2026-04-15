@@ -17,14 +17,13 @@ from typing import Any, Dict, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 
-from .base import TfBaseLayer
-
 
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
-class StringToStringListLayer(TfBaseLayer):
+class StringToStringListLayer(BaseLayer):
     """
     A layer that converts a string to a list of strings by splitting on a
     separator. It takes a default value and a list_length parameter to ensure that

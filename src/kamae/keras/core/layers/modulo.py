@@ -18,10 +18,9 @@ import keras
 from keras import ops
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
-
-from .base import BaseLayer
 
 
 @keras.saving.register_keras_serializable(package=kamae.__name__)

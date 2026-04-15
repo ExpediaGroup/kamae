@@ -18,14 +18,13 @@ import tensorflow as tf
 from tensorflow.keras.layers import Hashing
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 
-from .base import TfBaseLayer
-
 
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
-class MinHashIndexLayer(TfBaseLayer):
+class MinHashIndexLayer(BaseLayer):
     """
     Performs min hashing of the input tensor as described here:
     https://en.wikipedia.org/wiki/MinHash

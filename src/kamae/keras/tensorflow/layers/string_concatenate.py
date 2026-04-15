@@ -17,14 +17,13 @@ from typing import Any, Dict, Iterable, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 
-from .base import TfBaseLayer
-
 
 @tf.keras.utils.register_keras_serializable(kamae.__name__)
-class StringConcatenateLayer(TfBaseLayer):
+class StringConcatenateLayer(BaseLayer):
     """
     Performs a concatenation of the input tensors.
     """

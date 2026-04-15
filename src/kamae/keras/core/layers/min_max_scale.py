@@ -19,12 +19,11 @@ import numpy as np
 from keras import ops
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.core.utils.ops_utils import divide_no_nan
 from kamae.keras.core.utils.tensor_utils import listify_tensors
-
-from .base import BaseLayer
 
 
 @keras.saving.register_keras_serializable(package=kamae.__name__)
@@ -104,12 +103,23 @@ class MinMaxScaleLayer(BaseLayer):
         """
         super().build(input_shape)
 
+        # Save the original input_shape for serialization
+        # Store as tuple to ensure consistent format
+        if isinstance(input_shape, (list, tuple)):
+            self._build_input_shape = tuple(input_shape)
+        else:
+            self._build_input_shape = input_shape
+
         # Ensure input_shape is a list for easier manipulation
         if not isinstance(input_shape, list):
             input_shape = list(input_shape)
 
+        # Handle Keras serialization quirk: when a tuple like (100, 10, 5) is saved
+        # and deserialized, Keras may wrap it as [(100, 10, 5)]
+        if len(input_shape) == 1 and isinstance(input_shape[0], (list, tuple)):
+            input_shape = list(input_shape[0])
+
         ndim = len(input_shape)
-        self._build_input_shape = input_shape
 
         if any(a < -ndim or a >= ndim for a in self.axis):
             raise ValueError(
@@ -130,7 +140,13 @@ class MinMaxScaleLayer(BaseLayer):
                 )
         # Broadcast any reduced axes.
         broadcast_shape = [input_shape[d] if d in keep_axis else 1 for d in range(ndim)]
-        min_and_max_shape = tuple(input_shape[d] for d in keep_axis)
+        # Extract shape dimensions - handle both int and tuple (e.g., 5 or (5,))
+        min_and_max_shape = tuple(
+            int(input_shape[d][0])
+            if isinstance(input_shape[d], tuple)
+            else int(input_shape[d])
+            for d in keep_axis
+        )
         min_tensor = self.input_min * np.ones(min_and_max_shape)
         max_tensor = self.input_max * np.ones(min_and_max_shape)
         self.min = ops.reshape(min_tensor, broadcast_shape)

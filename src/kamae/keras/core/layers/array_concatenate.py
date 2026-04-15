@@ -18,11 +18,10 @@ import keras
 from keras import ops
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 from kamae.keras.core.utils.shape_utils import reshape_to_equal_rank
-
-from .base import BaseLayer
 
 
 @keras.saving.register_keras_serializable(package=kamae.__name__)
@@ -117,7 +116,11 @@ class ArrayConcatenateLayer(BaseLayer):
                 if x_static_shape != max_static_shape:
                     last_dim = x.shape[-1]
                     broadcast_shape = ops.concatenate(
-                        [ops.stack(max_dynamic_shape), [last_dim]], axis=0
+                        [
+                            ops.stack(max_dynamic_shape),
+                            ops.convert_to_tensor([last_dim]),
+                        ],
+                        axis=0,
                     )
                     broadcasted_x = ops.broadcast_to(x, broadcast_shape)
                     reshaped_inputs[idx] = broadcasted_x

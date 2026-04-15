@@ -17,15 +17,13 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 
-from .base import TfBaseLayer
 
-
-# TODO: Deprecate this in favor of IfStatementLayer in next major release.
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
-class StringEqualsIfStatementLayer(TfBaseLayer):
+class StringEqualsIfStatementLayer(BaseLayer):
     """
     Performs a string if equals statement on the input tensor,
     returning a tensor of the same shape as the input tensor.

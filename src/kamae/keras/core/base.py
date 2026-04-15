@@ -13,13 +13,14 @@
 # limitations under the License.
 
 """
-Multi-backend base layer for backend-agnostic numeric operations.
+Multi-backend base layer with string support on TensorFlow backend.
 
-This base layer provides numeric casting and dtype validation for layers
-that work across TensorFlow, JAX, and PyTorch backends.
+This base layer provides casting and dtype validation for layers that work across
+TensorFlow, JAX, and PyTorch backends.
 
-It does NOT support string operations - use kamae.keras.tensorflow.layers.base.TfBaseLayer
-for layers that need string handling.
+String operations (input_dtype="string" or output_dtype="string") are supported
+only when running on TensorFlow backend. Multi-backend numeric operations work
+on all backends.
 """
 
 from abc import ABC, abstractmethod
@@ -29,6 +30,7 @@ import keras
 from keras import ops
 
 import kamae
+from kamae.keras.core.backend import require_tensorflow
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 
@@ -36,16 +38,17 @@ from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_i
 @keras.saving.register_keras_serializable(package=kamae.__name__)
 class BaseLayer(keras.layers.Layer, ABC):
     """
-    Abstract base layer for backend-agnostic numeric operations.
+    Abstract base layer for multi-backend layers with TensorFlow string support.
 
     Provides:
-    - Numeric dtype casting (input_dtype, output_dtype)
+    - Multi-backend numeric dtype casting (works on TensorFlow, JAX, PyTorch)
+    - String dtype casting (TensorFlow backend only)
     - Dtype compatibility validation
     - Numeric constant type coercion
+    - Boolean string parsing (TensorFlow backend only)
 
-    Does NOT provide:
-    - String casting (use TfBaseLayer for string operations)
-    - Boolean string parsing (use TfBaseLayer)
+    String operations automatically work when running on TensorFlow backend.
+    Attempting to use string dtypes on JAX or PyTorch backends raises an error.
     """
 
     def __init__(
@@ -71,6 +74,158 @@ class BaseLayer(keras.layers.Layer, ABC):
         self._convert_input_args = False
         self._input_dtype = input_dtype
         self._output_dtype = output_dtype
+        self.true_bool_strings = ["true", "t", "yes", "y", "1"]
+        self.false_bool_strings = ["false", "f", "no", "n", "0"]
+
+    def _string_to_bool_cast(self, inputs: Tensor) -> Tensor:
+        """
+        Casts a string tensor to a bool tensor.
+
+        :param inputs: Input string tensor
+        :returns: Bool tensor.
+        """
+        from functools import reduce
+
+        import tensorflow as tf
+
+        if inputs.dtype.name != "string":
+            raise TypeError(
+                f"Expected a string tensor, but got a {inputs.dtype.name} tensor."
+            )
+
+        # Replace true strings with "1" and false strings with "0"
+        is_bool_true_string_tensor = [
+            tf.strings.lower(inputs) == bool_string
+            for bool_string in self.true_bool_strings
+        ]
+        is_bool_false_string_tensor = [
+            tf.strings.lower(inputs) == bool_string
+            for bool_string in self.false_bool_strings
+        ]
+
+        string_bool_tensor = tf.where(
+            reduce(tf.math.logical_or, is_bool_true_string_tensor),
+            tf.constant("1"),
+            inputs,
+        )
+        string_bool_tensor = tf.where(
+            reduce(tf.math.logical_or, is_bool_false_string_tensor),
+            tf.constant("0"),
+            string_bool_tensor,
+        )
+
+        # If we have other strings that are not "1" or "0", these are invalid.
+        # We insert these as "NULL" values so that the casting will fail.
+        string_bool_tensor_with_invalid = tf.where(
+            tf.math.logical_or(string_bool_tensor == "1", string_bool_tensor == "0"),
+            string_bool_tensor,
+            tf.constant("NULL"),
+        )
+
+        bool_float_tensor = tf.strings.to_number(
+            string_bool_tensor_with_invalid, out_type=tf.float32
+        )
+        return tf.cast(bool_float_tensor, tf.bool)
+
+    @staticmethod
+    def _float_to_string_cast(inputs: Tensor) -> Tensor:
+        """
+        Casts a float tensor to a string tensor. Ensures that the precision of the float
+        does not impact the string representation. Specifically, we want the string
+        to be the shortest possible representation of the float,
+        i.e. 1.145000 -> "1.145".
+
+        However, we also want to ensure that the string representation of the float
+        has a decimal point, i.e. 2.00000 -> "2.0" and not "2".
+
+        :param inputs: Input string tensor
+        :returns: Float tensor.
+        """
+        import tensorflow as tf
+
+        # This gives 1.145000 -> "1.145" and 2.00000 -> "2".
+        # We need to add a decimal point to the second example.
+        shortest_float_string = tf.strings.as_string(inputs, shortest=True)
+
+        # Find strings without decimal points
+        no_decimal = tf.logical_not(
+            tf.strings.regex_full_match(
+                shortest_float_string, "-?\d*\.\d*"  # noqa W605
+            )
+        )
+        # Create decimal point constant string
+        decimal_string = tf.constant(".0")
+
+        # Add decimal point to string without decimal points
+        return tf.where(
+            no_decimal,
+            tf.strings.join([shortest_float_string, decimal_string]),
+            shortest_float_string,
+        )
+
+    def _to_string_cast(self, inputs: Tensor) -> Tensor:
+        """
+        Casts inputs to string tensor.
+
+        :param inputs: Input tensor.
+        :returns: String tensor.
+        """
+        import tensorflow as tf
+
+        if inputs.dtype.is_floating:
+            return self._float_to_string_cast(inputs)
+        return tf.strings.as_string(inputs)
+
+    def _from_string_cast(self, inputs: Tensor, cast_dtype: str) -> Tensor:
+        """
+        Casts inputs to the desired dtype when inputs are a string tensor.
+
+        :param inputs: String tensor
+        :param cast_dtype: Dtype to cast to.
+        :returns: Tensor cast to the desired dtype.
+        """
+        import tensorflow as tf
+
+        if inputs.dtype.name != "string":
+            raise TypeError("inputs is not a string Tensor.")
+        if cast_dtype in ["float32", "float64", "int32", "int64"]:
+            # If the casting dtype is supported by tf.strings.to_number, we use that.
+            return tf.strings.to_number(inputs, out_type=cast_dtype)
+        elif tf.as_dtype(cast_dtype).is_integer:
+            # If the casting dtype is an integer, we need to cast to int64 first
+            intermediate_cast = tf.strings.to_number(inputs, out_type="int64")
+            return ops.cast(intermediate_cast, cast_dtype)
+        elif tf.as_dtype(cast_dtype).is_floating:
+            # If the casting dtype is a float, we need to cast to float64 first
+            intermediate_cast = tf.strings.to_number(inputs, out_type="float64")
+            return ops.cast(intermediate_cast, cast_dtype)
+        elif tf.as_dtype(cast_dtype).is_bool:
+            # If the casting dtype is a boolean, we need to use a custom function
+            # to cast the string to boolean.
+            return self._string_to_bool_cast(inputs)
+        else:
+            raise TypeError(f"Casting string to dtype {cast_dtype} is not supported.")
+
+    def _string_cast(self, inputs: Tensor, cast_dtype: str) -> Tensor:
+        """
+        Casts from and to string tensors.
+
+        Either inputs is a string tensor, and we want to cast it to the desired dtype,
+        or inputs is not a string tensor, and we want to cast it to a string tensor.
+
+        Requires TensorFlow backend.
+
+        :param inputs: Input tensor.
+        :param cast_dtype: Dtype to cast to.
+        :returns: Tensor cast to the desired dtype.
+        """
+        require_tensorflow()
+
+        if inputs.dtype.name == "string" and cast_dtype == "string":
+            return inputs
+        if cast_dtype == "string":
+            return self._to_string_cast(inputs)
+        return self._from_string_cast(inputs, cast_dtype)
 
     @property
     @abstractmethod
@@ -113,19 +268,41 @@ class BaseLayer(keras.layers.Layer, ABC):
         :param cast_dtype: Dtype to cast to (e.g., 'float32', 'int64')
         :returns: Tensor cast to the desired dtype.
         """
+        # keras.ops.cast doesn't support string dtype, even on TF backend
+        # Check if we're on TF backend and dealing with strings
+        if cast_dtype == "string" or (
+            hasattr(inputs, "dtype") and inputs.dtype.name == "string"
+        ):
+            if keras.backend.backend() == "tensorflow":
+                import tensorflow as tf
+
+                return (
+                    tf.strings.as_string(inputs)
+                    if cast_dtype == "string"
+                    else tf.cast(inputs, cast_dtype)
+                )
+            else:
+                # String operations not supported on JAX/PyTorch backends
+                raise ValueError(
+                    f"String dtype casting not supported on {keras.backend.backend()} backend. "
+                    "String operations require TensorFlow backend."
+                )
         return ops.cast(inputs, cast_dtype)
 
     def _cast(self, inputs: Tensor, cast_dtype: str) -> Tensor:
         """
         Casts inputs to the desired dtype.
 
-        For the multi-backend base layer, this only supports numeric casting.
-        Subclasses (like TfBaseLayer) can override to add string support.
+        Routes to string casting when string dtype is involved (TensorFlow backend only),
+        otherwise uses numeric casting for multi-backend compatibility.
 
         :param inputs: Input tensor.
         :param cast_dtype: Dtype to cast to.
         :returns: Tensor cast to the desired dtype.
         """
+        # Check if string dtype is involved
+        if inputs.dtype.name == "string" or cast_dtype == "string":
+            return self._string_cast(inputs, cast_dtype)
         return self._numeric_cast(inputs, cast_dtype)
 
     def _force_cast_to_compatible_numeric_type(

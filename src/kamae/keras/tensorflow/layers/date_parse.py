@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.tensorflow.utils.date_utils import (
@@ -31,11 +32,9 @@ from kamae.keras.tensorflow.utils.date_utils import (
     datetime_year,
 )
 
-from .base import TfBaseLayer
-
 
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
-class DateParseLayer(TfBaseLayer):
+class DateParseLayer(BaseLayer):
     """
     Parses a date(time) string from yyyy-MM-dd (HH:mm:ss.SSS) format
     into a specified date part tensor.

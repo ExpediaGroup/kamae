@@ -17,14 +17,13 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 
-from .base import TfBaseLayer
-
 
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
-class StringContainsLayer(TfBaseLayer):
+class StringContainsLayer(BaseLayer):
     """
     Performs a string contains operation on the input tensor,
     matching against a string constant or element-wise against a second input tensor.

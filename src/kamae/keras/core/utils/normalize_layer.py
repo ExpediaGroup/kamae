@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 from keras import ops
 
-from kamae.keras.core.layers.base import BaseLayer
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.utils.tensor_utils import listify_tensors
 
 
@@ -106,12 +106,23 @@ class NormalizeLayer(BaseLayer):
         """
         super().build(input_shape)
 
+        # Save the original input_shape for serialization
+        # Store as tuple to ensure consistent format
+        if isinstance(input_shape, (list, tuple)):
+            self._build_input_shape = tuple(input_shape)
+        else:
+            self._build_input_shape = input_shape
+
         # Ensure input_shape is a list for easier manipulation
         if not isinstance(input_shape, list):
             input_shape = list(input_shape)
 
+        # Handle Keras serialization quirk: when a tuple like (100, 10, 5) is saved
+        # and deserialized, Keras may wrap it as [(100, 10, 5)]
+        if len(input_shape) == 1 and isinstance(input_shape[0], (list, tuple)):
+            input_shape = list(input_shape[0])
+
         ndim = len(input_shape)
-        self._build_input_shape = input_shape
 
         if any(a < -ndim or a >= ndim for a in self.axis):
             raise ValueError(
@@ -132,7 +143,13 @@ class NormalizeLayer(BaseLayer):
                 )
         # Broadcast any reduced axes.
         broadcast_shape = [input_shape[d] if d in keep_axis else 1 for d in range(ndim)]
-        mean_and_var_shape = tuple(input_shape[d] for d in keep_axis)
+        # Extract shape dimensions - handle both int and tuple (e.g., 5 or (5,))
+        mean_and_var_shape = tuple(
+            int(input_shape[d][0])
+            if isinstance(input_shape[d], tuple)
+            else int(input_shape[d])
+            for d in keep_axis
+        )
         mean = self.input_mean * np.ones(mean_and_var_shape)
         variance = self.input_variance * np.ones(mean_and_var_shape)
         self.mean = ops.reshape(mean, broadcast_shape)
@@ -151,7 +168,7 @@ class NormalizeLayer(BaseLayer):
             {
                 "mean": listify_tensors(self.input_mean),
                 "variance": listify_tensors(self.input_variance),
-                "axis": self.axis,
+                "axis": list(self.axis) if self.axis else None,
             }
         )
         return config
