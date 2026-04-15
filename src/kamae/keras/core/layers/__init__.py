@@ -25,6 +25,9 @@ from .exp import ExpLayer
 from .exponent import ExponentLayer
 from .identity import IdentityLayer
 from .log import LogLayer
+from .logical_and import LogicalAndLayer
+from .logical_not import LogicalNotLayer
+from .logical_or import LogicalOrLayer
 from .max import MaxLayer
 from .mean import MeanLayer
 from .min import MinLayer
@@ -52,4 +55,7 @@ __all__ = [
     "MinLayer",
     "MeanLayer",
     "ExponentLayer",
+    "LogicalAndLayer",
+    "LogicalOrLayer",
+    "LogicalNotLayer",
 ]
