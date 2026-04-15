@@ -19,7 +19,7 @@ import keras_tuner
 import networkx as nx
 import tensorflow as tf
 
-from kamae.tensorflow.layers import IdentityLayer
+from kamae.keras.core.layers import IdentityLayer
 
 
 class PipelineGraph:
