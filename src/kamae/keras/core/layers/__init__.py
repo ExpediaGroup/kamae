@@ -22,13 +22,18 @@ from .absolute_value import AbsoluteValueLayer
 from .base import BaseLayer
 from .divide import DivideLayer
 from .exp import ExpLayer
+from .exponent import ExponentLayer
 from .identity import IdentityLayer
 from .log import LogLayer
+from .max import MaxLayer
+from .mean import MeanLayer
+from .min import MinLayer
 from .modulo import ModuloLayer
 from .multiply import MultiplyLayer
 from .round import RoundLayer
 from .round_to_decimal import RoundToDecimalLayer
 from .subtract import SubtractLayer
+from .sum import SumLayer
 
 __all__ = [
     "BaseLayer",
@@ -42,4 +47,9 @@ __all__ = [
     "RoundLayer",
     "RoundToDecimalLayer",
     "ModuloLayer",
+    "SumLayer",
+    "MaxLayer",
+    "MinLayer",
+    "MeanLayer",
+    "ExponentLayer",
 ]
