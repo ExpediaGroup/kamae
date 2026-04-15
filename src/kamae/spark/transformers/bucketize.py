@@ -26,11 +26,11 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, IntegerType, LongType
 
+from kamae.keras.tensorflow.layers import BucketizeLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils.transform_utils import (
     single_input_single_output_scalar_udf_transform,
 )
-from kamae.tensorflow.layers import BucketizeLayer
 
 from .base import BaseTransformer
 

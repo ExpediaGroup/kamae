@@ -20,6 +20,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.tensorflow.layers import ListMedianLayer
 from kamae.spark.params import (
     ListwiseStatisticsParams,
     MultiInputSingleOutputParams,
@@ -27,7 +28,6 @@ from kamae.spark.params import (
     SingleInputSingleOutputParams,
 )
 from kamae.spark.utils import check_listwise_columns, get_listwise_condition_and_window
-from kamae.tensorflow.layers import ListMedianLayer
 
 from .base import BaseTransformer
 

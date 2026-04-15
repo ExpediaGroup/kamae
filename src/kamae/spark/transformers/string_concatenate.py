@@ -25,9 +25,9 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.tensorflow.layers import StringConcatenateLayer
 from kamae.spark.params import MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_scalar_transform
-from kamae.tensorflow.layers import StringConcatenateLayer
 
 from .base import BaseTransformer
 

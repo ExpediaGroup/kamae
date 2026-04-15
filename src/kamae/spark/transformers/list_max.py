@@ -20,6 +20,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, StringType
 
+from kamae.keras.tensorflow.layers import ListMaxLayer
 from kamae.spark.params import (
     ListwiseStatisticsParams,
     MultiInputSingleOutputParams,
@@ -27,7 +28,6 @@ from kamae.spark.params import (
     SingleInputSingleOutputParams,
 )
 from kamae.spark.utils import check_and_apply_listwise_op
-from kamae.tensorflow.layers import ListMaxLayer
 
 from .base import BaseTransformer
 

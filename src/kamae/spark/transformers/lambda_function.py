@@ -27,13 +27,13 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, StructField, StructType
 
+from kamae.keras.tensorflow.layers import LambdaFunctionLayer
 from kamae.spark.params import (
     MultiInputMultiOutputParams,
     MultiInputSingleOutputParams,
     SingleInputMultiOutputParams,
     SingleInputSingleOutputParams,
 )
-from kamae.tensorflow.layers import LambdaFunctionLayer
 from kamae.tensorflow.typing import Tensor
 
 from .base import BaseTransformer

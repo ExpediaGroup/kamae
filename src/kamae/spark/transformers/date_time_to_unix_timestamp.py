@@ -24,10 +24,10 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.tensorflow.layers import DateTimeToUnixTimestampLayer
 from kamae.spark.params import SingleInputSingleOutputParams, UnixTimestampParams
 from kamae.spark.transformers.base import BaseTransformer
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import DateTimeToUnixTimestampLayer
 
 
 class DateTimeToUnixTimestampTransformer(

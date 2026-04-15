@@ -24,9 +24,9 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.tensorflow.layers import DateDiffLayer
 from kamae.spark.params import DefaultIntValueParams, MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_scalar_transform
-from kamae.tensorflow.layers import DateDiffLayer
 
 from .base import BaseTransformer
 

@@ -28,9 +28,9 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.tensorflow.layers import ListRankLayer
 from kamae.spark.params import ListwiseParams, SingleInputSingleOutputParams
 from kamae.spark.utils import check_listwise_columns
-from kamae.tensorflow.layers import ListRankLayer
 
 from .base import BaseTransformer
 

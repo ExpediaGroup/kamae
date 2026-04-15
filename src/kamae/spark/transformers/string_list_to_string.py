@@ -25,9 +25,9 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, StringType
 
+from kamae.keras.tensorflow.layers import StringListToStringLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
-from kamae.tensorflow.layers import StringListToStringLayer
 
 from .base import BaseTransformer
 

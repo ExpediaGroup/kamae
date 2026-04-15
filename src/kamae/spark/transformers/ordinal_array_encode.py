@@ -20,12 +20,12 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
+from kamae.keras.tensorflow.layers import OrdinalArrayEncodeLayer
 from kamae.spark.params import PadValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
     ordinal_array_encode_udf,
     single_input_single_output_array_udf_transform,
 )
-from kamae.tensorflow.layers import OrdinalArrayEncodeLayer
 
 from .base import BaseTransformer
 

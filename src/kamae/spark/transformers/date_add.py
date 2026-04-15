@@ -31,6 +31,7 @@ from pyspark.sql.types import (
     StringType,
 )
 
+from kamae.keras.tensorflow.layers import DateAddLayer
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
@@ -40,7 +41,6 @@ from kamae.spark.utils import (
     get_element_type,
     multi_input_single_output_scalar_transform,
 )
-from kamae.tensorflow.layers import DateAddLayer
 
 
 class DateAdditionParams(Params):

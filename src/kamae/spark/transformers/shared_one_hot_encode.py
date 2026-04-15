@@ -32,6 +32,7 @@ from pyspark.sql.types import (
     StringType,
 )
 
+from kamae.keras.tensorflow.layers import OneHotEncodeLayer
 from kamae.spark.params import (
     DropUnseenParams,
     MultiInputMultiOutputParams,
@@ -41,7 +42,6 @@ from kamae.spark.utils import (
     one_hot_encoding_udf,
     single_input_single_output_scalar_udf_transform,
 )
-from kamae.tensorflow.layers import OneHotEncodeLayer
 
 from .base import BaseTransformer
 

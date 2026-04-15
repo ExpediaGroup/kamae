@@ -25,12 +25,12 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
+from kamae.keras.tensorflow.layers import MinHashIndexLayer
 from kamae.spark.params import MaskStringValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
     min_hash_udf,
     single_input_single_output_array_udf_transform,
 )
-from kamae.tensorflow.layers import MinHashIndexLayer
 
 from .base import BaseTransformer
 

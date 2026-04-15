@@ -25,13 +25,13 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
+from kamae.keras.tensorflow.layers import BloomEncodeLayer
 from kamae.spark.params import HashIndexParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
     hash_udf,
     single_input_single_output_array_udf_transform,
     single_input_single_output_scalar_transform,
 )
-from kamae.tensorflow.layers import BloomEncodeLayer
 
 from .base import BaseTransformer
 

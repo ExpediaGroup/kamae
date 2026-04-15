@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql.types import DataType, DoubleType, LongType
 
+from kamae.keras.tensorflow.layers import UnixTimestampToDateTimeLayer
 from kamae.spark.params import (
     DateTimeParams,
     SingleInputSingleOutputParams,
@@ -31,7 +32,6 @@ from kamae.spark.params import (
 )
 from kamae.spark.transformers.base import BaseTransformer
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import UnixTimestampToDateTimeLayer
 
 
 class UnixTimestampToDateTimeTransformer(

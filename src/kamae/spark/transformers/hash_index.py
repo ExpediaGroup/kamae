@@ -24,9 +24,9 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, IntegerType, StringType
 
+from kamae.keras.tensorflow.layers import HashIndexLayer
 from kamae.spark.params import HashIndexParams, SingleInputSingleOutputParams
 from kamae.spark.utils import hash_udf, single_input_single_output_scalar_udf_transform
-from kamae.tensorflow.layers import HashIndexLayer
 
 from .base import BaseTransformer
 

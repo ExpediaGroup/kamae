@@ -29,6 +29,7 @@ from pyspark.sql.types import (
     StringType,
 )
 
+from kamae.keras.tensorflow.layers import ListMeanLayer
 from kamae.spark.params import (
     ListwiseStatisticsParams,
     MultiInputSingleOutputParams,
@@ -36,7 +37,6 @@ from kamae.spark.params import (
     SingleInputSingleOutputParams,
 )
 from kamae.spark.utils import check_and_apply_listwise_op
-from kamae.tensorflow.layers import ListMeanLayer
 
 from .base import BaseTransformer
 
