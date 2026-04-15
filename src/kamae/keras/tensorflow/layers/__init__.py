@@ -35,6 +35,9 @@ from .date_parse import DateParseLayer  # noqa: F401
 from .date_time_to_unix_timestamp import DateTimeToUnixTimestampLayer  # noqa: F401
 from .hash_index import HashIndexLayer  # noqa: F401
 
+# Control flow (string support)
+from .if_statement import IfStatementLayer  # noqa: F401
+
 # Lambda function (TF operations)
 from .lambda_function import LambdaFunctionLayer  # noqa: F401
 

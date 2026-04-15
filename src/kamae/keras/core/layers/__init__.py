@@ -33,6 +33,7 @@ from .mean import MeanLayer
 from .min import MinLayer
 from .modulo import ModuloLayer
 from .multiply import MultiplyLayer
+from .numerical_if_statement import NumericalIfStatementLayer
 from .round import RoundLayer
 from .round_to_decimal import RoundToDecimalLayer
 from .subtract import SubtractLayer
@@ -58,4 +59,5 @@ __all__ = [
     "LogicalAndLayer",
     "LogicalOrLayer",
     "LogicalNotLayer",
+    "NumericalIfStatementLayer",
 ]
