@@ -24,11 +24,14 @@ from .array_crop import ArrayCropLayer
 from .array_split import ArraySplitLayer
 from .array_subtract_minimum import ArraySubtractMinimumLayer
 from .base import BaseLayer
+from .bearing_angle import BearingAngleLayer
 from .bin import BinLayer
 from .conditional_standard_scale import ConditionalStandardScaleLayer
+from .cosine_similarity import CosineSimilarityLayer
 from .divide import DivideLayer
 from .exp import ExpLayer
 from .exponent import ExponentLayer
+from .haversine_distance import HaversineDistanceLayer
 from .identity import IdentityLayer
 from .impute import ImputeLayer
 from .log import LogLayer
@@ -78,4 +81,7 @@ __all__ = [
     "MinMaxScaleLayer",
     "ImputeLayer",
     "BinLayer",
+    "BearingAngleLayer",
+    "CosineSimilarityLayer",
+    "HaversineDistanceLayer",
 ]
