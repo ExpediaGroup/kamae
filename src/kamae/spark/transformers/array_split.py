@@ -24,9 +24,9 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType
 
+from kamae.keras.core.layers import ArraySplitLayer
 from kamae.spark.params import SingleInputMultiOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
-from kamae.tensorflow.layers import ArraySplitLayer
 
 from .base import BaseTransformer
 

@@ -33,12 +33,12 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.layers import ModuloLayer
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
 )
 from kamae.spark.utils import multi_input_single_output_scalar_transform
-from kamae.tensorflow.layers import ModuloLayer
 
 from .base import BaseTransformer
 

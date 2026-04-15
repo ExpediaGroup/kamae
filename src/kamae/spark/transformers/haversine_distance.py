@@ -26,9 +26,9 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.layers import HaversineDistanceLayer
 from kamae.spark.params import LatLonConstantParams, MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_scalar_transform
-from kamae.tensorflow.layers import HaversineDistanceLayer
 
 from .base import BaseTransformer
 

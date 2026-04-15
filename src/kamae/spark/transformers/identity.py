@@ -24,8 +24,8 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType
 
+from kamae.keras.core.layers import IdentityLayer
 from kamae.spark.params import SingleInputSingleOutputParams
-from kamae.tensorflow.layers import IdentityLayer
 
 from .base import BaseTransformer
 

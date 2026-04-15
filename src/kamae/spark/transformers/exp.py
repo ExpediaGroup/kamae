@@ -24,9 +24,9 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.layers import ExpLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import ExpLayer
 
 from .base import BaseTransformer
 

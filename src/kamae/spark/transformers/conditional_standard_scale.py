@@ -25,13 +25,13 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
+from kamae.keras.core.layers import ConditionalStandardScaleLayer
 from kamae.spark.params import (
     SingleInputSingleOutputParams,
     StandardScaleSkipZerosParams,
 )
 from kamae.spark.transformers.standard_scale import StandardScaleParams
 from kamae.spark.utils.transform_utils import single_input_single_output_array_transform
-from kamae.tensorflow.layers import ConditionalStandardScaleLayer
 
 from .base import BaseTransformer
 

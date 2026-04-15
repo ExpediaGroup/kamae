@@ -26,9 +26,9 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
+from kamae.keras.core.layers import MinMaxScaleLayer
 from kamae.spark.params import MaskValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
-from kamae.tensorflow.layers import MinMaxScaleLayer
 
 from .base import BaseTransformer
 

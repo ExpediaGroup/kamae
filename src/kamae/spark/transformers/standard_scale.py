@@ -25,9 +25,9 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
+from kamae.keras.core.layers import StandardScaleLayer
 from kamae.spark.params import SingleInputSingleOutputParams, StandardScaleParams
 from kamae.spark.utils import single_input_single_output_array_transform
-from kamae.tensorflow.layers import StandardScaleLayer
 
 from .base import BaseTransformer
 

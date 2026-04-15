@@ -30,9 +30,9 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.layers import ArraySubtractMinimumLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
-from kamae.tensorflow.layers import ArraySubtractMinimumLayer
 
 from .base import BaseTransformer
 

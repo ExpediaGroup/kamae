@@ -25,9 +25,9 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, IntegerType, LongType
 
+from kamae.keras.core.layers import RoundToDecimalLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import RoundToDecimalLayer
 
 from .base import BaseTransformer
 

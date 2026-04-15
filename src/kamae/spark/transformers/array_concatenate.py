@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType
 
+from kamae.keras.core.layers import ArrayConcatenateLayer
 from kamae.spark.params import AutoBroadcastParams, MultiInputSingleOutputParams
 from kamae.spark.utils import (
     broadcast_scalar_column_to_array_with_inner_singleton_array,
@@ -31,7 +32,6 @@ from kamae.spark.utils import (
     nested_arrays_zip,
     nested_transform,
 )
-from kamae.tensorflow.layers import ArrayConcatenateLayer
 
 from .base import BaseTransformer
 

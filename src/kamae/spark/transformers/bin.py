@@ -33,9 +33,9 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.layers import BinLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import BinLayer
 from kamae.utils import get_condition_operator
 
 from .base import BaseTransformer

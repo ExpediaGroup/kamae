@@ -33,13 +33,13 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.layers import SumLayer
 from kamae.spark.params import (
     MathFloatConstantParams,
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
 )
 from kamae.spark.utils import multi_input_single_output_scalar_transform
-from kamae.tensorflow.layers import SumLayer
 
 from .base import BaseTransformer
 

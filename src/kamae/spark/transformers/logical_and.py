@@ -26,9 +26,9 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import BooleanType, DataType
 
+from kamae.keras.core.layers import LogicalAndLayer
 from kamae.spark.params import MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_scalar_transform
-from kamae.tensorflow.layers import LogicalAndLayer
 
 from .base import BaseTransformer
 

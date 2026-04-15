@@ -21,12 +21,12 @@ from pyspark.ml.param import Param, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import BooleanType, DataType, FloatType, IntegerType, StringType
 
+from kamae.keras.core.layers import ArrayCropLayer
 from kamae.spark.params import PadValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
     get_array_nesting_level_and_element_dtype,
     single_input_single_output_array_transform,
 )
-from kamae.tensorflow.layers import ArrayCropLayer
 
 from .base import BaseTransformer
 
