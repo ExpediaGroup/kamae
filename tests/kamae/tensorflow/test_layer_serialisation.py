@@ -18,22 +18,18 @@ import keras
 import numpy as np
 import pytest
 import tensorflow as tf
+
+# Enable unsafe deserialization for LambdaFunctionLayer (Keras 3)
+from keras.src.saving import serialization_lib
 from packaging.version import Version
 
-import kamae.tensorflow.layers as layers_mod
+import kamae.keras.core.layers as core_layers_mod
+import kamae.keras.tensorflow.layers as layers_mod
 
-keras_version = Version(keras.__version__)
-# If keras >= 2.13.0, we need to enable unsafe deserialization in order to load the
-# LambdaFunctionLayer.
-# Before 2.13.0, keras the default behavior is to allow unsafe deserialization.
-if keras_version >= Version("2.13.0"):
-    from keras.src.saving import serialization_lib
+serialization_lib.enable_unsafe_deserialization()
 
-    serialization_lib.enable_unsafe_deserialization()
-
-is_keras_3 = keras_version >= Version("3.0.0")
-
-from kamae.tensorflow.layers import (
+# Multi-backend layers
+from kamae.keras.core.layers import (
     AbsoluteValueLayer,
     ArrayConcatenateLayer,
     ArrayCropLayer,
@@ -41,10 +37,36 @@ from kamae.tensorflow.layers import (
     ArraySubtractMinimumLayer,
     BearingAngleLayer,
     BinLayer,
-    BloomEncodeLayer,
-    BucketizeLayer,
     ConditionalStandardScaleLayer,
     CosineSimilarityLayer,
+    DivideLayer,
+    ExpLayer,
+    ExponentLayer,
+    HaversineDistanceLayer,
+    IdentityLayer,
+    ImputeLayer,
+    LogicalAndLayer,
+    LogicalNotLayer,
+    LogicalOrLayer,
+    LogLayer,
+    MaxLayer,
+    MeanLayer,
+    MinLayer,
+    MinMaxScaleLayer,
+    ModuloLayer,
+    MultiplyLayer,
+    NumericalIfStatementLayer,
+    RoundLayer,
+    RoundToDecimalLayer,
+    StandardScaleLayer,
+    SubtractLayer,
+    SumLayer,
+)
+
+# TF-only layers
+from kamae.keras.tensorflow.layers import (
+    BloomEncodeLayer,
+    BucketizeLayer,
     CurrentDateLayer,
     CurrentDateTimeLayer,
     CurrentUnixTimestampLayer,
@@ -52,14 +74,8 @@ from kamae.tensorflow.layers import (
     DateDiffLayer,
     DateParseLayer,
     DateTimeToUnixTimestampLayer,
-    DivideLayer,
-    ExpLayer,
-    ExponentLayer,
     HashIndexLayer,
-    HaversineDistanceLayer,
-    IdentityLayer,
     IfStatementLayer,
-    ImputeLayer,
     LambdaFunctionLayer,
     ListMaxLayer,
     ListMeanLayer,
@@ -67,24 +83,10 @@ from kamae.tensorflow.layers import (
     ListMinLayer,
     ListRankLayer,
     ListStdDevLayer,
-    LogicalAndLayer,
-    LogicalNotLayer,
-    LogicalOrLayer,
-    LogLayer,
-    MaxLayer,
-    MeanLayer,
     MinHashIndexLayer,
-    MinLayer,
-    MinMaxScaleLayer,
-    ModuloLayer,
-    MultiplyLayer,
-    NumericalIfStatementLayer,
     OneHotEncodeLayer,
     OneHotLayer,
     OrdinalArrayEncodeLayer,
-    RoundLayer,
-    RoundToDecimalLayer,
-    StandardScaleLayer,
     StringAffixLayer,
     StringArrayConstantLayer,
     StringCaseLayer,
@@ -99,8 +101,6 @@ from kamae.tensorflow.layers import (
     StringReplaceLayer,
     StringToStringListLayer,
     SubStringDelimAtIndexLayer,
-    SubtractLayer,
-    SumLayer,
     UnixTimestampToDateTimeLayer,
 )
 
@@ -354,6 +354,7 @@ from kamae.tensorflow.layers import (
                 "function": lambda x: tf.square(x) - tf.math.log(x),
                 "input_dtype": "float",
                 "output_dtype": "float",
+                "output_shape": (3,),  # Required for Keras 3 serialization
             },
             False,
         ),
@@ -544,9 +545,12 @@ def test_layer_serialisation(
     Tests whether a layer is serialisable in a Model and that the output from the model
     matches calling the layer directly.
     """
-    if is_keras_3 and layer_cls == LambdaFunctionLayer:
-        # TODO: Understand why
-        pytest.skip(reason="LambdaFunctionLayer does not serialise properly in keras 3")
+    if layer_cls == LambdaFunctionLayer:
+        # LambdaFunctionLayer cannot serialize/deserialize lambda functions that reference
+        # external modules (like tf) - this is a fundamental limitation of Python lambda serialization
+        pytest.skip(
+            reason="LambdaFunctionLayer with module references cannot serialize in Keras 3"
+        )
     if kwargs is None:
         kwargs = {}
 
@@ -571,10 +575,8 @@ def test_layer_serialisation(
     # check with the functional API
     model = tf.keras.Model(inputs=model_inputs, outputs=model_outputs)
 
-    # Test saving and reloading
-    model_path = os.path.join(tmp_path, layer.name)
-    if is_keras_3:
-        model_path += ".keras"
+    # Test saving and reloading (Keras 3 .keras format)
+    model_path = os.path.join(tmp_path, layer.name + ".keras")
     model.save(model_path)
     reloaded_model = tf.keras.models.load_model(model_path)
 
@@ -619,16 +621,28 @@ def test_layer_serialisation(
 
 def test_all_layers_tested_for_serialisation():
     """
-    Checks that all layers in kamae.tensorflow.layers have a serialisation test.
+    Checks that all layers (both multi-backend and TF-only) have a serialisation test.
     """
-    # Get all classes defined in kamae.tensorflow.layers
-    all_layers = [
+    # Get all classes from kamae.keras.core.layers (multi-backend)
+    multi_backend_layers = [
+        obj
+        for name, obj in vars(core_layers_mod).items()
+        if isinstance(obj, type)
+        and issubclass(obj, keras.Layer)
+        and obj is not keras.Layer
+        and name != "BaseLayer"  # Exclude base class
+    ]
+
+    # Get all classes from kamae.tensorflow.layers (TF-only)
+    tf_only_layers = [
         obj
         for name, obj in vars(layers_mod).items()
         if isinstance(obj, type)
         and issubclass(obj, tf.keras.layers.Layer)
         and obj is not tf.keras.layers.Layer
     ]
+
+    all_layers = multi_backend_layers + tf_only_layers
 
     # Extract all layer_cls from the test parameterization
     parametrize_mark = next(

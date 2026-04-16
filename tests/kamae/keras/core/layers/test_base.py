@@ -21,7 +21,7 @@ import pytest
 import tensorflow as tf
 from keras import ops
 
-from kamae.keras.core.layers.base import BaseLayer
+from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 
 
