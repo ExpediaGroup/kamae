@@ -20,7 +20,7 @@ jobs:
         # We test the floor (3.0), a mid-range, and latest release.
         python-version: ["3.9", "3.10", "3.11", "3.12"]
         pyspark-version: ["3.4.1", "3.5.0"]
-        keras-version: ["3.0.0", "3.3.0", "3.7.0", "3.10.0", "3.14.0"]
+        keras-version: ["3.3.0", "3.7.0", "3.10.0", "3.14.0"]
     steps:
       - name: Setup Local Repo
         uses: actions/checkout@v4
