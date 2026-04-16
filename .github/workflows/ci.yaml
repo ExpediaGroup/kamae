@@ -16,11 +16,14 @@ jobs:
     runs-on: [ ubuntu-latest ]
     strategy:
       matrix:
-        # Keras 3 supports Python 3.9-3.12 uniformly, no per-version splits needed.
-        # We test the floor (3.0), a mid-range, and latest release.
+        # Keras 3.0-3.10 supports Python >=3.9, Keras 3.12+ requires >=3.10.
         python-version: ["3.9", "3.10", "3.11", "3.12"]
         pyspark-version: ["3.4.1", "3.5.0"]
-        keras-version: ["3.3.0", "3.7.0", "3.10.0", "3.14.0"]
+        keras-version: ["3.3.0", "3.7.0", "3.10.0", "3.12.0"]
+        exclude:
+          # Keras 3.12.1 requires Python >= 3.10
+          - python-version: "3.9"
+            keras-version: "3.12.0"
     steps:
       - name: Setup Local Repo
         uses: actions/checkout@v4
