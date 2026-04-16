@@ -14,7 +14,7 @@
 
 from typing import List, Optional, Union
 
-import tensorflow as tf
+import numpy as np
 
 from kamae.spark.utils.indexer_utils import safe_hash64
 
@@ -190,14 +190,15 @@ def min_hash_udf(
         # This matches the behavior of the TensorFlow layer.
         if mask_value is not None:
             hashed_vals = [
-                tf.int32.max
+                np.iinfo(np.int32).max
                 if label == mask_value
-                else hash_udf(label=f"{label}{i}", num_bins=tf.int32.max)
+                else hash_udf(label=f"{label}{i}", num_bins=np.iinfo(np.int32).max)
                 for label in labels
             ]
         else:
             hashed_vals = [
-                hash_udf(label=f"{label}{i}", num_bins=tf.int32.max) for label in labels
+                hash_udf(label=f"{label}{i}", num_bins=np.iinfo(np.int32).max)
+                for label in labels
             ]
         min_hash_val = min(hashed_vals)
         min_hash_bit = min_hash_val & 1
