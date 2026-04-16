@@ -76,6 +76,7 @@ os.environ['KERAS_BACKEND'] = 'tensorflow'  # or 'jax' or 'torch'
 - **[Shape parity](docs/achieving_shape_parity.md)**: Ensuring consistent shapes between Spark and Keras
 - **[Testing inference](docs/testing_inference.md)**: Validate model outputs with TensorFlow Serving
 - **[Adding transformers](docs/adding_transformer.md)**: Contributing new transformations
+- **[Keras 3 Migration](docs/keras3_migration.md)**: Migrating to Keras 3 multi-backend (Kamae >3.0.0)
 
 ## Supported Preprocessing Layers
 
