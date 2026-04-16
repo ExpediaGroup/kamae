@@ -331,7 +331,7 @@ class TestCurrentDate:
             )
 
         with patch(
-            "kamae.tensorflow.layers.current_date.tf.timestamp",
+            "kamae.keras.tensorflow.layers.current_date.tf.timestamp",
             lambda: tf.constant(timestamp_seconds, dtype=tf.float64),
         ):
             tensorflow_values = [

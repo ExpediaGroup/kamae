@@ -15,7 +15,7 @@
 import pytest
 import tensorflow as tf
 
-from kamae.tensorflow.utils import get_top_n
+from kamae.keras.tensorflow.utils import get_top_n
 
 
 class TestGetTopN:

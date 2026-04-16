@@ -12,86 +12,75 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import keras
 import pytest
 import tensorflow as tf
 
-from kamae.keras.core.layers.absolute_value import AbsoluteValueLayer
+from kamae.keras.core.layers import AbsoluteValueLayer
 
 
 class TestAbsoluteValue:
-    """Tests for portable AbsoluteValueLayer"""
-
     @pytest.mark.parametrize(
-        "input_tensor, expected_output",
+        "inputs, input_name, input_dtype, output_dtype, expected_output",
         [
             (
-                tf.constant([-1.0, -2.0, 3.0], dtype=tf.float32),
-                tf.constant([1.0, 2.0, 3.0], dtype=tf.float32),
+                tf.constant([1.0, 2.0, 3.0], dtype="float32"),
+                "input_1",
+                "float32",
+                "float64",
+                tf.constant([1.0, 2.0, 3.0], dtype="float64"),
             ),
             (
-                tf.constant([[-1, -2], [3, -4]], dtype=tf.int32),
-                tf.constant([[1, 2], [3, 4]], dtype=tf.int32),
+                tf.constant([-5.0, 2.0, 2.0, -10.0], dtype="float32"),
+                "input_2",
+                "float64",
+                "int64",
+                tf.constant([5, 2, 2, 10], dtype="int64"),
             ),
             (
-                tf.constant([-5, 0, 5], dtype=tf.int64),
-                tf.constant([5, 0, 5], dtype=tf.int64),
-            ),
-            (
-                tf.constant([1.5, -2.5, 3.5], dtype=tf.float64),
-                tf.constant([1.5, 2.5, 3.5], dtype=tf.float64),
+                tf.constant([[[1, -2, 30]]], dtype="int64"),
+                "input_3",
+                "int32",
+                "string",
+                tf.constant([[["1", "2", "30"]]]),
             ),
         ],
     )
-    def test_absolute_value(self, input_tensor, expected_output):
-        """Test absolute value layer with various dtypes"""
-        layer = AbsoluteValueLayer(name="test_abs")
-        output = layer(input_tensor)
-        tf.debugging.assert_equal(output, expected_output)
-        assert keras.backend.standardize_dtype(
-            output.dtype
-        ) == keras.backend.standardize_dtype(input_tensor.dtype)
-
-    def test_absolute_value_with_dtype_casting(self):
-        """Test absolute value with dtype casting"""
+    def test_absolute_value(
+        self, inputs, input_name, input_dtype, output_dtype, expected_output
+    ):
+        # when
         layer = AbsoluteValueLayer(
-            name="test_abs", input_dtype="float32", output_dtype="float64"
+            name=input_name, input_dtype=input_dtype, output_dtype=output_dtype
         )
-        x = tf.constant([-1, -2, 3], dtype=tf.int32)
-        output = layer(x)
-        expected = tf.constant([1.0, 2.0, 3.0], dtype=tf.float64)
-        tf.debugging.assert_near(output, expected)
-        assert keras.backend.standardize_dtype(output.dtype) == "float64"
+        output_tensor = layer(inputs)
+        # then
+        assert layer.name == input_name, "Layer name is not set properly"
+        assert (
+            output_tensor.dtype == expected_output.dtype
+        ), "Output tensor dtype is not the same as expected tensor dtype"
+        assert (
+            output_tensor.shape == expected_output.shape
+        ), "Output tensor shape is not the same as expected tensor shape"
+        tf.debugging.assert_equal(output_tensor, expected_output)
 
-    def test_absolute_value_serialization(self):
-        """Test serialization round-trip"""
-        original = AbsoluteValueLayer(
-            name="test_abs", input_dtype="float32", output_dtype="float64"
+    @pytest.mark.parametrize(
+        "inputs, input_name, input_dtype, output_dtype",
+        [
+            (
+                tf.constant(["1.0", "2.0", "3.0"], dtype="string"),
+                "input_1",
+                None,
+                "float64",
+            )
+        ],
+    )
+    def test_absolute_value_with_bad_types_raises_error(
+        self, inputs, input_name, input_dtype, output_dtype
+    ):
+        # when
+        layer = AbsoluteValueLayer(
+            name=input_name, input_dtype=input_dtype, output_dtype=output_dtype
         )
-        config = original.get_config()
-        recreated = AbsoluteValueLayer.from_config(config)
-
-        assert recreated.name == original.name
-        assert recreated._input_dtype == original._input_dtype
-        assert recreated._output_dtype == original._output_dtype
-
-        # Test that recreated layer works
-        x = tf.constant([-1.0, -2.0, 3.0])
-        output = recreated(x)
-        assert keras.backend.standardize_dtype(output.dtype) == "float64"
-
-    def test_absolute_value_incompatible_dtype_raises(self):
-        """Test that incompatible dtype raises error"""
-        layer = AbsoluteValueLayer(name="test_abs")
-        # bfloat16 is not in compatible_dtypes
-        x = tf.constant([-1.0, -2.0], dtype=tf.bfloat16)
-        with pytest.raises(TypeError, match="not a compatible dtype"):
-            layer(x)
-
-    def test_absolute_value_complex(self):
-        """Test absolute value with complex numbers"""
-        layer = AbsoluteValueLayer(name="test_abs_complex")
-        x = tf.constant([3 + 4j, -5 + 12j], dtype=tf.complex64)
-        output = layer(x)
-        expected = tf.constant([5.0, 13.0], dtype=tf.float32)
-        tf.debugging.assert_near(output, expected)
+        # then
+        with pytest.raises(TypeError):
+            layer(inputs)

@@ -147,7 +147,7 @@ class TestCurrentDateTime:
     ):
         # patch for tf.timestamp() in CurrentDateTimeLayer layer with  of 1622745600.0 is 2021-06-03 00:00:00
         with patch(
-            "kamae.tensorflow.layers.current_date_time.tf.timestamp",
+            "kamae.keras.tensorflow.layers.current_date_time.tf.timestamp",
             lambda: tf.constant(test_timestamp, dtype=tf.float64),
         ):
             layer = CurrentDateTimeLayer(
@@ -181,7 +181,7 @@ class TestCurrentDateTime:
 
         def patch_date(x):
             with patch(
-                "kamae.tensorflow.layers.current_date_time.tf.timestamp",
+                "kamae.keras.tensorflow.layers.current_date_time.tf.timestamp",
                 return_value=tf.constant([x], dtype=tf.float64),
             ):
                 return current_date_time(tf.constant(1))

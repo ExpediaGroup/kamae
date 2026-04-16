@@ -361,7 +361,7 @@ class TestCurrentUnixTimestamp:
             )
 
         with patch(
-            "kamae.tensorflow.layers.current_unix_timestamp.tf.timestamp",
+            "kamae.keras.tensorflow.layers.current_unix_timestamp.tf.timestamp",
             lambda: tf.constant(timestamp_seconds, dtype=tf.float64),
         ):
             tensorflow_values = [
