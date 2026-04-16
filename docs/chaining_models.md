@@ -14,27 +14,15 @@ The way in which you specify the `tf_input_schema` to this method can influence 
 #### 1. **List of dictionary config.** 
 
 This is the standard way of specifying the `tf_input_schema`. 
-In this case, you would pass the `tf_input_schema` as a list of dictionaries, where each dictionary specifies (at least) the name, shape and type of the input.
-These dictionaries will be passed directly into the [`tf.keras.layers.Input`](https://www.tensorflow.org/api_docs/python/tf/keras/layers/InputLayer) via ** kwargs, and so the names of the arguments will be the keys specified in the dictionary.
+In this case, you would pass the `tf_input_schema` as a list of dictionaries, where each dictionary specifies (at least) the name, shape and dtype of the input.
+These dictionaries will be passed directly into [`keras.layers.Input`](https://keras.io/api/layers/core_layers/input/) via ** kwargs, and so the names of the arguments will be the keys specified in the dictionary.
 
    
-In this case, when accessing your model inputs, you can use the `inputs` attribute of the model, which is a list of `tf.keras.Input` objects.
+In this case, when accessing your model inputs, you can use the `inputs` attribute of the model, which is a list of `keras.Input` objects.
 You can access the `name` attribute of each of these objects to get the name of the input.
 These will match the names specified in the `tf_input_schema` dictionary.
 
-#### 2. **List of tf.TypeSpec.**
-
-If you have more complex inputs (e.g. a [`RaggedTensor`](https://www.tensorflow.org/api_docs/python/tf/RaggedTensor)) then you may find using [`tf.TypeSpec`](https://www.tensorflow.org/api_docs/python/tf/TypeSpec?hl=en) objects easier.
-In this case, you would pass the `tf_input_schema` as a list of `tf.TypeSpec` objects.
-Under the hood, these will be passed to the [`tf.keras.layers.Input`](https://www.tensorflow.org/api_docs/python/tf/keras/layers/InputLayer) via the `typespec` argument.
-
-However, in this case, accessing the inputs of your model via the `inputs` attribute will return inputs with missing names (i.e. `None`). This is detailed in this [GitHub issue](https://github.com/keras-team/tf-keras/issues/406).
-
-In order to fix this you will need to zip the `input_names` attribute of your model with the `inputs` attribute, to assign the names to the inputs.
-
-```python
-inputs_with_names = list(zip(model.input_names, model.inputs))
-```
+**Note**: For Keras 3, use dictionary config (method 1 above) as it's the most portable across backends. Complex TensorFlow-specific inputs like RaggedTensors are only supported on the TensorFlow backend.
 
 ### Accessing model outputs
 
@@ -52,7 +40,7 @@ Therefore, you can either split these strings, or zip the `output_names` attribu
 Assuming we have two models, `prepro_model` and `trained_model` which we want to chain together, we can do the following:
 
 ```python
-import tensorflow as tf
+import keras
 
 # Get the inputs of the prepro model
 prepro_inputs = prepro_model.inputs
@@ -73,7 +61,7 @@ prepro_outputs_dict = {
 combined_outputs = trained_model(prepro_outputs_dict)
 
 # Create a new model with the prepro inputs and combined outputs
-combined_model = tf.keras.Model(inputs=prepro_inputs, outputs=combined_outputs)
+combined_model = keras.Model(inputs=prepro_inputs, outputs=combined_outputs)
 ```
 
 ### Postprocessing example
@@ -81,7 +69,7 @@ combined_model = tf.keras.Model(inputs=prepro_inputs, outputs=combined_outputs)
 Postprocessing works in a very similar way, you just change which model is applied to the other:
 
 ```python
-import tensorflow as tf
+import keras
 
 # Get the inputs of the trained model
 trained_inputs = trained_model.inputs
@@ -102,5 +90,5 @@ trained_outputs_dict = {
 combined_outputs = postpro_model(trained_outputs_dict)
 
 # Create a new model with the trained inputs and combined outputs
-combined_model = tf.keras.Model(inputs=trained_inputs, outputs=combined_outputs)
+combined_model = keras.Model(inputs=trained_inputs, outputs=combined_outputs)
 ```

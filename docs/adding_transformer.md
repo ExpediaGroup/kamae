@@ -1,12 +1,10 @@
-# Contributing a Keras layer and Spark/Scikit-learn transformer
+# Contributing a Keras layer and Spark transformer
 
 Follow this guide to contribute a new transformer to the project.
 
 ## Overview
 In order to contribute a new transformer, you will need to implement a Spark Transformer, a corresponding Keras layer, and a Spark Estimator if your transformer needs a fit method.
 We also require unit tests for all new classes, in particular parity tests ensuring your Spark Transformer and Keras layer produce the same output.
-
-You may wish to also implement a Scikit-learn transformer, however we deem the scikit-learn usage pattern to be experimental for now and so this is not required.
 
 ## Naming
 In order to avoid name clashes and to keep consistency, we have a naming convention for all new classes.
@@ -15,31 +13,33 @@ If an operation is called `<X>` then:
 
 - `<X>Estimator` = Spark estimator (if applicable)
 - `<X>Transformer` = Spark transformer
-- `<X>Layer` = Tensorflow/Keras layer
+- `<X>Layer` = Keras layer
 - `<X>Params` = Spark params class
 
 We just keep the verb stem. E.g string indexing is StringIndexTransformer, not StringIndexerTransformer.
 
-The name of the file should then be `<X>.py`. E.g. `src/kame/spark/transformers/string_index.py` and `src/kame/tensorflow/layers/string_index.py`.
+The name of the file should then be `<X>.py`. E.g. `src/kamae/spark/transformers/string_index.py` and `src/kamae/keras/core/layers/string_index.py` (for multi-backend layers) or `src/kamae/keras/tensorflow/layers/string_index.py` (for TensorFlow-only layers).
 
 Finally, if you need to create an estimator, then the estimator and its corresponding transformer should be in different files. E.g. `src/kame/spark/transformers/string_index.py` and `src/kame/spark/estimators/string_index.py`.
 
 ## Keras layer
-Your Keras layer should extend [BaseLayer](../src/kamae/tensorflow/layers/base.py) and implement the `_call` method. Furthermore, you will need to define the `compatible_dtypes` property which should return a list of compatible dtypes for the layer (or `None` if the layer is compatible with all dtypes).
+Your Keras layer should extend [BaseLayer](../src/kamae/keras/core/base.py) and implement the `_call` method. Furthermore, you will need to define the `compatible_dtypes` property which should return a list of compatible dtype strings (or `None` if the layer is compatible with all dtypes).
 You should ensure your layer is serializable by implementing the `get_config` method. 
-You also need to add the decorator `@tf.keras.utils.register_keras_serializable(package=kamae.__name__)` to the class.
+You also need to add the decorator `@keras.saving.register_keras_serializable(package=kamae.__name__)` to the class.
+
+**Note:** Multi-backend layers should be placed in `src/kamae/keras/core/layers/` and use only Keras 3 operations. TensorFlow-only layers (those requiring TensorFlow-specific operations) should be placed in `src/kamae/keras/tensorflow/layers/` and can import TensorFlow for backend-specific functionality.
 
 ### Example
 
 ```python
 from typing import List, Optional
 
-import tensorflow as tf
+import keras
 import kamae
 
-from .base import BaseLayer
+from kamae.keras.core.base import BaseLayer
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
+@keras.saving.register_keras_serializable(package=kamae.__name__)
 class MyLayer(BaseLayer):
     def __init__(self, name, input_dtype, output_dtype, my_param, **kwargs):
         # Ensure that the name, input_dtype, and output_dtype are passed to the super constructor
@@ -47,8 +47,8 @@ class MyLayer(BaseLayer):
         self.my_param = my_param
     
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.DType]]:
-        return [tf.float32, tf.float64]
+    def compatible_dtypes(self) -> Optional[List[str]]:
+        return ["float32", "float64"]
 
     def _call(self, inputs):
         # do something with inputs
@@ -62,14 +62,14 @@ class MyLayer(BaseLayer):
 
 ### Checklist
 
-- [ ] I have implemented a Keras layer that extends [BaseLayer](../src/kamae/tensorflow/layers/base.py)
+- [ ] I have implemented a Keras layer that extends [BaseLayer](../src/kamae/keras/core/base.py)
 - [ ] I have implemented the `_call` method of my Keras layer.
-- [ ] I have defined the `compatible_dtypes` property of my Keras layer.
-- [ ] I have added the decorator `@tf.keras.utils.register_keras_serializable(package=kamae.__name__)` to my Keras layer.
+- [ ] I have defined the `compatible_dtypes` property of my Keras layer, returning a list of dtype strings (e.g., `["float32", "float64"]`) or `None`.
+- [ ] I have added the decorator `@keras.saving.register_keras_serializable(package=kamae.__name__)` to my Keras layer.
 - [ ] I have ensured that my layer takes a `name`, `input_dtype`, and `output_dtype` as arguments to the constructor and that this is passed to the super constructor.
 - [ ] My Keras layer is serializable. I have implemented the `get_config` method and added the decorator seen above to the class.
 - [ ] I have unit tests of my implementation. 
-- [ ] I have a specific test of layer serialisation added [here](../../tests/tensorflow/test_layer_serialisation.py).
+- [ ] I have a specific test of layer serialisation added [here](../../tests/kamae/keras/test_layer_serialisation.py).
 
 ## Spark Transformer/Estimator
 Your Spark Transformer should extend [BaseTransformer](../src/kamae/spark/transformers/base.py). 
@@ -226,66 +226,3 @@ class MyTransformer(
 - [ ] I have defined the `compatible_dtypes` property to specify the input/output data types that my transformer/estimator supports.
 - [ ] I used a Keras subclassed layer for my `get_tf_layer` method.
 - [ ] I have unit tests of my implementation. In particular, I have parity tests between the Spark and Keras implementations.
-
-## Scikit-learn Transformer/Estimator
-
-If your transformer is a wrapper around an existing Scikit-Learn transformer, you should
-also extend the [BaseTransformerMixin](../src/kamae/sklearn/transformers/base.py) class. This will provide the required functionality
-to be incorporated into the Kamae framework. 
-
-If you are writing a custom transformer, you should extend the [BaseTransformer](../src/kamae/sklearn/transformers/base.py) class.
-The only difference between these classes is that the `BaseTransformer` class also extends
-the `BaseEstimator` and `TransformerMixin` classes from scikit-learn. If you are wrapping
-an existing transformer, these are already extended by the transformer you are wrapping.
-See the [StandardScaleEstimator](../src/kamae/sklearn/estimators/standard_scale.py) for an example of a wrapper around an existing transformer.
-See the [IdentityTransformer](../src/kamae/sklearn/transformers/identity.py) for an example of a custom transformer.
-
-Additionally, your transformer should use one (or more) of the input/output mixin classes from [base.py](../src/kamae/sklearn/params/base.py)
-- SingleInputSingleOutputMixin
-- SingleInputMultiOutputMixin
-- MultiInputSingleOutputMixin
-- MultiInputMultiOutputMixin
-
-Only use more than one if you want to support two usages of your transformer.
-We have no scikit-learn examples of this yet, only Spark. The behaviour is the same.
-See above to the Spark section to understand why you may want to do this.
-
-In scikit-learn, everything is an estimator. If your transformer does not require a fit method,
-just return `self` from the `fit` method. If your transformer does require a fit method, you
-should implement it within the `fit` method of your transformer.
-
-### Example
-```python
-import pandas as pd
-import tensorflow as tf
-from kamae.sklearn.params import SingleInputSingleOutputMixin
-from kamae.sklearn.transformers import BaseTransformer
-
-class MyTransformer(
-    BaseTransformer, SingleInputSingleOutputMixin
-):
-    def __init__(self, input_col: str, output_col: str, layer_name: str) -> None:
-        super().__init__()
-        self.input_col = input_col
-        self.output_col = output_col
-        self.layer_name = layer_name
-        
-    def fit(self, X: pd.DataFrame, y=None) -> "MyTransformer":
-        return self
-    
-    def transform(self, X: pd.DataFrame, y=None) -> pd.DataFrame:
-        X[self.output_col] = output_of_transform
-        return X
-    
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
-        return MyLayer(
-            name=self.layer_name,
-        )
-```
-
-### Checklist
-- [ ] I have implemented a Scikit-learn Transformer that extends [BaseTransformer](../src/kamae/sklearn/transformers/base.py) (if custom) or [BaseTransformerMixin](../src/kamae/sklearn/transformers/base.py) (if wrapping an existing transformer).
-- [ ] If my transformer needs a fit method, I have implemented it within the `fit` method of my transformer.
-- [ ] I have used one (or more) of the input/output mixin classes from [base.py](../src/kamae/sklearn/params/base.py).
-- [ ] I used a Keras subclassed layer for my `get_tf_layer` method.
-- [ ] I have unit tests of my implementation. In particular, I have parity tests between the scikit-learn and Keras implementations.

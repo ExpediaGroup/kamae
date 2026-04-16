@@ -15,13 +15,10 @@
 import keras
 import keras_tuner as kt
 import tensorflow as tf
-from packaging.version import Version
 from pyspark.sql import SparkSession
 
 from kamae.spark.pipeline import KamaeSparkPipeline, KamaeSparkPipelineModel
 from kamae.spark.transformers import HashIndexTransformer
-
-is_keras_3 = Version(keras.__version__) >= Version("3.0.0")
 
 if __name__ == "__main__":
     print(
@@ -342,13 +339,11 @@ if __name__ == "__main__":
     print(best_hp.values)
 
     print("Saving best model")
-    model_path = "./output/test_keras_tuner_hash_best_model"
-    if is_keras_3:
-        model_path += ".keras"
+    model_path = "./output/test_keras_tuner_hash_best_model.keras"
     best_model.save(model_path)
 
     print("Loading best model")
-    loaded_best_model = tf.keras.models.load_model(model_path)
+    loaded_best_model = keras.models.load_model(model_path)
 
     print("Predict with best model")
     print(loaded_best_model.predict(x_val))
