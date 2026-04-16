@@ -86,7 +86,7 @@ class OneHotEncodeTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param labelsArray: List of string labels to use for one-hot encoding.
         :param stringOrderType: How to order the string indices.
@@ -158,17 +158,17 @@ class OneHotEncodeTransformer(
             output_col,
         )
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the one-hot encoder transformer.
+        Gets the Keras layer for the one-hot encoder transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that performs the one-hot encoding.
         """
         return OneHotEncodeLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             vocabulary=self.getLabelsArray(),
             num_oov_indices=self.getNumOOVIndices(),
             mask_token=self.getMaskToken(),

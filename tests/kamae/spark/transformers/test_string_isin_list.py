@@ -217,7 +217,7 @@ class TestStringIsInList:
             .rdd.map(lambda x: x[0])
             .collect()
         )
-        tensorflow_values = transformer.get_tf_layer()(input_tensor).numpy()
+        tensorflow_values = transformer.get_keras_layer()(input_tensor).numpy()
 
         # then
         np.testing.assert_equal(

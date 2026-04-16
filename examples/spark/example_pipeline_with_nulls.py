@@ -133,7 +133,7 @@ if __name__ == "__main__":
     print("Building keras model from fit pipeline")
     # Create input schema for keras model.
     # Or a list of dicts
-    tf_input_schema = [
+    input_schema = [
         {
             "name": "col1",
             "dtype": tf.int32,
@@ -155,9 +155,7 @@ if __name__ == "__main__":
             "shape": (None, 1),
         },
     ]
-    keras_model = loaded_fitted_pipeline.build_keras_model(
-        tf_input_schema=tf_input_schema
-    )
+    keras_model = loaded_fitted_pipeline.build_keras_model(input_schema=input_schema)
     print(keras_model.summary())
     model_path = "./output/test_keras_model.keras"
     keras_model.save(model_path)

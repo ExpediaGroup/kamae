@@ -122,7 +122,7 @@ class HaversineDistanceTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param latLonConstant: Optional list of lat/lon constant to use.
         Must be in the order [lat, lon].
@@ -256,17 +256,17 @@ class HaversineDistanceTransformer(
 
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the haversine distance transformer.
+        Gets the Keras layer for the haversine distance transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          computes the haversine distance between two lat/lon pairs.
         """
         return HaversineDistanceLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             lat_lon_constant=self.getLatLonConstant(),
             unit=self.getUnit(),
         )

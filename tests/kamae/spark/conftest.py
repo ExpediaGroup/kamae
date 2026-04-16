@@ -429,7 +429,7 @@ def test_base_transformer(layer_name, output_col, input_col, tf_layer):
         def _transform(self, dataset: DataFrame) -> DataFrame:
             return dataset
 
-        def get_tf_layer(self) -> tf.keras.layers.Layer:
+        def get_keras_layer(self) -> tf.keras.layers.Layer:
             return tf_layer
 
     return (

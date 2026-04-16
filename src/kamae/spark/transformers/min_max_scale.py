@@ -133,7 +133,7 @@ class MinMaxScaleTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model.
         :param min: List of minimum values corresponding to the input column.
         :param max: List of maximum values corresponding to the
@@ -197,11 +197,11 @@ class MinMaxScaleTransformer(
 
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the min max transformation.
+        Gets the Keras layer for the min max transformation.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
          that performs the standardization.
         """
         np_min = np.array(self.getMin())
@@ -209,8 +209,8 @@ class MinMaxScaleTransformer(
         mask_value = self.getMaskValue()
         return MinMaxScaleLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             min=np_min,
             max=np_max,
             mask_value=mask_value,

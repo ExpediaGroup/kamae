@@ -64,7 +64,7 @@ class CurrentUnixTimestampTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param unit: Unit of the output timestamp. Can be either "s" (or "seconds")
         for seconds or "ms" (or "milliseconds") for milliseconds. Defaults to "s".
@@ -129,15 +129,15 @@ class CurrentUnixTimestampTransformer(
 
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer.
+        Gets the Keras layer.
 
-        :returns: CurrentUnixTimestampLayer Tensorflow layer.
+        :returns: CurrentUnixTimestampLayer Keras layer.
         """
         return CurrentUnixTimestampLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             unit=self.getUnit(),
         )

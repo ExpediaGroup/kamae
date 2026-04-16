@@ -73,7 +73,7 @@ class MyLayer(BaseLayer):
 
 ## Spark Transformer/Estimator
 Your Spark Transformer should extend [BaseTransformer](../src/kamae/spark/transformers/base.py). 
-In this it should implement the `get_tf_layer` method, which should return an instance of your Keras layer.
+In this it should implement the `get_keras_layer` method, which should return an instance of your Keras layer.
 If your transformer needs a fit method, you should also implement a Spark Estimator (which extends [BaseEstimator](../src/kamae/spark/estimators/base.py)) whose fit method returns an instance of your transformer.
 
 Spark has a peculiar way of building constructors, in that the `__init__` calls a `setParams` method, which sets the parameters of the transformer.
@@ -199,13 +199,13 @@ class MyTransformer(
     def compatible_dtypes(self) -> Optional[List[DataType]]:
         return [StringType(), BinaryType()]
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         # Ensure that the layer has the layer name, input dtype, and output dtype
         # as arguments `name`, `input_dtype`, and `output_dtype` respectively.
         return MyLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            out_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            out_dtype=self.getOutputKerasDtype(),
             my_param=self.getMyParam(),
         )
 
@@ -224,5 +224,5 @@ class MyTransformer(
 - [ ] I have used one (or more) of the input/output mixin classes from [base.py](../src/kamae/spark/params/base.py).
 - [ ] If my transformer requires more parameters that would need to be serialised to the Spark ML pipeline, I have added a parameter class by extending the `Params` class [here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.param.Params.html).
 - [ ] I have defined the `compatible_dtypes` property to specify the input/output data types that my transformer/estimator supports.
-- [ ] I used a Keras subclassed layer for my `get_tf_layer` method.
+- [ ] I used a Keras subclassed layer for my `get_keras_layer` method.
 - [ ] I have unit tests of my implementation. In particular, I have parity tests between the Spark and Keras implementations.

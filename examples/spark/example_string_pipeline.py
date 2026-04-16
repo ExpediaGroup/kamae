@@ -79,7 +79,7 @@ if __name__ == "__main__":
     loaded_fit_pipeline = KamaeSparkPipelineModel.load("./output/test_pipeline/")
 
     # Create input schema for keras model.
-    tf_input_schema = [
+    input_schema = [
         {
             "name": "col4",
             "dtype": tf.string,
@@ -91,7 +91,7 @@ if __name__ == "__main__":
             "shape": (None, None, 1),
         },
     ]
-    keras_model = loaded_fit_pipeline.build_keras_model(tf_input_schema=tf_input_schema)
+    keras_model = loaded_fit_pipeline.build_keras_model(input_schema=input_schema)
     print(keras_model.summary())
     model_path = "./output/test_keras_model.keras"
     keras_model.save(model_path)

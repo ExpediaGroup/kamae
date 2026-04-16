@@ -126,7 +126,7 @@ class DateParseTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Layer name. Used as the name of the tensorflow layer
+        :param layerName: Layer name. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -216,11 +216,11 @@ class DateParseTransformer(
 
         return formatted_date.cast("int")
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer.
+        Gets the Keras layer.
 
-        :returns: DateParseLayer Tensorflow layer.
+        :returns: DateParseLayer Keras layer.
         """
 
         if not self.isDefined("datePart"):
@@ -229,8 +229,8 @@ class DateParseTransformer(
 
         return DateParseLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             date_part=date_part,
             default_value=self.getDefaultValue(),
         )

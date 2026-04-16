@@ -592,7 +592,7 @@ class TestPipeline:
         transformed_df.count()
 
     @pytest.mark.parametrize(
-        "stages, input_tensors, tf_input_schema, output_names, expected_output",
+        "stages, input_tensors, input_schema, output_names, expected_output",
         [
             (
                 "valid_stages_0",
@@ -1004,7 +1004,7 @@ class TestPipeline:
         self,
         stages,
         input_tensors,
-        tf_input_schema,
+        input_schema,
         output_names,
         expected_output,
         example_dataframe,
@@ -1016,7 +1016,7 @@ class TestPipeline:
         pipeline_model = pipeline.fit(example_dataframe)
 
         keras_model = pipeline_model.build_keras_model(
-            tf_input_schema=tf_input_schema, output_names=output_names
+            input_schema=input_schema, output_names=output_names
         )
 
         actual = keras_model(input_tensors)

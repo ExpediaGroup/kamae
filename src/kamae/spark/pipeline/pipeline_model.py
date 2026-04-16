@@ -78,13 +78,13 @@ class KamaeSparkPipelineModel(PipelineModel):
         """
         return KamaeSparkPipelineModelReader(cls)
 
-    def get_all_tf_layers(self) -> List[tf.keras.layers.Layer]:
+    def get_all_keras_layers(self) -> List[tf.keras.layers.Layer]:
         """
-        Gets a list of all tensorflow layers in the pipeline model.
+        Gets a list of all Keras layers in the pipeline model.
 
-        :returns: List of tensorflow layers within the pipeline model.
+        :returns: List of Keras layers within the pipeline model.
         """
-        return [stage.get_tf_layer() for stage in self.stages]
+        return [stage.get_keras_layer() for stage in self.stages]
 
     def expand_pipeline_stages(self) -> List[BaseTransformer]:
         """
@@ -105,14 +105,14 @@ class KamaeSparkPipelineModel(PipelineModel):
 
     def build_keras_model(
         self,
-        tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
+        input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
         output_names: Optional[List[str]] = None,
     ) -> tf.keras.Model:
         """
         Builds a keras model from the pipeline model using the PipelineGraph
         helper class.
 
-        :param tf_input_schema: List of dictionaries containing the input schema for
+        :param input_schema: List of dictionaries containing the input schema for
         the model. Specifically the name, shape and dtype of each input.
         These will be passed as is to the Keras Input layer.
         :param output_names: Optional list of output names for the Keras model. If
@@ -125,12 +125,12 @@ class KamaeSparkPipelineModel(PipelineModel):
         }
         pipeline_graph = PipelineGraph(stage_dict=stage_dict)
         return pipeline_graph.build_keras_model(
-            tf_input_schema=tf_input_schema, output_names=output_names
+            input_schema=input_schema, output_names=output_names
         )
 
     def get_keras_tuner_model_builder(
         self,
-        tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
+        input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
         hp_dict: Dict[str, List[Dict[str, Any]]],
         output_names: Optional[List[str]] = None,
     ) -> Callable[[kt.HyperParameters], tf.keras.Model]:
@@ -138,7 +138,7 @@ class KamaeSparkPipelineModel(PipelineModel):
         Builds a keras tuner model builder (function) from the pipeline model
         using the PipelineGraph helper class.
 
-        :param tf_input_schema: List of dictionaries containing the input schema for
+        :param input_schema: List of dictionaries containing the input schema for
         the model. Specifically the name, shape and dtype of each input.
         These will be passed as is to the Keras Input layer.
         :param hp_dict: Dictionary containing the hyperparameters for the model.
@@ -152,7 +152,7 @@ class KamaeSparkPipelineModel(PipelineModel):
         }
         pipeline_graph = PipelineGraph(stage_dict=stage_dict)
         return pipeline_graph.get_keras_tuner_model_builder(
-            tf_input_schema=tf_input_schema, hp_dict=hp_dict, output_names=output_names
+            input_schema=input_schema, hp_dict=hp_dict, output_names=output_names
         )
 
 

@@ -65,7 +65,7 @@ class ArrayConcatenateTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param autoBroadcast: If True, the Keras transformer will broadcast scalar
         inputs to the biggest rank. Default is False.
@@ -275,17 +275,17 @@ class ArrayConcatenateTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer that concatneates the input tensors.
+        Gets the Keras layer that concatneates the input tensors.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that concatenates the input tensors.
         """
         return ArrayConcatenateLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             axis=-1,
             auto_broadcast=self.getAutoBroadcast(),
         )

@@ -32,7 +32,7 @@ class PipelineGraph:
 
     The graph is then topologically sorted to determine the order in which the layers
     should be constructed. Iterating through this order, the layers are constructed by
-    calling the get_tf_layer method of each stage. The inputs to the layer are
+    calling the get_keras_layer method of each stage. The inputs to the layer are
     determined by the outputs of the previous layers.
     """
 
@@ -142,7 +142,7 @@ class PipelineGraph:
             if k in output_names
         }
 
-    def build_keras_inputs(self, tf_input_schema: List[Dict[str, Any]]) -> None:
+    def build_keras_inputs(self, input_schema: List[Dict[str, Any]]) -> None:
         """
         Builds a Keras input layer for the given node.
 
@@ -154,17 +154,17 @@ class PipelineGraph:
         keras input layer. We then store this layer as an input and update the
         layer store.
 
-        :param tf_input_schema: List of dict config to be passed to the Input constructor.
+        :param input_schema: List of dict config to be passed to the Input constructor.
         :returns: None - layer store is updated and input layer is stored in the
         inputs dict.
         """
 
-        if not isinstance(tf_input_schema, list) or not all(
-            isinstance(x, dict) for x in tf_input_schema
+        if not isinstance(input_schema, list) or not all(
+            isinstance(x, dict) for x in input_schema
         ):
-            raise ValueError("tf_input_schema must be a list of dict!")
+            raise ValueError("input_schema must be a list of dict!")
 
-        input_config = tf_input_schema
+        input_config = input_schema
 
         for conf in input_config:
             name = conf.get("name", None)
@@ -375,7 +375,7 @@ class PipelineGraph:
 
     def get_keras_tuner_model_builder(
         self,
-        tf_input_schema: List[Dict[str, Any]],
+        input_schema: List[Dict[str, Any]],
         hp_dict: Dict[str, List[Dict[str, Any]]],
         output_names: Optional[List[str]] = None,
     ) -> Callable[[keras_tuner.HyperParameters], keras.Model]:
@@ -385,7 +385,7 @@ class PipelineGraph:
         Useful for scenarios where the best preprocessing variables are not known
         a priori. For example, the num_bins to use for a HashIndexLayer.
 
-        :param tf_input_schema: List of dict config containing the input schema
+        :param input_schema: List of dict config containing the input schema
         for the model. Specifically the name, shape and dtype of each input.
         These will be passed as is to the Keras Input layer.
         :param hp_dict: Dictionary of possible hyperparameters for each layer.
@@ -414,7 +414,7 @@ class PipelineGraph:
             self.layer_store = {}
             self.inputs = {}
             # Build the input layers
-            self.build_keras_inputs(tf_input_schema=tf_input_schema)
+            self.build_keras_inputs(input_schema=input_schema)
 
             for node in transform_order:
                 in_edges = list(self.graph.in_edges(node))
@@ -440,13 +440,13 @@ class PipelineGraph:
 
     def build_keras_model(
         self,
-        tf_input_schema: List[Dict[str, Any]],
+        input_schema: List[Dict[str, Any]],
         output_names: Optional[List[str]] = None,
     ) -> keras.Model:
         """
         Builds a Keras model from the graph.
 
-        :param tf_input_schema: List of dict config containing the input schema
+        :param input_schema: List of dict config containing the input schema
         for the model. Each dict must have a 'name' key.
         These will be passed as is to the Keras Input layer.
         :param output_names: Optional list of output names for the Keras model. If
@@ -454,7 +454,7 @@ class PipelineGraph:
         :returns: Keras model to be applied to a tensors dictionary: {name: Tensor}.
         """
         # Build the input layers
-        self.build_keras_inputs(tf_input_schema=tf_input_schema)
+        self.build_keras_inputs(input_schema=input_schema)
 
         for node in self.transform_order:
             in_edges = list(self.graph.in_edges(node))

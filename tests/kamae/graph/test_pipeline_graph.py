@@ -286,7 +286,7 @@ class TestPipelineGraph:
         assert outputs == expected_outputs
 
     @pytest.mark.parametrize(
-        "tf_input_schema, expected_inputs, expected_layer_store",
+        "input_schema, expected_inputs, expected_layer_store",
         [
             (
                 [
@@ -310,7 +310,7 @@ class TestPipelineGraph:
     )
     def test_build_keras_inputs(
         self,
-        tf_input_schema,
+        input_schema,
         expected_inputs,
         expected_layer_store,
     ):
@@ -318,7 +318,7 @@ class TestPipelineGraph:
         pipeline_graph = PipelineGraph(stage_dict={})
         # when
         pipeline_graph.build_keras_inputs(
-            tf_input_schema=tf_input_schema,
+            input_schema=input_schema,
         )
         # then
         for key, value in pipeline_graph.inputs.items():

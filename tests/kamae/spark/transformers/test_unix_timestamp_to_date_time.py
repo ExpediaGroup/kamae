@@ -330,7 +330,7 @@ class TestUnixTimestampToDateTime:
         )
         tensorflow_values = [
             v.decode("utf-8")
-            for v in transformer.get_tf_layer()(input_tensor).numpy().tolist()
+            for v in transformer.get_keras_layer()(input_tensor).numpy().tolist()
         ]
         np.testing.assert_equal(
             spark_values,

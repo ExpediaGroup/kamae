@@ -121,7 +121,7 @@ if __name__ == "__main__":
     print("Transformed array fake data")
     loaded_fitted_pipeline.transform(array_fake_data_to_transform).show(20, False)
 
-    tf_input_schema = [
+    input_schema = [
         {
             "name": "col4",
             "dtype": "string",
@@ -133,9 +133,7 @@ if __name__ == "__main__":
             "shape": (None, None),
         },
     ]
-    keras_model = loaded_fitted_pipeline.build_keras_model(
-        tf_input_schema=tf_input_schema
-    )
+    keras_model = loaded_fitted_pipeline.build_keras_model(input_schema=input_schema)
     print(keras_model.summary())
 
     print("Start: Predicting with the model with reg_inputs")

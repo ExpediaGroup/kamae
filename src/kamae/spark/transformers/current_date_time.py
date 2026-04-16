@@ -60,7 +60,7 @@ class CurrentDateTimeTransformer(BaseTransformer, SingleInputSingleOutputParams)
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -123,14 +123,14 @@ class CurrentDateTimeTransformer(BaseTransformer, SingleInputSingleOutputParams)
 
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer.
+        Gets the Keras layer.
 
-        :returns: CurrentDateTimeLayer Tensorflow layer.
+        :returns: CurrentDateTimeLayer Keras layer.
         """
         return CurrentDateTimeLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
         )

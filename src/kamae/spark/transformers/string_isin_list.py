@@ -70,7 +70,7 @@ class StringIsInListTransformer(
         :param constantStringArray: String constant array to use in string isin list
         operation.
         :param negation: Whether to negate the string isin list operation.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -121,11 +121,11 @@ class StringIsInListTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the StringIsInListLayer transformer.
+        Gets the Keras layer for the StringIsInListLayer transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
         performs a string isin operation.
         """
 
@@ -135,7 +135,7 @@ class StringIsInListTransformer(
         return StringIsInListLayer(
             name=self.getLayerName(),
             negation=self.getNegation(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             string_constant_list=self.getConstantStringArray(),
         )

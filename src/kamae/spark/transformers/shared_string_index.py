@@ -72,7 +72,7 @@ class SharedStringIndexTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column(s) to after
         transforming. Must be the same length as inputCols.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param stringOrderType: How to order the string indices.
         Options are 'frequencyAsc', 'frequencyDesc', 'alphabeticalAsc',
@@ -139,19 +139,19 @@ class SharedStringIndexTransformer(
 
         return dataset.select(*select_cols)
 
-    def get_tf_layer(self) -> List[tf.keras.layers.Layer]:
+    def get_keras_layer(self) -> List[tf.keras.layers.Layer]:
         """
-        Gets the list of tensorflow layers for the shared string indexer transformer.
+        Gets the list of Keras layers for the shared string indexer transformer.
         We need to use a list as each layer could operate on differing input shapes.
 
-        :returns: List of Tensorflow keras layer with name equal to the layerName
+        :returns: List of Keras layer with name equal to the layerName
         parameter and the input column name, that performs the indexing.
         """
         return [
             StringIndexLayer(
                 name=f"{self.getLayerName()}_{input_name}",
-                input_dtype=self.getInputTFDtype(),
-                output_dtype=self.getOutputTFDtype(),
+                input_dtype=self.getInputKerasDtype(),
+                output_dtype=self.getOutputKerasDtype(),
                 vocabulary=self.getLabelsArray(),
                 mask_token=self.getMaskToken(),
                 num_oov_indices=self.getNumOOVIndices(),

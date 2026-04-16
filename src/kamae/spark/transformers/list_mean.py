@@ -177,17 +177,17 @@ class ListMeanTransformer(
 
         return dataset
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the listwise-mean transformer.
+        Gets the Keras layer for the listwise-mean transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs an averaging operation.
         """
         return ListMeanLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             top_n=self.getTopN(),
             sort_order=self.getSortOrder(),
             with_segment=self.getWithSegment(),

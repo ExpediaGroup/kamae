@@ -58,7 +58,7 @@ class IdentityTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -86,18 +86,15 @@ class IdentityTransformer(
         """
         return dataset.withColumn(self.getOutputCol(), F.col(self.getInputCol()))
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the identity transformer.
+        Gets the Keras layer for the identity transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs an IdentityLayer operation.
         """
-        # Tensorflow <= 2.11 does not contain tf.keras.layers.IdentityLayer
-        # so we use a lambda layer instead.
-        # When we have a subclassed identity layer, we can use that.
         return IdentityLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
         )

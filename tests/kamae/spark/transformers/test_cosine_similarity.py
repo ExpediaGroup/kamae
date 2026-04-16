@@ -311,7 +311,7 @@ class TestCosineSimilarity:
             .collect()
         )
         tensorflow_values = (
-            transformer.get_tf_layer()(input_tensors).numpy().flatten().tolist()
+            transformer.get_keras_layer()(input_tensors).numpy().flatten().tolist()
         )
 
         # then

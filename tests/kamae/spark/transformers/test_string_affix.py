@@ -243,7 +243,7 @@ class TestStringAffix:
         )
         tensorflow_values = [
             v.decode("utf-8") if isinstance(v, bytes) else v
-            for v in transformer.get_tf_layer()(input_tensor).numpy().tolist()
+            for v in transformer.get_keras_layer()(input_tensor).numpy().tolist()
         ]
         # then
         np.testing.assert_equal(
@@ -285,4 +285,4 @@ class TestStringAffix:
         with pytest.raises(expected_error):
             transformer.transform(spark_df)
         with pytest.raises(expected_error):
-            transformer.get_tf_layer()(input_tensor)
+            transformer.get_keras_layer()(input_tensor)

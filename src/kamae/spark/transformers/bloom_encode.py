@@ -151,7 +151,7 @@ class BloomEncodeTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param numHashFns: Number of hash functions to use. Defaults to 3.
         The paper suggests a range of 2-4 hash functions for optimal performance.
@@ -254,17 +254,17 @@ class BloomEncodeTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer that performs the bloom encoding.
+        Gets the Keras layer that performs the bloom encoding.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that performs the bloom encoding operation.
         """
         return BloomEncodeLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             num_hash_fns=self.getNumHashFns(),
             num_bins=self.getNumBins(),
             mask_value=self.getMaskValue(),

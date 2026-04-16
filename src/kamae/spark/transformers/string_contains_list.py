@@ -70,7 +70,7 @@ class StringContainsListTransformer(
         :param constantStringArray: String constant array to use in string contains list
         operation.
         :param negation: Whether to negate the string contains list operation.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -124,11 +124,11 @@ class StringContainsListTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the StringContainsLayer transformer.
+        Gets the Keras layer for the StringContainsLayer transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs a string contains operation.
         """
 
@@ -137,8 +137,8 @@ class StringContainsListTransformer(
 
         return StringContainsListLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             negation=self.getNegation(),
             string_constant_list=self.getConstantStringArray(),
         )

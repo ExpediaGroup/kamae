@@ -108,7 +108,7 @@ class DateAddTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Layer name. Used as the name of the tensorflow layer
+        :param layerName: Layer name. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param numDays: Number of days to add/subtract. Negative values subtract.
         :returns: None - class instantiated.
@@ -212,15 +212,15 @@ class DateAddTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer.
+        Gets the Keras layer.
 
-        :returns: DateAddLayer Tensorflow layer.
+        :returns: DateAddLayer Keras layer.
         """
         return DateAddLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             num_days=self.getNumDays(),
         )

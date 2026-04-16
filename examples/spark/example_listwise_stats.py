@@ -129,7 +129,7 @@ if __name__ == "__main__":
     fit_pipeline.transform(fake_data).show(20, False)
 
     # Create input schema for keras model.
-    tf_input_schema = [
+    input_schema = [
         {
             "name": "col2",
             "dtype": "float32",
@@ -146,7 +146,7 @@ if __name__ == "__main__":
             "shape": (None, 1),
         },
     ]
-    keras_model = fit_pipeline.build_keras_model(tf_input_schema=tf_input_schema)
+    keras_model = fit_pipeline.build_keras_model(input_schema=input_schema)
     print(keras_model.summary())
     model_path = "./output/test_keras_model.keras"
     keras_model.save(model_path)

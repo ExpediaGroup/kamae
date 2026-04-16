@@ -117,7 +117,7 @@ class ImputeTransformer(BaseTransformer, ImputeParams, SingleInputSingleOutputPa
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model.
         :param imputeValue: String, float or int value to impute in place of mask or
         nulls.
@@ -163,19 +163,19 @@ class ImputeTransformer(BaseTransformer, ImputeParams, SingleInputSingleOutputPa
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the imputation transformer.
+        Gets the Keras layer for the imputation transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
          that performs the imputation.
         """
         mask_value = self.getMaskValue()
 
         return ImputeLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             impute_value=self.getImputeValue(),
             mask_value=mask_value,
         )

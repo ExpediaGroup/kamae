@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     print("Building keras tuner model builder function from fit pipeline")
     # Create input schema for keras model.
-    tf_input_schema = [
+    input_schema = [
         {
             "name": "col1",
             "dtype": "string",
@@ -160,7 +160,7 @@ if __name__ == "__main__":
     }
 
     build_prepro_model = loaded_fitted_pipeline.get_keras_tuner_model_builder(
-        tf_input_schema=tf_input_schema,
+        input_schema=input_schema,
         hp_dict=hyper_param_dict,
     )
 

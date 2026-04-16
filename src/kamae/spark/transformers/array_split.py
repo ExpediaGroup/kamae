@@ -58,7 +58,7 @@ class ArraySplitTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column(s) to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -99,17 +99,17 @@ class ArraySplitTransformer(
         select_cols = original_columns + output_cols
         return dataset.select(select_cols)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for that unstacks the input tensor and reshapes
+        Gets the Keras layer for that unstacks the input tensor and reshapes
         to the original shape.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that slices the input tensors.
         """
         return ArraySplitLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             axis=-1,
         )

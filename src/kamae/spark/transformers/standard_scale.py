@@ -67,7 +67,7 @@ class StandardScaleTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model.
         :param mean: List of mean values corresponding to the input column.
         :param stddev: List of standard deviation values corresponding to the
@@ -130,11 +130,11 @@ class StandardScaleTransformer(
 
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the standard scaler transformer.
+        Gets the Keras layer for the standard scaler transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
          that performs the standardization.
         """
         np_mean = np.array(self.getMean())
@@ -142,8 +142,8 @@ class StandardScaleTransformer(
         mask_value = self.getMaskValue()
         return StandardScaleLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             mean=np_mean,
             variance=np_variance,
             mask_value=mask_value,

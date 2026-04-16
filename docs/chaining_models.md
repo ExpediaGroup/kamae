@@ -9,18 +9,18 @@ This method will return a Keras model that you can use to process your data.
 
 ### Accessing model inputs
 
-The way in which you specify the `tf_input_schema` to this method can influence how you access your model inputs.
+The way in which you specify the `input_schema` to this method can influence how you access your model inputs.
 
 #### 1. **List of dictionary config.** 
 
-This is the standard way of specifying the `tf_input_schema`. 
-In this case, you would pass the `tf_input_schema` as a list of dictionaries, where each dictionary specifies (at least) the name, shape and dtype of the input.
+This is the standard way of specifying the `input_schema`. 
+In this case, you would pass the `input_schema` as a list of dictionaries, where each dictionary specifies (at least) the name, shape and dtype of the input.
 These dictionaries will be passed directly into [`keras.layers.Input`](https://keras.io/api/layers/core_layers/input/) via ** kwargs, and so the names of the arguments will be the keys specified in the dictionary.
 
    
 In this case, when accessing your model inputs, you can use the `inputs` attribute of the model, which is a list of `keras.Input` objects.
 You can access the `name` attribute of each of these objects to get the name of the input.
-These will match the names specified in the `tf_input_schema` dictionary.
+These will match the names specified in the `input_schema` dictionary.
 
 **Note**: For Keras 3, use dictionary config (method 1 above) as it's the most portable across backends. Complex TensorFlow-specific inputs like RaggedTensors are only supported on the TensorFlow backend.
 

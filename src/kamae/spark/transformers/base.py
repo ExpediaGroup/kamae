@@ -89,27 +89,29 @@ class BaseTransformer(Transformer, SparkOperation):
             ).with_traceback(e.__traceback__)
 
     @abstractmethod
-    def get_tf_layer(self) -> Union[tf.keras.layers.Layer, List[tf.keras.layers.Layer]]:
+    def get_keras_layer(
+        self,
+    ) -> Union[tf.keras.layers.Layer, List[tf.keras.layers.Layer]]:
         """
-        Gets the tensorflow layer to be used in the model.
+        Gets the Keras layer to be used in the model.
         This is the only abstract method that must be implemented.
-        :returns: Tensorflow Layer
+        :returns: Keras Layer
         """
         raise NotImplementedError
 
     def construct_layer_info(self) -> Dict[str, Any]:
         """
         Constructs the layer info dictionary.
-        Contains the layer name, the tensorflow layer, and the inputs and outputs.
+        Contains the layer name, the Keras layer, and the inputs and outputs.
         This is used when constructing the pipeline graph.
 
         :returns: Dictionary containing layer information such as
-        name, tensorflow layer, inputs, and outputs.
+        name, Keras layer, inputs, and outputs.
         """
         inputs, outputs = self.get_layer_inputs_outputs()
         return {
             "name": self.getOrDefault("layerName"),
-            "layer": self.get_tf_layer(),
+            "layer": self.get_keras_layer(),
             "inputs": inputs,
             "outputs": outputs,
         }

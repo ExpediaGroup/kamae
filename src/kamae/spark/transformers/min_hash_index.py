@@ -114,7 +114,7 @@ class MinHashIndexTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param numPermutations: Number of permutations of your output min hash.
         Defaults to 128. This is the length of the output array.
@@ -171,17 +171,17 @@ class MinHashIndexTransformer(
             output_col,
         )
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer that performs the min hash indexing.
+        Gets the Keras layer that performs the min hash indexing.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that performs the hash indexing operation.
         """
         return MinHashIndexLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             num_permutations=self.getNumPermutations(),
             mask_value=self.getMaskValue(),
         )

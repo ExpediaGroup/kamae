@@ -224,7 +224,7 @@ class TestRoundToDecimal:
             .rdd.map(lambda r: r[0])
             .collect()
         )
-        tensorflow_values = transformer.get_tf_layer()(input_tensor).numpy().tolist()
+        tensorflow_values = transformer.get_keras_layer()(input_tensor).numpy().tolist()
 
         # then
         np.testing.assert_almost_equal(

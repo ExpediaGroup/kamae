@@ -55,9 +55,9 @@ class StringArrayConstantTransformer(
         Initializes the String Array Constant Transformer.
 
         :param inputCol: Input column used to copy shape from. Ignored for Spark, used
-        for Tensorflow.
+        for Keras.
         :param outputCol: column to fill with the constant.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param inputDtype: Input data type to cast input column to before
         transforming.
@@ -97,16 +97,16 @@ class StringArrayConstantTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for generating the keras model that outputs
+        Gets the Keras layer for generating the keras model that outputs
         the constant string array.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         """
         return StringArrayConstantLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             constant_string_array=self.getConstantStringArray(),
         )

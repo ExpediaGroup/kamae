@@ -146,7 +146,7 @@ class SubStringDelimAtIndexTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param delimiter: Value to use to split the string into substrings.
         Default is "_".
@@ -204,17 +204,17 @@ class SubStringDelimAtIndexTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for SubStringDelimAtIndexTransformer.
+        Gets the Keras layer for SubStringDelimAtIndexTransformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs sub string at delimiter.
         """
         return SubStringDelimAtIndexLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             delimiter=self.getDelimiter(),
             index=self.getIndex(),
             default_value=self.getDefaultValue(),
