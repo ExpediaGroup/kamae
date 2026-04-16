@@ -78,7 +78,7 @@ class HasInputDtype(Params):
         input_dtype = self.getInputDtype()
         if input_dtype is None:
             return None
-        dtypes_map = {dtype.dtype_name: dtype.tf_dtype.name for dtype in DType}
+        dtypes_map = {dtype.dtype_name: dtype.keras_dtype for dtype in DType}
         return dtypes_map[input_dtype]
 
 
@@ -128,7 +128,7 @@ class HasOutputDtype(Params):
         output_dtype = self.getOutputDtype()
         if output_dtype is None:
             return None
-        dtypes_map = {dtype.dtype_name: dtype.tf_dtype.name for dtype in DType}
+        dtypes_map = {dtype.dtype_name: dtype.keras_dtype for dtype in DType}
         return dtypes_map[output_dtype]
 
 
