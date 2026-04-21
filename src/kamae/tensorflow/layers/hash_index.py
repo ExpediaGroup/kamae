@@ -67,7 +67,12 @@ class HashIndexLayer(BaseLayer):
         )
         self.num_bins = num_bins
         self.mask_value = mask_value
-        self.hash_indexer = Hashing(name=name, num_bins=num_bins, mask_value=mask_value)
+        if mask_value is not None:
+            self.hash_indexer = Hashing(
+                name=name, num_bins=num_bins, mask_value=mask_value
+            )
+        else:
+            self.hash_indexer = Hashing(name=name, num_bins=num_bins - 1)
 
     @property
     def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
@@ -91,7 +96,10 @@ class HashIndexLayer(BaseLayer):
         :param inputs: Input tensor to be hashed.
         :returns: Hashed and bucketed tensor.
         """
-        return self.hash_indexer(inputs)
+        result = self.hash_indexer(inputs)
+        if self.mask_value is None:
+            result = result + 1
+        return result
 
     def get_config(self) -> Dict[str, Any]:
         """

@@ -29,7 +29,7 @@ class TestHashIndex:
                 None,
                 None,
                 None,
-                tf.constant([40, 99, 24], dtype=tf.int64),
+                tf.constant([10, 35, 77], dtype=tf.int64),
             ),
             (
                 tf.constant([[["Mon", "Tue"], ["Wed", "Thu"]]]),
@@ -47,7 +47,7 @@ class TestHashIndex:
                 None,
                 None,
                 "float32",
-                tf.constant([[[23.0], [48.0], [25.0]]], dtype=tf.float32),
+                tf.constant([[[10.0], [13.0], [34.0]]], dtype=tf.float32),
             ),
             (
                 tf.constant([[[0], [1000], [67.78]]]),
@@ -56,7 +56,7 @@ class TestHashIndex:
                 None,
                 "string",
                 "int64",
-                tf.constant([[[106], [76], [16]]], dtype=tf.int64),
+                tf.constant([[[70], [117], [19]]], dtype=tf.int64),
             ),
         ],
     )

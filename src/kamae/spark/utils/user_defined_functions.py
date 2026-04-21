@@ -12,16 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import tensorflow as tf
 
 from kamae.spark.utils.indexer_utils import safe_hash64
 
 
-def hash_udf(
-    label: str, num_bins: int, mask_value: Optional[str] = None
-) -> Union[int, None]:
+def hash_udf(label: str, num_bins: int, mask_value: Optional[str] = None) -> int:
     """
     User defined Spark function (UDF) to hash a string to an integer value.
 
@@ -36,17 +34,13 @@ def hash_udf(
     :returns: Hashed integer value.
     """
     if label is None:
-        return None
+        return 0
     if label == mask_value:
         return 0
 
     hash_val = safe_hash64(label)
-    if mask_value is not None:
-        # If masking value is set, then the zero index is reserved for it.
-        # Therefore, we reduce the num_bins by 1 and add 1 to the binned value.
-        return (hash_val % (num_bins - 1)) + 1
-    else:
-        return hash_val % num_bins
+    # Index 0 is reserved for null values (and mask values if set).
+    return (hash_val % (num_bins - 1)) + 1
 
 
 def indexer_udf(
@@ -181,6 +175,7 @@ def min_hash_udf(
     :returns: List of integers representing the min hash array.
     """
     min_hash_array = []
+    labels = [l for l in labels if l is not None]
     if not labels:
         # Ensure at least one label
         labels.append("")
