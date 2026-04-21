@@ -91,8 +91,6 @@ class SingleOutputMixin(LayerNameMixin):
     def output_col(self, value: str) -> None:
         """
         Sets the output column name to the given string value.
-        Throws an error if the value is the same as the layer name,
-        as this causes issues when constructing the pipeline graph.
 
         :param value: String to set the output_col parameter to.
         :returns: None, output_col is set to the given value.
@@ -100,28 +98,16 @@ class SingleOutputMixin(LayerNameMixin):
         if value is None:
             # Set default output column name
             self._output_col = "output"
-        if hasattr(self, "layer_name") and self.layer_name == value:
-            raise ValueError(
-                f"""Output column name {value} cannot be the same
-                as the layer name {self.layer_name}"""
-            )
         self._output_col = value
 
     @LayerNameMixin.layer_name.setter
     def layer_name(self, value: str) -> None:
         """
         Sets the layer name to the given string value.
-        Throws an error if the value is the same as the output column name,
-        as this causes issues when constructing the pipeline graph.
 
         :param value: String to set the layer_name parameter to.
         :returns: None, layer_name is set to the given value.
         """
-        if hasattr(self, "output_col") and self.output_col == value:
-            raise ValueError(
-                f"""Layer name {value} cannot be the same
-                as the output column name {self.output_col}"""
-            )
         self._layer_name = value if value is not None else self.__repr__()
 
 
@@ -145,36 +131,20 @@ class MultiOutputMixin(LayerNameMixin):
     def layer_name(self, value: str) -> None:
         """
         Sets the layer name to the given string value.
-        Throws an error if the value is the same as any of the output column names,
-        as this causes issues when constructing the pipeline graph.
 
         :param value: String to set the layer_name parameter to.
         :returns: None, layer_name is set to the given value.
         """
-        if hasattr(self, "output_cols") and any(
-            [output_col == value for output_col in self.output_cols]
-        ):
-            raise ValueError(
-                f"""Layer name {value} cannot be the same
-                as any of the output column names {", ".join(self.output_cols)}"""
-            )
         self._layer_name = value if value is not None else self.__repr__()
 
     @output_cols.setter
     def output_cols(self, value: List[str]) -> None:
         """
         Sets the output column names to the given list of strings.
-        Throws an error if any of the values in the list is the same as the layer name,
-        as this causes issues when constructing the pipeline graph.
 
         :param value: List of strings to set the output_cols parameter to.
         :returns: None, output_cols is set to the given value.
         """
-        if hasattr(self, "layer_name") and self.layer_name in value:
-            raise ValueError(
-                f"""Output column names {", ".join(value)} cannot contain
-                the layer name {self.layer_name}"""
-            )
         self._output_cols = value
 
 

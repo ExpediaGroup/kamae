@@ -20,8 +20,6 @@ import networkx as nx
 import tensorflow as tf
 from packaging.version import Version
 
-from kamae.tensorflow.layers import IdentityLayer
-
 keras_version = Version(keras.__version__)
 
 
@@ -109,9 +107,13 @@ class PipelineGraph:
             edges_to_add.extend(
                 [(input_name, layer_name) for input_name in layer_info["inputs"]]
             )
-            # Add edges for all outputs
+            # Add edges for all outputs (skip self-loops where output_name == layer_name)
             edges_to_add.extend(
-                [(layer_name, output_name) for output_name in layer_info["outputs"]]
+                [
+                    (layer_name, output_name)
+                    for output_name in layer_info["outputs"]
+                    if output_name != layer_name
+                ]
             )
 
         graph.add_edges_from(edges_to_add)
@@ -123,8 +125,7 @@ class PipelineGraph:
         """
         Gets the outputs of the model. If output_names is provided, we use this to find
         the outputs for the model. Otherwise, the outputs are those that are not reused
-        and not inputs. We also apply an identity layer to the outputs, so we
-        can rename them with the same name as the output columns of the layer.
+        and not inputs.
 
         :param output_names: Optional list of output names. If provided, the outputs
         are only allowed to be within this list.
@@ -139,12 +140,7 @@ class PipelineGraph:
                 if not v["reused"] and k not in self.inputs
             ]
         return {
-            # Do not wrap with identity if we are just passing through an input.
-            k: IdentityLayer(name=k)(v["output"])
-            if k not in self.inputs
-            else v["output"]
-            for k, v in self.layer_store.items()
-            if k in output_names
+            k: v["output"] for k, v in self.layer_store.items() if k in output_names
         }
 
     def build_keras_inputs(
