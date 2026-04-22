@@ -88,3 +88,5 @@ from .sum import SumTransformer  # noqa: F401
 from .unix_timestamp_to_date_time import (  # noqa: F401
     UnixTimestampToDateTimeTransformer,
 )
+from .array_reduce_max import ArrayReduceMaxTransformer  # noqa: F401
+from .pairwise_cosine_similarity import PairwiseCosineSimilarityTransformer  # noqa: F401

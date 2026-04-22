@@ -79,3 +79,5 @@ from .sub_string_delim_at_index import SubStringDelimAtIndexLayer  # noqa: F401
 from .subtract import SubtractLayer  # noqa: F401
 from .sum import SumLayer  # noqa: F401
 from .unix_timestamp_to_date_time import UnixTimestampToDateTimeLayer  # noqa: F401
+from .array_reduce_max import ArrayReduceMaxLayer  # noqa: F401
+from .pairwise_cosine_similarity import PairwiseCosineSimilarityLayer  # noqa: F401
