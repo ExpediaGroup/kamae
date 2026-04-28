@@ -163,6 +163,19 @@ class TestPipelineGraph:
                     ("layer4", "layer4_output1"),
                 ],
             ),
+            (
+                {
+                    "layer1": {
+                        "name": "layer1",
+                        "layer": None,
+                        "inputs": ["input1"],
+                        "outputs": ["layer1"],
+                    },
+                },
+                [
+                    ("input1", "layer1"),
+                ],
+            ),
         ],
     )
     def test_add_stage_edges(self, stage_dict, expected_edges):
