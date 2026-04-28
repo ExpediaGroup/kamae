@@ -17,6 +17,7 @@ Backend detection and enforcement utilities for Keras 3 multi-backend support.
 """
 
 import functools
+from typing import Any, Callable
 
 import keras
 
@@ -48,11 +49,11 @@ def require_tensorflow() -> None:
         )
 
 
-def tensorflow_only(func):
+def tensorflow_only(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
     """Decorator that enforces TensorFlow backend at call time."""
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
         backend = current_backend()
         if backend != "tensorflow":
             cls_name = args[0].__class__.__name__ if args else "Unknown"
