@@ -67,6 +67,8 @@ class HashIndexLayer(BaseLayer):
         )
         self.num_bins = num_bins
         self.mask_value = mask_value
+        if self.num_bins <= 1:
+            raise ValueError("num_bins must be > 1")
         if mask_value is not None:
             self.hash_indexer = Hashing(
                 name=name, num_bins=num_bins, mask_value=mask_value
