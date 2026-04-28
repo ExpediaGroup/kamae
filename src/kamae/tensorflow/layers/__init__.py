@@ -15,6 +15,7 @@
 from .absolute_value import AbsoluteValueLayer  # noqa: F401
 from .array_concatenate import ArrayConcatenateLayer  # noqa: F401
 from .array_crop import ArrayCropLayer  # noqa: F401
+from .array_reduce_max import ArrayReduceMaxLayer  # noqa: F401
 from .array_split import ArraySplitLayer  # noqa: F401
 from .array_subtract_minimum import ArraySubtractMinimumLayer  # noqa: F401
 from .bearing_angle import BearingAngleLayer  # noqa: F401
@@ -59,6 +60,7 @@ from .multiply import MultiplyLayer  # noqa: F401
 from .numerical_if_statement import NumericalIfStatementLayer  # noqa: F401
 from .one_hot_encode import OneHotEncodeLayer, OneHotLayer  # noqa: F401
 from .ordinal_array_encode import OrdinalArrayEncodeLayer  # noqa: F401
+from .pairwise_cosine_similarity import PairwiseCosineSimilarityLayer  # noqa: F401
 from .round import RoundLayer  # noqa: F401
 from .round_to_decimal import RoundToDecimalLayer  # noqa: F401
 from .standard_scale import StandardScaleLayer  # noqa: F401
@@ -79,5 +81,3 @@ from .sub_string_delim_at_index import SubStringDelimAtIndexLayer  # noqa: F401
 from .subtract import SubtractLayer  # noqa: F401
 from .sum import SumLayer  # noqa: F401
 from .unix_timestamp_to_date_time import UnixTimestampToDateTimeLayer  # noqa: F401
-from .array_reduce_max import ArrayReduceMaxLayer  # noqa: F401
-from .pairwise_cosine_similarity import PairwiseCosineSimilarityLayer  # noqa: F401

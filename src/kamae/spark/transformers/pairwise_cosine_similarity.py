@@ -1,10 +1,24 @@
+# Copyright [2024] Expedia, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from typing import List, Optional
 
 import pyspark.sql.functions as F
 import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
-from pyspark.sql import DataFrame
+from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
 from kamae.spark.params import MultiInputSingleOutputParams
@@ -74,13 +88,11 @@ class PairwiseCosineSimilarityTransformer(
         for col_name in input_col_names:
             dtype = self.get_column_datatype(dataset=dataset, column_name=col_name)
             if not isinstance(dtype, ArrayType):
-                raise TypeError(
-                    f"Expected ArrayType for {col_name}, got {dtype}."
-                )
+                raise TypeError(f"Expected ArrayType for {col_name}, got {dtype}.")
 
-        num_candidates = (
-            F.size(flat_candidates_col) / F.lit(embedding_dim)
-        ).cast("int")
+        num_candidates = (F.size(flat_candidates_col) / F.lit(embedding_dim)).cast(
+            "int"
+        )
         indices = F.sequence(F.lit(0), num_candidates - F.lit(1))
 
         query_norm = F.sqrt(
@@ -91,7 +103,7 @@ class PairwiseCosineSimilarityTransformer(
             )
         )
 
-        def cosine_sim_at_index(idx):
+        def cosine_sim_at_index(idx: Column) -> Column:
             candidate = F.slice(
                 flat_candidates_col,
                 idx * F.lit(embedding_dim) + F.lit(1),
