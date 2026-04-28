@@ -14,8 +14,8 @@
 
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
+import keras
 import keras_tuner as kt
-import tensorflow as tf
 from pyspark.ml import PipelineModel
 from pyspark.ml.pipeline import (
     PipelineModelReader,
@@ -78,7 +78,7 @@ class KamaeSparkPipelineModel(PipelineModel):
         """
         return KamaeSparkPipelineModelReader(cls)
 
-    def get_all_keras_layers(self) -> List[tf.keras.layers.Layer]:
+    def get_all_keras_layers(self) -> List[keras.layers.Layer]:
         """
         Gets a list of all Keras layers in the pipeline model.
 
@@ -105,9 +105,9 @@ class KamaeSparkPipelineModel(PipelineModel):
 
     def build_keras_model(
         self,
-        input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
+        input_schema: Union[List[Dict[str, Any]]],
         output_names: Optional[List[str]] = None,
-    ) -> tf.keras.Model:
+    ) -> keras.Model:
         """
         Builds a keras model from the pipeline model using the PipelineGraph
         helper class.
@@ -130,10 +130,10 @@ class KamaeSparkPipelineModel(PipelineModel):
 
     def get_keras_tuner_model_builder(
         self,
-        input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
+        input_schema: Union[List[Dict[str, Any]]],
         hp_dict: Dict[str, List[Dict[str, Any]]],
         output_names: Optional[List[str]] = None,
-    ) -> Callable[[kt.HyperParameters], tf.keras.Model]:
+    ) -> Callable[[kt.HyperParameters], keras.Model]:
         """
         Builds a keras tuner model builder (function) from the pipeline model
         using the PipelineGraph helper class.
