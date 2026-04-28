@@ -82,10 +82,11 @@ class DateAddTransformer(
     DateAdditionParams,
 ):
     """
-    Transformer to add or subtract a static or dynamic (column) number of days
-    from a date column.
+        Transformer to add or subtract a static or dynamic (column) number of days
+        from a date column.
+    from kamae.keras.core.backend import tensorflow_only
 
-    WARNING: This transform destroys the time component of the date column.
+        WARNING: This transform destroys the time component of the date column.
     """
 
     @keyword_only
@@ -212,6 +213,7 @@ class DateAddTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer.

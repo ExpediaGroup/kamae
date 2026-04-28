@@ -25,6 +25,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, StringType
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import StringListToStringLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
@@ -138,6 +139,7 @@ class StringListToStringTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the StringListToStringLayer transformer.

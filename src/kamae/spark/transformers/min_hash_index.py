@@ -25,6 +25,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import MinHashIndexLayer
 from kamae.spark.params import MaskStringValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
@@ -171,6 +172,7 @@ class MinHashIndexTransformer(
             output_col,
         )
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer that performs the min hash indexing.

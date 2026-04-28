@@ -29,6 +29,7 @@ from pyspark.sql.types import (
     StringType,
 )
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import ListMeanLayer
 from kamae.spark.params import (
     ListwiseStatisticsParams,
@@ -177,6 +178,7 @@ class ListMeanTransformer(
 
         return dataset
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the listwise-mean transformer.

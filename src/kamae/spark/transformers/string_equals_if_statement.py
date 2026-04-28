@@ -25,6 +25,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import StringEqualsIfStatementLayer
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
@@ -311,6 +312,7 @@ class StringEqualsIfStatementTransformer(
 
         return dataset.withColumn(self.getOutputCol(), output_col)
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the string if equal statement transformer.

@@ -20,6 +20,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import ListMedianLayer
 from kamae.spark.params import (
     ListwiseStatisticsParams,
@@ -176,6 +177,7 @@ class ListMedianTransformer(
 
         return dataset
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the listwise-median transformer.

@@ -20,8 +20,8 @@ from functools import reduce
 from operator import and_
 from typing import List, Optional
 
+import keras
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import BooleanType, DataType
@@ -112,7 +112,7 @@ class LogicalAndTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
         Gets the Keras layer for the logical and transformer.
 

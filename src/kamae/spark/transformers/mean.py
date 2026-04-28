@@ -20,7 +20,7 @@ from functools import reduce
 from operator import add
 from typing import List, Optional
 
-import tensorflow as tf
+import keras
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
@@ -136,7 +136,7 @@ class MeanTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
         Gets the Keras layer for the mean transformer.
 

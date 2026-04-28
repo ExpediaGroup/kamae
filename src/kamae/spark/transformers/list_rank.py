@@ -28,6 +28,7 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import ListRankLayer
 from kamae.spark.params import ListwiseParams, SingleInputSingleOutputParams
 from kamae.spark.utils import check_listwise_columns
@@ -127,6 +128,7 @@ class ListRankTransformer(
 
         return dataset
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the listwise-rank transformer.

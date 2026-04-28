@@ -20,6 +20,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import OrdinalArrayEncodeLayer
 from kamae.spark.params import PadValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
@@ -128,6 +129,7 @@ class OrdinalArrayEncodeTransformer(
             output_col,
         )
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer that performs the ordinal array encoding.

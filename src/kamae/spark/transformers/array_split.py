@@ -18,8 +18,8 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
+import keras
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType
@@ -99,7 +99,7 @@ class ArraySplitTransformer(
         select_cols = original_columns + output_cols
         return dataset.select(select_cols)
 
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
         Gets the Keras layer for that unstacks the input tensor and reshapes
         to the original shape.

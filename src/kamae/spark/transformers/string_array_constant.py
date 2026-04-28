@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import StringArrayConstantLayer
 from kamae.spark.params import ConstantStringArrayParams, SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
@@ -97,6 +98,7 @@ class StringArrayConstantTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for generating the keras model that outputs

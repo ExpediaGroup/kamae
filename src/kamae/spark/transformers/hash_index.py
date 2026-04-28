@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, IntegerType, StringType
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import HashIndexLayer
 from kamae.spark.params import HashIndexParams, SingleInputSingleOutputParams
 from kamae.spark.utils import hash_udf, single_input_single_output_scalar_udf_transform
@@ -114,6 +115,7 @@ class HashIndexTransformer(
             output_col,
         )
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer that performs the hash indexing.

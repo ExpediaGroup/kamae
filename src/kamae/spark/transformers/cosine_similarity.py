@@ -18,8 +18,8 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
+import keras
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
@@ -141,7 +141,7 @@ class CosineSimilarityTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
         Gets the Keras layer for the cosine similarity transformer.
 

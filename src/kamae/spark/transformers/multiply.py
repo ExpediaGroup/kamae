@@ -20,7 +20,7 @@ from functools import reduce
 from operator import mul
 from typing import List, Optional
 
-import tensorflow as tf
+import keras
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
@@ -133,7 +133,7 @@ class MultiplyTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
         Gets the Keras layer for the multiply transformer.
 

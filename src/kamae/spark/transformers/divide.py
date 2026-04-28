@@ -19,8 +19,8 @@
 from functools import reduce
 from typing import List, Optional
 
+import keras
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
@@ -127,7 +127,7 @@ class DivideTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
         Gets the Keras layer for the divide transformer.
 

@@ -15,7 +15,7 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-import tensorflow as tf
+import keras
 from pyspark.ml import Transformer
 from pyspark.sql import DataFrame
 
@@ -91,7 +91,7 @@ class BaseTransformer(Transformer, SparkOperation):
     @abstractmethod
     def get_keras_layer(
         self,
-    ) -> Union[tf.keras.layers.Layer, List[tf.keras.layers.Layer]]:
+    ) -> Union[keras.layers.Layer, List[keras.layers.Layer]]:
         """
         Gets the Keras layer to be used in the model.
         This is the only abstract method that must be implemented.

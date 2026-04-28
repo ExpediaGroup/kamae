@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import DateDiffLayer
 from kamae.spark.params import DefaultIntValueParams, MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_scalar_transform
@@ -132,6 +133,7 @@ class DateDiffTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the absolute value transformer.

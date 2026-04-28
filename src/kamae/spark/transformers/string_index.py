@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, IntegerType, StringType
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import StringIndexLayer
 from kamae.spark.params import SingleInputSingleOutputParams, StringIndexParams
 from kamae.spark.utils import (
@@ -134,6 +135,7 @@ class StringIndexTransformer(
             output_col,
         )
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the string indexer transformer.

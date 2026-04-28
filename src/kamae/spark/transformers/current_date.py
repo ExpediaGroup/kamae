@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql.types import DataType
 
+from kamae.keras.core.backend import tensorflow_only
 from kamae.keras.tensorflow.layers import CurrentDateLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers.base import BaseTransformer
@@ -113,6 +114,7 @@ class CurrentDateTransformer(BaseTransformer, SingleInputSingleOutputParams):
 
         return dataset.withColumn(self.getOutputCol(), output_col)
 
+    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer.
