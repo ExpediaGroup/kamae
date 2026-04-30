@@ -39,6 +39,8 @@ class MinMaxScaleParams(MaskValueParams):
     for min/max scaler transformers.
     """
 
+    jit_compatible = True
+
     min = Param(
         Params._dummy(),
         "min",

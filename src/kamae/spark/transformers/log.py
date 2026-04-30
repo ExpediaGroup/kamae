@@ -37,6 +37,8 @@ class LogParams(Params):
     Mixin class containing alpha parameter needed for log transform layers.
     """
 
+    jit_compatible = True
+
     alpha = Param(
         Params._dummy(),
         "alpha",

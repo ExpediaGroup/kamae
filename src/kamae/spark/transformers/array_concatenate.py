@@ -46,6 +46,8 @@ class ArrayConcatenateTransformer(
     This transformer assembles multiple columns into a single array column.
     """
 
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,

@@ -43,6 +43,8 @@ class ArraySubtractMinimumParams(Params):
     for array subtract min transformers.
     """
 
+    jit_compatible = True
+
     padValue = Param(
         Params._dummy(),
         "padValue",

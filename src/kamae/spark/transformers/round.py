@@ -37,6 +37,8 @@ class RoundParams(Params):
     Mixin class containing roundType parameter needed for rounding transform layers.
     """
 
+    jit_compatible = True
+
     roundType = Param(
         Params._dummy(),
         "roundType",

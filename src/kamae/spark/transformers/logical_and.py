@@ -42,6 +42,8 @@ class LogicalAndTransformer(
     This transformer performs an element-wise logical and operation on multiple columns.
     """
 
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,

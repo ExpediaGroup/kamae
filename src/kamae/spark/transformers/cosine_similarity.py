@@ -40,6 +40,8 @@ class CosineSimilarityTransformer(
     This transformer computes the cosine similarity between two array columns.
     """
 
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,

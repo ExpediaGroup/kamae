@@ -37,6 +37,8 @@ class ArrayCropParams(PadValueParams):
     for array crop transformers.
     """
 
+    jit_compatible = True
+
     arrayLength = Param(
         PadValueParams._dummy(),
         "arrayLength",

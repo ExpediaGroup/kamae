@@ -73,6 +73,8 @@ class ListStdDevTransformer(
     :nanFillValue: Value to fill NaNs results with. Defaults to 0.
     """
 
+    jit_compatible = True
+
     supported_backends = TENSORFLOW_ONLY
 
     @keyword_only

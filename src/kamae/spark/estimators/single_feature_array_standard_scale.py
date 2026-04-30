@@ -47,6 +47,8 @@ class SingleFeatureArrayStandardScaleEstimator(
     and standard deviation are calculated across all elements in all the arrays.
     """
 
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,

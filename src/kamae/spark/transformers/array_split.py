@@ -40,6 +40,8 @@ class ArraySplitTransformer(
     This transformer splits an array column into multiple columns.
     """
 
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,

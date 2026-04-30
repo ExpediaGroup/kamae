@@ -40,6 +40,8 @@ class ExpTransformer(
     This transformer applies exp(x) operation to the input.
     """
 
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,

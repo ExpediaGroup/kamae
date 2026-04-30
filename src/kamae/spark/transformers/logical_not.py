@@ -40,6 +40,8 @@ class LogicalNotTransformer(
     This transformer performs a logical not operation on a single column.
     """
 
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,

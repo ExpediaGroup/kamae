@@ -40,6 +40,8 @@ class BearingAngleLayer(BaseLayer):
     This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
+    jit_compatible = True
+
     def __init__(
         self,
         name: Optional[str] = None,

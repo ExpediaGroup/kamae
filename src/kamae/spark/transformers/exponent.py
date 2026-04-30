@@ -40,6 +40,8 @@ class ExponentParams(Params):
     Mixin class containing alpha parameter needed for exponent transform layers.
     """
 
+    jit_compatible = True
+
     exponent = Param(
         Params._dummy(),
         "exponent",

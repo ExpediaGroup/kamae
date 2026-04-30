@@ -46,6 +46,8 @@ class BinParams(Params):
     Mixin class containing parameters needed for Bin transform layers.
     """
 
+    jit_compatible = True
+
     conditionOperators = Param(
         Params._dummy(),
         "conditionOperators",

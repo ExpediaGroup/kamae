@@ -35,6 +35,8 @@ class ArrayCropLayer(BaseLayer):
     TODO: Currently only supports cropping the final dimension of the tensor.
     """
 
+    jit_compatible = True
+
     def __init__(
         self,
         name: Optional[str] = None,

@@ -57,6 +57,8 @@ class ListRankTransformer(
     for listwise operation. Default is 'desc'.
     """
 
+    jit_compatible = True
+
     supported_backends = TENSORFLOW_ONLY
 
     @keyword_only

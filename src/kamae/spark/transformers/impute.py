@@ -37,6 +37,8 @@ class ImputeParams(Params):
     Mixin class used to provide imputation and mask value needed for imputation.
     """
 
+    jit_compatible = True
+
     imputeValue = Param(
         Params._dummy(),
         "imputeValue",

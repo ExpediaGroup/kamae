@@ -51,6 +51,8 @@ class ImputeEstimator(
     either null or equal to the supplied mask value.
     """
 
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,

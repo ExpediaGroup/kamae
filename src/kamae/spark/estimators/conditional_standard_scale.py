@@ -45,6 +45,8 @@ class ConditionalStandardScaleEstimatorParams(Params):
     needed for single feature array scaler layers.
     """
 
+    jit_compatible = True
+
     scalingFunction = Param(
         Params._dummy(),
         "scalingFunction",

@@ -37,6 +37,8 @@ class MinLayer(BaseLayer):
     If min_constant is set, inputs must be a tensor.
     """
 
+    jit_compatible = True
+
     def __init__(
         self,
         name: Optional[str] = None,

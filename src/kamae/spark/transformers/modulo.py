@@ -48,6 +48,8 @@ class ModuloParams(Params):
     Mixin class for divisor used in modulo transform layers.
     """
 
+    jit_compatible = True
+
     divisor = Param(
         Params._dummy(),
         "divisor",

@@ -55,6 +55,8 @@ class MultiplyTransformer(
     This transformer multiplies a column by a constant or another column.
     """
 
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,

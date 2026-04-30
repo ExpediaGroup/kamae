@@ -42,6 +42,8 @@ class NumericalIfStatementParams(Params):
     transform layers.
     """
 
+    jit_compatible = True
+
     conditionOperator = Param(
         Params._dummy(),
         "conditionOperator",

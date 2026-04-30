@@ -45,6 +45,7 @@ class ListMedianLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = True
 
     def __init__(
         self,

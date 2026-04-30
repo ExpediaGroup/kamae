@@ -40,6 +40,8 @@ class IdentityTransformer(
     Used for cases where you want to keep the input the same.
     """
 
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,

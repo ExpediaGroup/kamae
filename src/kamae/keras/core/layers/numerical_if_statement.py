@@ -53,6 +53,8 @@ class NumericalIfStatementLayer(BaseLayer):
     not None, then inputs is expected to be a tensor.
     """
 
+    jit_compatible = True
+
     def __init__(
         self,
         condition_operator: str,

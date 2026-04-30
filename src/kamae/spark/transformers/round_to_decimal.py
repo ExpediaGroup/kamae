@@ -37,6 +37,8 @@ class RoundToDecimalParams(Params):
     Mixin class containing decimals parameter needed for rounding transform layers.
     """
 
+    jit_compatible = True
+
     decimals = Param(
         Params._dummy(),
         "decimals",

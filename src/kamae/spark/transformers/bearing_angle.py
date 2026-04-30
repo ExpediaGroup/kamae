@@ -37,6 +37,8 @@ class BearingAngleParams(LatLonConstantParams, MultiInputSingleOutputParams):
     Mixin class setting input cols.
     """
 
+    jit_compatible = True
+
     def setInputCols(self, value: List[str]) -> "BearingAngleParams":
         """
         Overrides setting the input columns for the transformer.

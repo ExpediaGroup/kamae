@@ -52,6 +52,7 @@ class BaseLayer(keras.layers.Layer, ABC):
     """
 
     supported_backends: frozenset = ALL_BACKENDS
+    jit_compatible: bool = False
 
     def __init__(
         self,

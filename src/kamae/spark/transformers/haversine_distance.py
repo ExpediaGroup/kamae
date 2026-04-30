@@ -38,6 +38,8 @@ class HaversineDistanceParams(LatLonConstantParams, MultiInputSingleOutputParams
     Mixin class containing unit parameters.
     """
 
+    jit_compatible = True
+
     unit = Param(
         Params._dummy(),
         "unit",

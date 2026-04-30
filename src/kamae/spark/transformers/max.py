@@ -54,6 +54,8 @@ class MaxTransformer(
     This transformer gets the max of a column and a constant or another column.
     """
 
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,

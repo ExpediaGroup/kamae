@@ -41,6 +41,8 @@ class BucketizeParams(Params):
     Mixin class containing splits parameter needed for bucketing.
     """
 
+    jit_compatible = True
+
     splits = Param(
         Params._dummy(),
         "splits",
