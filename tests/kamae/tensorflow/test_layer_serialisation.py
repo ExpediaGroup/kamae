@@ -36,8 +36,8 @@ is_keras_3 = keras_version >= Version("3.0.0")
 from kamae.tensorflow.layers import (
     AbsoluteValueLayer,
     ArrayConcatenateLayer,
-    ArrayReduceMaxLayer,
     ArrayCropLayer,
+    ArrayReduceMaxLayer,
     ArraySplitLayer,
     ArraySubtractMinimumLayer,
     BearingAngleLayer,
