@@ -24,7 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql.types import DataType, DoubleType, LongType
 
-from kamae.keras.core.backend import tensorflow_only
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import UnixTimestampToDateTimeLayer
 from kamae.spark.params import (
     DateTimeParams,
@@ -46,6 +46,8 @@ class UnixTimestampToDateTimeTransformer(
     yyyy-MM-dd HH:mm:ss.SSS format. If set to False, the output will be in
     yyyy-MM-dd format.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(
@@ -154,7 +156,6 @@ class UnixTimestampToDateTimeTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer that performs the unix timestamp to date transform.

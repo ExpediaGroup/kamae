@@ -18,6 +18,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Hashing
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
@@ -41,6 +42,8 @@ class MinHashIndexLayer(BaseLayer):
 
     The minimum is computed across the last dimension of the input tensor.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

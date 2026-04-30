@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
@@ -32,6 +33,8 @@ class OrdinalArrayEncodeLayer(BaseLayer):
     according to the order in which they appear in the array. It will also
     ignore the pad value if specified.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

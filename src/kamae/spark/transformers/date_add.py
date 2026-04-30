@@ -31,7 +31,7 @@ from pyspark.sql.types import (
     StringType,
 )
 
-from kamae.keras.core.backend import tensorflow_only
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import DateAddLayer
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
@@ -83,12 +83,13 @@ class DateAddTransformer(
     DateAdditionParams,
 ):
     """
-        Transformer to add or subtract a static or dynamic (column) number of days
-        from a date column.
-    from kamae.keras.core.backend import tensorflow_only
+    Transformer to add or subtract a static or dynamic (column) number of days
+    from a date column.
 
-        WARNING: This transform destroys the time component of the date column.
+    WARNING: This transform destroys the time component of the date column.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(
@@ -214,7 +215,6 @@ class DateAddTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer.

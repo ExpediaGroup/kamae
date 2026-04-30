@@ -23,6 +23,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.spark.params import MultiInputMultiOutputParams, StringIndexParams
 from kamae.spark.transformers import SharedStringIndexTransformer
 from kamae.spark.utils import collect_labels_array_from_multiple_columns
@@ -42,6 +43,8 @@ class SharedStringIndexEstimator(
     When fit is called it returns a SharedStringIndexerLayerModel which can be used
     to index additional feature columns using the same string labels.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(

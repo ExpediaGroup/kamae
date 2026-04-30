@@ -20,7 +20,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, StringType
 
-from kamae.keras.core.backend import tensorflow_only
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import ListMinLayer
 from kamae.spark.params import (
     ListwiseStatisticsParams,
@@ -81,6 +81,8 @@ class ListMinTransformer(
     defaults to >= 0.
     :nanFillValue: Value to fill NaNs results with. Defaults to 0.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(
@@ -169,7 +171,6 @@ class ListMinTransformer(
 
         return dataset
 
-    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the listwise-minimum transformer.

@@ -20,7 +20,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
-from kamae.keras.core.backend import tensorflow_only
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import OrdinalArrayEncodeLayer
 from kamae.spark.params import PadValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
@@ -43,6 +43,8 @@ class OrdinalArrayEncodeTransformer(
     according to the order in which they appear in the array. It will also
     ignore the pad value if specified.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(
@@ -129,7 +131,6 @@ class OrdinalArrayEncodeTransformer(
             output_col,
         )
 
-    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer that performs the ordinal array encoding.

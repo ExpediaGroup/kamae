@@ -17,6 +17,7 @@ from typing import Any, Dict, Iterable, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
@@ -27,6 +28,8 @@ class StringConcatenateLayer(BaseLayer):
     """
     Performs a concatenation of the input tensors.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

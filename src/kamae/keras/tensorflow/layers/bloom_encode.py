@@ -18,6 +18,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Hashing
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
@@ -35,6 +36,8 @@ class BloomEncodeLayer(BaseLayer):
     but we use a salt to make sure that the hash functions are different. Therefore,
     this can be seen as a psuedo-bloom encoding.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

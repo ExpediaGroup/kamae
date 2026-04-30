@@ -25,7 +25,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
-from kamae.keras.core.backend import tensorflow_only
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import BloomEncodeLayer
 from kamae.spark.params import HashIndexParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
@@ -128,6 +128,8 @@ class BloomEncodeTransformer(
     array of integers of size equal to numHashFns.
     See paper for more details: https://arxiv.org/pdf/1706.03993.pdf
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(
@@ -255,7 +257,6 @@ class BloomEncodeTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer that performs the bloom encoding.

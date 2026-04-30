@@ -26,7 +26,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
-from kamae.keras.core.backend import tensorflow_only
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import DateParseLayer
 from kamae.spark.params import DefaultIntValueParams, SingleInputSingleOutputParams
 from kamae.spark.transformers.base import BaseTransformer
@@ -103,6 +103,8 @@ class DateParseTransformer(
     In the case a timestamp is not provided, all hour, minutes, seconds and milliseconds
     fields will be returned as 0.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(
@@ -217,7 +219,6 @@ class DateParseTransformer(
 
         return formatted_date.cast("int")
 
-    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer.

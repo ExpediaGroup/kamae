@@ -26,7 +26,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, IntegerType, LongType
 
-from kamae.keras.core.backend import tensorflow_only
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import BucketizeLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils.transform_utils import (
@@ -89,6 +89,8 @@ class BucketizeTransformer(
     The bins are integer values starting at 1 and ending at the number of splits + 1.
     The 0 index is reserved for masking/padding.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(
@@ -161,7 +163,6 @@ class BucketizeTransformer(
             output_col,
         )
 
-    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the BucketizeLayer transformer.

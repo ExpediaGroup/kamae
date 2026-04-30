@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Union
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
@@ -34,6 +35,8 @@ class OneHotEncodeLayer(BaseLayer):
     dimension. If the last dimension is not size 1, will append a new
     dimension for the encoded output.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

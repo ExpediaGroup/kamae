@@ -17,6 +17,7 @@ from typing import Any, Dict, Iterable, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
@@ -40,6 +41,8 @@ class ListStdDevLayer(BaseLayer):
     Example: calculate the average price in the same query, based only on the top N
     items sorted by descending production.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

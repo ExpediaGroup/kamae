@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
@@ -33,6 +34,8 @@ class BucketizeLayer(BaseLayer):
     These buckets are int64 values, starting from 1. The 0 index
     is reserved for padding values.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

@@ -32,7 +32,7 @@ from pyspark.sql.types import (
     StringType,
 )
 
-from kamae.keras.core.backend import tensorflow_only
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import OneHotEncodeLayer
 from kamae.spark.params import (
     DropUnseenParams,
@@ -63,6 +63,8 @@ class SharedOneHotEncodeTransformer(
     This transformer could fail since the hashing algorithm uses cannot accept null
     characters. If you have null characters in your data, you should remove them.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(
@@ -160,7 +162,6 @@ class SharedOneHotEncodeTransformer(
 
         return dataset.select(*select_cols)
 
-    @tensorflow_only
     def get_keras_layer(self) -> List[tf.keras.layers.Layer]:
         """
         Gets the list of Keras layers for the shared onehot encoder transformer.

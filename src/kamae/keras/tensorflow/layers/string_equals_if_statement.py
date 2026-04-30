@@ -17,6 +17,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
@@ -39,6 +40,8 @@ class StringEqualsIfStatementLayer(BaseLayer):
     they are passed in as inputs to the layer in the above order. If all of them are
     not None, then inputs is expected to be a tensor.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

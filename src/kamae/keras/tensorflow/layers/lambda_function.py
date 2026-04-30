@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
@@ -34,6 +35,8 @@ class LambdaFunctionLayer(BaseLayer, tf.keras.layers.Lambda):
     non-portable. They should only be loaded in the same environment where
     they were saved.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
@@ -31,6 +32,8 @@ class DateDiffLayer(BaseLayer):
     must be passed to the layer in the order [start date , end date].
     The transformer will return a negative value if the order is reversed.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

@@ -24,7 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
-from kamae.keras.core.backend import tensorflow_only
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringContainsLayer
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
@@ -52,6 +52,8 @@ class StringContainsTransformer(
     we check if the first input column contains the second.
     Used for cases where you want to keep the input the same.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(
@@ -150,7 +152,6 @@ class StringContainsTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    @tensorflow_only
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the StringContainsLayer transformer.

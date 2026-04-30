@@ -17,6 +17,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
@@ -36,6 +37,8 @@ class StringContainsLayer(BaseLayer):
     This implementation will only match an empty string with another empty string and
     does not support matching of newline characters.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

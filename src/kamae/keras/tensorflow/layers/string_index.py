@@ -18,6 +18,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import StringLookup
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
@@ -32,6 +33,8 @@ class StringIndexLayer(BaseLayer):
     table-based vocabulary lookup. This layer will perform no splitting or
     transformation of input strings.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

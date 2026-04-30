@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 import tensorflow as tf
 
 import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
@@ -29,6 +30,8 @@ class UnixTimestampToDateTimeLayer(BaseLayer):
     Returns the date in yyyy-MM-dd HH:mm:ss.SSS format from a Unix timestamp.
     If `include_time` is set to `False`, the output will be in yyyy-MM-dd format.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     def __init__(
         self,

@@ -16,10 +16,12 @@
 Backend detection and enforcement utilities for Keras 3 multi-backend support.
 """
 
-import functools
-from typing import Any, Callable
+from typing import FrozenSet
 
 import keras
+
+ALL_BACKENDS: FrozenSet[str] = frozenset({"tensorflow", "jax", "torch"})
+TENSORFLOW_ONLY: FrozenSet[str] = frozenset({"tensorflow"})
 
 
 def current_backend() -> str:
@@ -47,21 +49,3 @@ def require_tensorflow() -> None:
             f"Current backend: {backend}. "
             f"Set KERAS_BACKEND=tensorflow before importing keras."
         )
-
-
-def tensorflow_only(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    """Decorator that enforces TensorFlow backend at call time."""
-
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
-        backend = current_backend()
-        if backend != "tensorflow":
-            cls_name = args[0].__class__.__name__ if args else "Unknown"
-            raise RuntimeError(
-                f"{cls_name}.{func.__name__}() requires TensorFlow backend. "
-                f"Current backend: '{backend}'. "
-                f"Set KERAS_BACKEND=tensorflow before importing keras."
-            )
-        return func(*args, **kwargs)
-
-    return wrapper
