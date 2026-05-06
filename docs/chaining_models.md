@@ -27,10 +27,7 @@ These will match the names specified in the `input_schema` dictionary.
 ### Accessing model outputs
 
 With your Kamae model, you can access the outputs of the model via the `outputs` attribute of the model.
-We add an Identity layer to each output (to preserve the name of the output), but this means that the `name`
-attribute of the output will be `<OUTPUT_NAME>/Identity:0`.
-
-Therefore, you can either split these strings, or zip the `output_names` attribute of your model with the `outputs` attribute, to assign the names to the outputs.
+The output names match the pipeline output column names directly, and can be accessed via the `output_names` attribute of the model.
 
 
 ## Combining your Kamae processing model with a trained Keras model
