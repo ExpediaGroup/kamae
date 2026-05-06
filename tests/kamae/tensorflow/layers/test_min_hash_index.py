@@ -37,9 +37,9 @@ class TestMinHashIndex:
                 "int64",
                 tf.constant(
                     [
-                        [0, 1, 1, 0, 0, 0, 1, 1, 0, 0],
-                        [1, 1, 1, 1, 1, 1, 0, 0, 1, 1],
-                        [0, 1, 1, 0, 0, 0, 1, 1, 0, 0],
+                        [1, 0, 1, 0, 0, 0, 0, 1, 1, 0],
+                        [0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
+                        [1, 0, 0, 1, 0, 0, 0, 0, 0, 1],
                     ],
                     dtype=tf.int64,
                 ),
@@ -52,7 +52,7 @@ class TestMinHashIndex:
                 None,
                 "int32",
                 tf.constant(
-                    [[[0, 1], [1, 1], [1, 0], [0, 0], [0, 1]]],
+                    [[[1, 0], [0, 0], [1, 1], [0, 0], [0, 1]]],
                     dtype=tf.int32,
                 ),
             ),
@@ -63,7 +63,7 @@ class TestMinHashIndex:
                 1,
                 "string",
                 "int16",
-                tf.constant([[[0], [1], [1]]], dtype=tf.int16),
+                tf.constant([[[1], [1], [0]]], dtype=tf.int16),
             ),
         ],
     )

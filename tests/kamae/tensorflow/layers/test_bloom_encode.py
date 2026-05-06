@@ -33,7 +33,7 @@ class TestBloomEncode:
                 None,
                 "int64",
                 tf.constant(
-                    [[72, 59, 14, 41, 91], [77, 53, 98, 95, 54], [77, 77, 90, 45, 15]],
+                    [[59, 89, 53, 11, 50], [45, 6, 35, 64, 91], [62, 12, 49, 63, 58]],
                     dtype=tf.int64,
                 ),
             ),
@@ -62,7 +62,7 @@ class TestBloomEncode:
                 True,
                 "string",
                 "int16",
-                tf.constant([[[14, 7], [18, 10], [4, 9]]], dtype=tf.int16),
+                tf.constant([[[10, 4], [4, 2], [19, 6]]], dtype=tf.int16),
             ),
         ],
     )
