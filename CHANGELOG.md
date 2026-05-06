@@ -2,6 +2,33 @@
 
 
 
+## v2.40.0 (2026-05-06)
+
+### Documentation
+
+* docs: README restructured (#39)
+
+- Installation moved further up, above the massive table
+- Quick start shows a quick example
+- Sklearn removed as a proper usage pattern
+- Reduced size by ~40%
+- Much more readable ([`28c70ba`](https://github.com/ExpediaGroup/kamae/commit/28c70ba817d079b21fe668d5fc11dbf1492d1c6e))
+
+### Feature
+
+* feat: pairwise sim and array reduce max (#44)
+
+* adding modules for pairwise similarity
+
+* tests for pairwise similarity
+
+* adding the new modules on README and tests of serialisation
+
+* formatting issues
+
+* fix header ([`579612b`](https://github.com/ExpediaGroup/kamae/commit/579612b13b3e638522ee577abbeb4d592bfcfce3))
+
+
 ## v2.39.1 (2026-04-14)
 
 ### Fix
