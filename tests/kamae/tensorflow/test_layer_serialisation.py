@@ -37,6 +37,7 @@ from kamae.tensorflow.layers import (
     AbsoluteValueLayer,
     ArrayConcatenateLayer,
     ArrayCropLayer,
+    ArrayReduceMaxLayer,
     ArraySplitLayer,
     ArraySubtractMinimumLayer,
     BearingAngleLayer,
@@ -82,6 +83,7 @@ from kamae.tensorflow.layers import (
     OneHotEncodeLayer,
     OneHotLayer,
     OrdinalArrayEncodeLayer,
+    PairwiseCosineSimilarityLayer,
     RoundLayer,
     RoundToDecimalLayer,
     StandardScaleLayer,
@@ -131,6 +133,12 @@ from kamae.tensorflow.layers import (
             False,
         ),
         (
+            ArrayReduceMaxLayer,
+            [tf.random.normal((32, 10, 5))],
+            {"default_value": 0.0},
+            False,
+        ),
+        (
             BearingAngleLayer,
             [
                 tf.constant(0.0, shape=(100, 10, 1)),
@@ -177,6 +185,12 @@ from kamae.tensorflow.layers import (
             CosineSimilarityLayer,
             [tf.random.normal((100, 10, 10, 5)), tf.random.normal((100, 10, 10, 5))],
             None,
+            False,
+        ),
+        (
+            PairwiseCosineSimilarityLayer,
+            [tf.random.normal((32, 8)), tf.random.normal((32, 40))],
+            {"embedding_dim": 8},
             False,
         ),
         (CurrentDateLayer, [tf.constant(100, shape=(100, 10, 1))], None, False),
