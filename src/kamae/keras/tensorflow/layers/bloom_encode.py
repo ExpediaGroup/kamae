@@ -107,7 +107,7 @@ class BloomEncodeLayer(BaseLayer):
         # not constant across the hash functions. If the mask_value is None, then we
         # can use the same hash function for all the hash functions.
         if mask_value is None:
-            hash_fn = Hashing(num_bins=self.num_bins)
+            hash_fn = Hashing(num_bins=self.num_bins - 1)
             self.hash_fns = {f"{i}": hash_fn for i in range(self.num_hash_fns)}
         else:
             self.hash_fns = {
@@ -161,7 +161,10 @@ class BloomEncodeLayer(BaseLayer):
         hashed_inputs = [
             self.hash_fns[f"{i}"](salted_inputs[i]) for i in range(self.num_hash_fns)
         ]
-        return tf.concat(hashed_inputs, axis=-1)
+        result = tf.concat(hashed_inputs, axis=-1)
+        if self.mask_value is None:
+            result = result + 1
+        return result
 
     def get_config(self) -> Dict[str, Any]:
         """

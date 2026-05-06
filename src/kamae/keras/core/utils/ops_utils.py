@@ -34,5 +34,5 @@ def divide_no_nan(x: Tensor, y: Tensor) -> Tensor:
     :param y: Denominator tensor
     :returns: Result of x / y, with 0 where y == 0
     """
-    is_zero = ops.equal(y, ops.convert_to_tensor(0.0, dtype=x.dtype))
+    is_zero = ops.equal(y, ops.convert_to_tensor(0.0, dtype=y.dtype))
     return ops.where(is_zero, ops.zeros_like(x), ops.divide(x, y))

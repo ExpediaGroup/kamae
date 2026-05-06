@@ -36,9 +36,9 @@ class TestHashIndex:
     def hash_indexer_col4_num_bins_100_expected(self, spark_session):
         return spark_session.createDataFrame(
             [
-                (1, 2, 3, "a", "c", [1, 2, 3], ["a", "c"], 39),
-                (4, 2, 6, "b", "c", [4, 2, 6], ["b", "c"], 22),
-                (7, 8, 3, "a", "a", [7, 8, 3], ["a", "a"], 39),
+                (1, 2, 3, "a", "c", [1, 2, 3], ["a", "c"], 31),
+                (4, 2, 6, "b", "c", [4, 2, 6], ["b", "c"], 20),
+                (7, 8, 3, "a", "a", [7, 8, 3], ["a", "a"], 31),
             ],
             [
                 "col1",
@@ -283,6 +283,77 @@ class TestHashIndex:
             tensorflow_values,
             err_msg="Spark and Tensorflow transform outputs are not equal",
         )
+
+    @pytest.fixture(scope="class")
+    def hash_indexer_nulls_no_mask_expected(self, spark_session):
+        return spark_session.createDataFrame(
+            [
+                ("a", 31),
+                (None, 0),
+                ("b", 20),
+                (None, 0),
+            ],
+            ["col1", "hash_col1"],
+        )
+
+    @pytest.fixture(scope="class")
+    def hash_indexer_nulls_with_mask_expected(self, spark_session):
+        return spark_session.createDataFrame(
+            [
+                ("a", 3350),
+                (None, 0),
+                ("d", 0),
+                (None, 0),
+            ],
+            ["col1", "hash_col1"],
+        )
+
+    @pytest.mark.parametrize(
+        "input_data, input_col, output_col, num_bins, mask_value, expected_dataframe",
+        [
+            (
+                [("a",), (None,), ("b",), (None,)],
+                "col1",
+                "hash_col1",
+                100,
+                None,
+                "hash_indexer_nulls_no_mask_expected",
+            ),
+            (
+                [("a",), (None,), ("d",), (None,)],
+                "col1",
+                "hash_col1",
+                5000,
+                "d",
+                "hash_indexer_nulls_with_mask_expected",
+            ),
+        ],
+    )
+    def test_hash_indexer_with_nulls(
+        self,
+        spark_session,
+        input_data,
+        input_col,
+        output_col,
+        num_bins,
+        mask_value,
+        expected_dataframe,
+        request,
+    ):
+        # given
+        input_dataframe = spark_session.createDataFrame(input_data, [input_col])
+        expected = request.getfixturevalue(expected_dataframe)
+        # when
+        transformer = HashIndexTransformer(
+            inputCol=input_col,
+            outputCol=output_col,
+            numBins=num_bins,
+            maskValue=mask_value,
+        )
+        actual = transformer.transform(input_dataframe)
+        # then
+        diff = actual.exceptAll(expected)
+        assert diff.isEmpty(), "Expected and actual dataframes are not equal"
 
     @pytest.mark.parametrize(
         "input_dataframe, input_col, output_col",

@@ -121,6 +121,19 @@ class TestPipelineGraph:
                         "name": "layer1",
                         "layer": None,
                         "inputs": ["input1"],
+                        "outputs": ["layer1"],
+                    },
+                },
+                [
+                    ("input1", "layer1"),
+                ],
+            ),
+            (
+                {
+                    "layer1": {
+                        "name": "layer1",
+                        "layer": None,
+                        "inputs": ["input1"],
                         "outputs": ["layer1_output0", "layer1_output1"],
                     },
                     "layer2": {

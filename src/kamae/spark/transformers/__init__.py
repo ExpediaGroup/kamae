@@ -15,6 +15,7 @@
 from .absolute_value import AbsoluteValueTransformer  # noqa: F401
 from .array_concatenate import ArrayConcatenateTransformer  # noqa: F401
 from .array_crop import ArrayCropTransformer  # noqa: F401
+from .array_reduce_max import ArrayReduceMaxTransformer  # noqa: F401
 from .array_split import ArraySplitTransformer  # noqa: F401
 from .array_subtract_minimum import ArraySubtractMinimumTransformer  # noqa: F401
 from .base import BaseTransformer  # noqa: F401
@@ -64,6 +65,9 @@ from .multiply import MultiplyTransformer  # noqa: F401
 from .numerical_if_statement import NumericalIfStatementTransformer  # noqa: F401
 from .one_hot_encode import OneHotEncodeTransformer  # noqa: F401
 from .ordinal_array_encode import OrdinalArrayEncodeTransformer  # noqa: F401
+from .pairwise_cosine_similarity import (  # noqa: F401
+    PairwiseCosineSimilarityTransformer,
+)
 from .round import RoundTransformer  # noqa: F401
 from .round_to_decimal import RoundToDecimalTransformer  # noqa: F401
 from .shared_one_hot_encode import SharedOneHotEncodeTransformer  # noqa: F401

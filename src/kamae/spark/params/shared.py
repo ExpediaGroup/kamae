@@ -387,8 +387,8 @@ class HashIndexParams(Params):
         :param value: Integer value for the number of bins to use for hash indexing.
         :returns: Instance of class mixed in.
         """
-        if value <= 0:
-            raise ValueError("Number of bins must be greater than 0.")
+        if value <= 1:
+            raise ValueError("Number of bins must be greater than 1.")
         return self._set(numBins=value)
 
     def getNumBins(self) -> int:

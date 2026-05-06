@@ -75,9 +75,11 @@ class MinHashIndexLayer(BaseLayer):
         self.axis = axis
         self.mask_value = mask_value
         self.hash_fn = Hashing(
-            # Set the number of bins to the maximum integer value. We just want to hash
-            # the input without binning it, so we use the maximum integer value.
+            # Set the number of bins to (max - 1). We just want to hash the input
+            # without binning it, so we use a large value. We subtract 1 and add 1
+            # to the result to reserve index 0 for null values.
             num_bins=tf.int32.max
+            - 1
         )
 
     @property
@@ -107,17 +109,17 @@ class MinHashIndexLayer(BaseLayer):
             salted_inputs = tf.strings.join(
                 [inputs, tf.zeros_like(inputs)], separator=str(i)
             )
-            # Hash the salted inputs.
+            # Hash the salted inputs and add 1 to reserve index 0 for nulls.
             if self.mask_value is not None:
                 hashed_inputs = tf.where(
                     tf.equal(salted_inputs, f"{self.mask_value}{i}"),
                     # Use the maximum integer value for masked inputs, therefore it is
                     # never selected as the minimum.
                     tf.ones_like(salted_inputs, dtype=tf.int64) * tf.int32.max,
-                    self.hash_fn(salted_inputs),
+                    self.hash_fn(salted_inputs) + 1,
                 )
             else:
-                hashed_inputs = self.hash_fn(salted_inputs)
+                hashed_inputs = self.hash_fn(salted_inputs) + 1
             min_hash_value = tf.reduce_min(hashed_inputs, axis=self.axis, keepdims=True)
             min_hash_bit = min_hash_value & 1
             min_hash_signature.append(min_hash_bit)

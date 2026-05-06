@@ -21,6 +21,7 @@ Multi-backend layers that work across TensorFlow, JAX, and PyTorch backends.
 from .absolute_value import AbsoluteValueLayer
 from .array_concatenate import ArrayConcatenateLayer
 from .array_crop import ArrayCropLayer
+from .array_reduce_max import ArrayReduceMaxLayer
 from .array_split import ArraySplitLayer
 from .array_subtract_minimum import ArraySubtractMinimumLayer
 from .bearing_angle import BearingAngleLayer
@@ -44,6 +45,7 @@ from .min_max_scale import MinMaxScaleLayer
 from .modulo import ModuloLayer
 from .multiply import MultiplyLayer
 from .numerical_if_statement import NumericalIfStatementLayer
+from .pairwise_cosine_similarity import PairwiseCosineSimilarityLayer
 from .round import RoundLayer
 from .round_to_decimal import RoundToDecimalLayer
 from .standard_scale import StandardScaleLayer
@@ -71,6 +73,7 @@ __all__ = [
     "LogicalNotLayer",
     "NumericalIfStatementLayer",
     "ArrayConcatenateLayer",
+    "ArrayReduceMaxLayer",
     "ArraySplitLayer",
     "ArrayCropLayer",
     "ArraySubtractMinimumLayer",
@@ -81,5 +84,6 @@ __all__ = [
     "BinLayer",
     "BearingAngleLayer",
     "CosineSimilarityLayer",
+    "PairwiseCosineSimilarityLayer",
     "HaversineDistanceLayer",
 ]
