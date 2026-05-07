@@ -62,13 +62,13 @@ class BucketizeLayer(BaseLayer):
         self.splits = splits
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer.
 
         :returns: The compatible dtypes of the layer.
         """
-        return [tf.int32, tf.int64, tf.float32, tf.float64]
+        return ["int32", "int64", "float32", "float64"]
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:

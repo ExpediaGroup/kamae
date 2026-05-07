@@ -14,6 +14,7 @@
 
 from typing import Any, Dict, List, Optional
 
+import keras
 import tensorflow as tf
 
 import kamae
@@ -66,13 +67,13 @@ class DateAddLayer(BaseLayer):
         self.num_days = num_days
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer.
 
         :returns: The compatible dtypes of the layer.
         """
-        return [tf.string, tf.int8, tf.int16, tf.int32, tf.int64]
+        return ["string", "int8", "int16", "int32", "int64"]
 
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -98,7 +99,7 @@ class DateAddLayer(BaseLayer):
                 raise ValueError(
                     "When `num_days` is not set, the input should be two tensors."
                 )
-            if not inputs[1].dtype.is_integer:
+            if "int" not in keras.backend.standardize_dtype(inputs[1].dtype):
                 raise ValueError(
                     f"""Expected second input dtype to be integer, but got
                     {inputs[1].dtype}."""

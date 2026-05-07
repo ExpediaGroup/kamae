@@ -66,13 +66,13 @@ class SubStringDelimAtIndexLayer(BaseLayer):
         self.default_value = default_value
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer.
 
         :returns: The compatible dtypes of the layer.
         """
-        return [tf.string]
+        return ["string"]
 
     @staticmethod
     def resolve_negative_indices(

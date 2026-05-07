@@ -52,7 +52,7 @@ class StringArrayConstantLayer(BaseLayer):
         self.constant_string_array = constant_string_array
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer.
 

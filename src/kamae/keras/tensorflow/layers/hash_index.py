@@ -79,13 +79,13 @@ class HashIndexLayer(BaseLayer):
             self.hash_indexer = Hashing(name=name, num_bins=num_bins - 1)
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer.
 
         :returns: The compatible dtypes of the layer.
         """
-        return [tf.string]
+        return ["string"]
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:

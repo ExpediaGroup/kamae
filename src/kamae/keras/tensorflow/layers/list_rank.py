@@ -59,23 +59,23 @@ class ListRankLayer(BaseLayer):
         self.axis = axis
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer.
 
         :returns: The compatible dtypes of the layer.
         """
         return [
-            tf.bfloat16,
-            tf.float16,
-            tf.float32,
-            tf.float64,
-            tf.uint8,
-            tf.int8,
-            tf.uint16,
-            tf.int16,
-            tf.int32,
-            tf.int64,
+            "bfloat16",
+            "float16",
+            "float32",
+            "float64",
+            "uint8",
+            "int8",
+            "uint16",
+            "int16",
+            "int32",
+            "int64",
         ]
 
     @enforce_single_tensor_input

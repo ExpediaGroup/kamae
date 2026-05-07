@@ -24,9 +24,11 @@ on all backends.
 """
 
 from abc import ABC, abstractmethod
+from functools import reduce
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import keras
+import tensorflow as tf
 from keras import ops
 
 import kamae
@@ -87,6 +89,18 @@ class BaseLayer(keras.layers.Layer, ABC):
         self.true_bool_strings = ["true", "t", "yes", "y", "1"]
         self.false_bool_strings = ["false", "f", "no", "n", "0"]
 
+    @property
+    @abstractmethod
+    def compatible_dtypes(self) -> Optional[List[str]]:
+        """
+        List of compatible data type names for the layer.
+        If the computation can be performed on any data type, return None.
+
+        :returns: List of compatible dtype names (e.g., ['float32', 'float64'])
+        or None if any dtype is compatible.
+        """
+        raise NotImplementedError
+
     def _string_to_bool_cast(self, inputs: Tensor) -> Tensor:
         """
         Casts a string tensor to a bool tensor.
@@ -94,13 +108,10 @@ class BaseLayer(keras.layers.Layer, ABC):
         :param inputs: Input string tensor
         :returns: Bool tensor.
         """
-        from functools import reduce
-
-        import tensorflow as tf
-
-        if inputs.dtype.name != "string":
+        if keras.backend.standardize_dtype(inputs.dtype) != "string":
             raise TypeError(
-                f"Expected a string tensor, but got a {inputs.dtype.name} tensor."
+                f"Expected a string tensor, but got a "
+                f"{keras.backend.standardize_dtype(inputs.dtype)} tensor."
             )
 
         # Replace true strings with "1" and false strings with "0"
@@ -151,8 +162,6 @@ class BaseLayer(keras.layers.Layer, ABC):
         :param inputs: Input string tensor
         :returns: Float tensor.
         """
-        import tensorflow as tf
-
         # This gives 1.145000 -> "1.145" and 2.00000 -> "2".
         # We need to add a decimal point to the second example.
         shortest_float_string = tf.strings.as_string(inputs, shortest=True)
@@ -180,9 +189,7 @@ class BaseLayer(keras.layers.Layer, ABC):
         :param inputs: Input tensor.
         :returns: String tensor.
         """
-        import tensorflow as tf
-
-        if inputs.dtype.is_floating:
+        if "float" in keras.backend.standardize_dtype(inputs.dtype):
             return self._float_to_string_cast(inputs)
         return tf.strings.as_string(inputs)
 
@@ -194,24 +201,17 @@ class BaseLayer(keras.layers.Layer, ABC):
         :param cast_dtype: Dtype to cast to.
         :returns: Tensor cast to the desired dtype.
         """
-        import tensorflow as tf
-
-        if inputs.dtype.name != "string":
+        if keras.backend.standardize_dtype(inputs.dtype) != "string":
             raise TypeError("inputs is not a string Tensor.")
         if cast_dtype in ["float32", "float64", "int32", "int64"]:
-            # If the casting dtype is supported by tf.strings.to_number, we use that.
             return tf.strings.to_number(inputs, out_type=cast_dtype)
-        elif tf.as_dtype(cast_dtype).is_integer:
-            # If the casting dtype is an integer, we need to cast to int64 first
+        elif "int" in cast_dtype:
             intermediate_cast = tf.strings.to_number(inputs, out_type="int64")
             return ops.cast(intermediate_cast, cast_dtype)
-        elif tf.as_dtype(cast_dtype).is_floating:
-            # If the casting dtype is a float, we need to cast to float64 first
+        elif "float" in cast_dtype:
             intermediate_cast = tf.strings.to_number(inputs, out_type="float64")
             return ops.cast(intermediate_cast, cast_dtype)
-        elif tf.as_dtype(cast_dtype).is_bool:
-            # If the casting dtype is a boolean, we need to use a custom function
-            # to cast the string to boolean.
+        elif cast_dtype == "bool":
             return self._string_to_bool_cast(inputs)
         else:
             raise TypeError(f"Casting string to dtype {cast_dtype} is not supported.")
@@ -231,23 +231,14 @@ class BaseLayer(keras.layers.Layer, ABC):
         """
         require_tensorflow()
 
-        if inputs.dtype.name == "string" and cast_dtype == "string":
+        if (
+            keras.backend.standardize_dtype(inputs.dtype) == "string"
+            and cast_dtype == "string"
+        ):
             return inputs
         if cast_dtype == "string":
             return self._to_string_cast(inputs)
         return self._from_string_cast(inputs, cast_dtype)
-
-    @property
-    @abstractmethod
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        List of compatible data type names for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible dtype names (e.g., ['float32', 'float64'])
-        or None if any dtype is compatible.
-        """
-        raise NotImplementedError
 
     @staticmethod
     def _check_string_dtype_backend_compatibility(dtype_str: str) -> None:
@@ -281,11 +272,10 @@ class BaseLayer(keras.layers.Layer, ABC):
         # keras.ops.cast doesn't support string dtype, even on TF backend
         # Check if we're on TF backend and dealing with strings
         if cast_dtype == "string" or (
-            hasattr(inputs, "dtype") and inputs.dtype.name == "string"
+            hasattr(inputs, "dtype")
+            and keras.backend.standardize_dtype(inputs.dtype) == "string"
         ):
             if keras.backend.backend() == "tensorflow":
-                import tensorflow as tf
-
                 return (
                     tf.strings.as_string(inputs)
                     if cast_dtype == "string"
@@ -311,7 +301,10 @@ class BaseLayer(keras.layers.Layer, ABC):
         :returns: Tensor cast to the desired dtype.
         """
         # Check if string dtype is involved
-        if inputs.dtype.name == "string" or cast_dtype == "string":
+        if (
+            keras.backend.standardize_dtype(inputs.dtype) == "string"
+            or cast_dtype == "string"
+        ):
             return self._string_cast(inputs, cast_dtype)
         return self._numeric_cast(inputs, cast_dtype)
 

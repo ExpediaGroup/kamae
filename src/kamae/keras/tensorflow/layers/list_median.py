@@ -14,6 +14,7 @@
 
 from typing import Any, Dict, Iterable, List, Optional
 
+import keras
 import tensorflow as tf
 
 import kamae
@@ -87,17 +88,17 @@ class ListMedianLayer(BaseLayer):
         self.axis = axis
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer.
 
         :returns: The compatible dtypes of the layer.
         """
         return [
-            tf.bfloat16,
-            tf.float16,
-            tf.float32,
-            tf.float64,
+            "bfloat16",
+            "float16",
+            "float32",
+            "float64",
         ]
 
     def sort_with_nans_last(self, tensor: Tensor) -> Tensor:
@@ -190,7 +191,7 @@ class ListMedianLayer(BaseLayer):
         )
 
         # Fill nan
-        is_integer = listwise_median.dtype.is_integer
+        is_integer = "int" in keras.backend.standardize_dtype(listwise_median.dtype)
         nan_val = int(self.nan_fill_value) if is_integer else self.nan_fill_value
         listwise_median = tf.where(
             tf.math.is_nan(listwise_median),

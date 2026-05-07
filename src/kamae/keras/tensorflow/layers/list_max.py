@@ -96,18 +96,18 @@ class ListMaxLayer(BaseLayer):
         self.with_segment = with_segment
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer.
 
         :returns: The compatible dtypes of the layer.
         """
         return [
-            tf.bfloat16,
-            tf.float16,
-            tf.float32,
-            tf.float64,
-            tf.string,
+            "bfloat16",
+            "float16",
+            "float32",
+            "float64",
+            "string",
         ]
 
     @allow_single_or_multiple_tensor_input

@@ -52,13 +52,13 @@ class StringConcatenateLayer(BaseLayer):
         self.separator = separator
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer.
 
         :returns: The compatible dtypes of the layer.
         """
-        return [tf.string]
+        return ["string"]
 
     @enforce_multiple_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:

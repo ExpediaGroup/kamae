@@ -56,13 +56,13 @@ class DateDiffLayer(BaseLayer):
         self.default_value = default_value
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer.
 
         :returns: The compatible dtypes of the layer.
         """
-        return [tf.string]
+        return ["string"]
 
     @enforce_multiple_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:

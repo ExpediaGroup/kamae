@@ -14,6 +14,7 @@
 from numbers import Number
 from typing import Any, Dict, Iterable, List, Optional, Union
 
+import keras
 import tensorflow as tf
 
 import kamae
@@ -204,7 +205,8 @@ class IfStatementLayer(BaseLayer):
                     "If inputs is a tensor, value_to_compare, result_if_true, and "
                     "result_if_false must be specified."
                 )
-            if inputs[0].dtype.is_floating or inputs[0].dtype.is_integer:
+            dtype_str = keras.backend.standardize_dtype(inputs[0].dtype)
+            if "float" in dtype_str or "int" in dtype_str:
                 inputs, value_to_compare = self._force_cast_to_compatible_numeric_type(
                     inputs[0], self.value_to_compare
                 )
@@ -235,11 +237,12 @@ class IfStatementLayer(BaseLayer):
                 # If the value to compare is a tensor, we cast it to the input dtype
                 inputs = input_tensors[0]
                 value_to_compare = self._cast(
-                    input_tensors[1], cast_dtype=input_tensors[0].dtype.name
+                    input_tensors[1],
+                    cast_dtype=keras.backend.standardize_dtype(input_tensors[0].dtype),
                 )
-            elif (
-                input_tensors[0].dtype.is_floating or input_tensors[0].dtype.is_integer
-            ):
+            elif "float" in keras.backend.standardize_dtype(
+                input_tensors[0].dtype
+            ) or "int" in keras.backend.standardize_dtype(input_tensors[0].dtype):
                 # If the inputs are numeric we force cast it to a compatible dtype
                 inputs, value_to_compare = self._force_cast_to_compatible_numeric_type(
                     input_tensors[0], input_tensors[1]
@@ -248,7 +251,8 @@ class IfStatementLayer(BaseLayer):
                 # The inputs are not numeric, so we just do the regular casting
                 inputs = input_tensors[0]
                 value_to_compare = self._cast(
-                    tf.constant(input_tensors[1]), inputs.dtype.name
+                    tf.constant(input_tensors[1]),
+                    keras.backend.standardize_dtype(inputs.dtype),
                 )
 
             cond = tf.where(

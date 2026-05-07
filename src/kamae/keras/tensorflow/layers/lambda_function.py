@@ -63,7 +63,7 @@ class LambdaFunctionLayer(BaseLayer, tf.keras.layers.Lambda):
         )
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer.
 

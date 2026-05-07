@@ -68,7 +68,7 @@ class CurrentUnixTimestampLayer(BaseLayer):
         self.unit = unit
 
     @property
-    def compatible_dtypes(self) -> Optional[List[tf.dtypes.DType]]:
+    def compatible_dtypes(self) -> Optional[List[str]]:
         """
         Returns the compatible dtypes of the layer. Returns `None` as the layer
         only returns the current date as a string. It does not transform any input.
