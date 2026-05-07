@@ -22,7 +22,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, NumericType
 
-from kamae.keras.core.backend import ALL_BACKENDS, current_backend
+from kamae.keras.core.backend import ALL_BACKENDS, validate_backend
 from kamae.spark.params import (
     HasInputDtype,
     HasLayerName,
@@ -50,13 +50,7 @@ class SparkOperation(
         """
         Initializes the spark operation class.
         """
-        backend = current_backend()
-        if backend not in self.supported_backends:
-            raise RuntimeError(
-                f"{self.__class__.__name__} requires one of {sorted(self.supported_backends)} backends. "
-                f"Current backend: '{backend}'. "
-                f"Set KERAS_BACKEND=tensorflow before importing keras."
-            )
+        validate_backend(self.__class__.__name__, self.supported_backends)
         super().__init__()
         self._setDefault(layerName=self.uid, inputDtype=None, outputDtype=None)
         self.tmp_column_suffix = self.generate_tmp_column_suffix()

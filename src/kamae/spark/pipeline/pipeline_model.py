@@ -105,7 +105,7 @@ class KamaeSparkPipelineModel(PipelineModel):
 
     def build_keras_model(
         self,
-        input_schema: Union[List[Dict[str, Any]]],
+        input_schema: List[Dict[str, Any]],
         output_names: Optional[List[str]] = None,
     ) -> keras.Model:
         """
@@ -130,7 +130,7 @@ class KamaeSparkPipelineModel(PipelineModel):
 
     def get_keras_tuner_model_builder(
         self,
-        input_schema: Union[List[Dict[str, Any]]],
+        input_schema: List[Dict[str, Any]],
         hp_dict: Dict[str, List[Dict[str, Any]]],
         output_names: Optional[List[str]] = None,
     ) -> Callable[[kt.HyperParameters], keras.Model]:

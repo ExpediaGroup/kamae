@@ -23,7 +23,7 @@ from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 
 
-@tf.keras.utils.register_keras_serializable(kamae.__name__)
+@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringAffixLayer(BaseLayer):
     """
     Performs a prefixing and suffing on the input tensor.

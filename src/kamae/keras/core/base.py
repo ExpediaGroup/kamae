@@ -32,7 +32,12 @@ import tensorflow as tf
 from keras import ops
 
 import kamae
-from kamae.keras.core.backend import ALL_BACKENDS, current_backend, require_tensorflow
+from kamae.keras.core.backend import (
+    ALL_BACKENDS,
+    current_backend,
+    require_tensorflow,
+    validate_backend,
+)
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 
@@ -72,13 +77,7 @@ class BaseLayer(keras.layers.Layer, ABC):
         :param output_dtype: Output data type of the layer. Defaults to `None`. If
         specified, the output will be cast to this data type before being returned.
         """
-        backend = current_backend()
-        if backend not in self.supported_backends:
-            raise RuntimeError(
-                f"{self.__class__.__name__} requires one of {sorted(self.supported_backends)} backends. "
-                f"Current backend: '{backend}'. "
-                f"Set KERAS_BACKEND=tensorflow before importing keras."
-            )
+        validate_backend(self.__class__.__name__, self.supported_backends)
         super().__init__(name=name, **kwargs)
         # Disable Keras automatic casting to prevent float32 coercion
         # This is critical for layers that require 64-bit precision (e.g., timestamps)
@@ -144,7 +143,7 @@ class BaseLayer(keras.layers.Layer, ABC):
         )
 
         bool_float_tensor = tf.strings.to_number(
-            string_bool_tensor_with_invalid, out_type=tf.float32
+            string_bool_tensor_with_invalid, out_type="float32"
         )
         return tf.cast(bool_float_tensor, tf.bool)
 

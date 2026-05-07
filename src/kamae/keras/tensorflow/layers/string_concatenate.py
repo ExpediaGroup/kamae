@@ -23,7 +23,7 @@ from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 
 
-@tf.keras.utils.register_keras_serializable(kamae.__name__)
+@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringConcatenateLayer(BaseLayer):
     """
     Performs a concatenation of the input tensors.

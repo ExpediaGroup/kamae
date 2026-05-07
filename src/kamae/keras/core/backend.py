@@ -49,3 +49,20 @@ def require_tensorflow() -> None:
             f"Current backend: {backend}. "
             f"Set KERAS_BACKEND=tensorflow before importing keras."
         )
+
+
+def validate_backend(class_name: str, supported_backends: FrozenSet[str]) -> None:
+    """
+    Validates that the current backend is supported by the layer/operation.
+
+    :param class_name: Name of the class being validated
+    :param supported_backends: Frozenset of supported backend names
+    :raises RuntimeError: If current backend is not in supported_backends
+    """
+    backend = current_backend()
+    if backend not in supported_backends:
+        raise RuntimeError(
+            f"{class_name} requires one of {sorted(supported_backends)} backends. "
+            f"Current backend: '{backend}'. "
+            f"Set KERAS_BACKEND=tensorflow before importing keras."
+        )

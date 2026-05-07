@@ -2,7 +2,7 @@
 [![CI](https://github.com/ExpediaGroup/kamae/actions/workflows/ci.yaml/badge.svg)](https://github.com/ExpediaGroup/kamae/actions/workflows/ci.yaml)
 ![PyPI - Version](https://img.shields.io/pypi/v/kamae)
 
-Kamae bridges the gap between offline data processing and online model serving. Build preprocessing pipelines in [Spark](https://spark.apache.org/) for big data workloads, then export them as [Keras 3](https://keras.io/) models for low-latency inference with **multi-backend support** (TensorFlow, JAX, or PyTorch).
+Kamae bridges the gap between offline data processing and online model serving. Build preprocessing pipelines in [Spark](https://spark.apache.org/) for big data workloads, then export them as [Keras 3](https://keras.io/) models for low-latency inference. **Multi-backend support** allows numeric operations to run on TensorFlow, JAX, or PyTorch backends, while string and datetime operations require TensorFlow.
 
 ## Why Kamae?
 
@@ -66,7 +66,20 @@ import os
 os.environ['KERAS_BACKEND'] = 'tensorflow'  # or 'jax' or 'torch'
 ```
 
-**Multi-backend layers** (numeric operations) work on all backends. **TensorFlow-only layers** (strings, datetime) require TensorFlow backend. See the [Backend column](#supported-preprocessing-layers) in the transformation table below.
+**Multi-backend layers** (numeric operations) work on all backends. **TensorFlow-only layers** (string/datetime operations) require TensorFlow backend. See the [Backend column](#supported-preprocessing-layers) in the transformation table below, or use the discovery API:
+
+```python
+import kamae
+# Get layers/transformers compatible with current backend
+layers = kamae.get_compatible_layers()
+transformers = kamae.get_compatible_transformers()
+
+# Get layers/transformers compatible with specific backend
+jax_layers = kamae.get_compatible_layers('jax')
+torch_transformers = kamae.get_compatible_transformers('torch')
+```
+
+**Note:** TensorFlow is a required dependency for Kamae, as the package includes TensorFlow-only layers. JAX and PyTorch backends provide an alternative execution path for numeric operations only.
 
 ## Documentation
 
