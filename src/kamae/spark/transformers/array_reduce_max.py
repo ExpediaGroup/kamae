@@ -89,6 +89,12 @@ class ArrayReduceMaxTransformer(
         return dataset.withColumn(self.getOutputCol(), output_col)
 
     def get_keras_layer(self) -> keras.layers.Layer:
+        """
+        Gets the Keras layer that reduces an array to its maximum element.
+
+        :returns: Keras layer with name equal to the layerName parameter
+        that performs the array reduce max operation.
+        """
         return ArrayReduceMaxLayer(
             name=self.getLayerName(),
             input_dtype=self.getInputKerasDtype(),

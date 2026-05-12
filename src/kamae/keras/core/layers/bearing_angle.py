@@ -36,8 +36,6 @@ class BearingAngleLayer(BaseLayer):
 
     We DO NOT check if the lat/lon values are out of bounds.
     For lat, this is [-90, 90] and for lon, this is [-180, 180].
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

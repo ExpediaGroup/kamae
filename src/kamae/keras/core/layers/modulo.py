@@ -30,8 +30,6 @@ class ModuloLayer(BaseLayer):
     If divisor is not set, inputs are assumed to be a list of two tensors and the
     first tensor is modulo'd by the second.
     If divisor is set, inputs must be a tensor.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

@@ -35,8 +35,6 @@ class MinMaxScaleLayer(BaseLayer):
     to the range [0, 1] using the minimum and maximum values.
 
     Formula: (x - min)/(max - min)
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

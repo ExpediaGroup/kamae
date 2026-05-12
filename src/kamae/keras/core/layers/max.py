@@ -27,11 +27,8 @@ from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_i
 @keras.saving.register_keras_serializable(package=kamae.__name__)
 class MaxLayer(BaseLayer):
     """
-    Performs the max(x, y) operation
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
-
     Performs the max(x, y) operation on a given input tensor.
+
     If max_constant is not set, inputs are assumed to be a list of tensors and
     the max of all the tensors is computed.
     If max_constant is set, inputs must be a tensor.
@@ -85,20 +82,9 @@ class MaxLayer(BaseLayer):
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
-            Performs the max(x, y) operation
-
-        This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
-
-        Performs the max(x, y) operation on either an iterable of input tensors or
-            a single input tensor and a constant.
-
-            Decorated with `@allow_single_or_multiple_tensor_input` to ensure that the input
-            is either a single tensor or an iterable of tensors. Returns this result as a
-            list of tensors for easier use here.
-
-            :param inputs: Single tensor or iterable of tensors to perform the
+        :param inputs: Single tensor or iterable of tensors to perform the
             max(x, y) operation on.
-            :returns: The tensor resulting from the max(x, y) operation.
+        :returns: The tensor resulting from the max(x, y) operation.
         """
         if self.max_constant is not None:
             if len(inputs) > 1:

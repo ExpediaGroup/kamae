@@ -27,8 +27,6 @@ from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 class ExpLayer(BaseLayer):
     """
     Performs the exp(x) operation on a given input tensor.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

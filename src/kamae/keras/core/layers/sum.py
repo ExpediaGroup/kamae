@@ -30,8 +30,6 @@ class SumLayer(BaseLayer):
     Performs the sum(x, y) operation on a given input tensor.
     If addend is not set, inputs are assumed to be a list of tensors and summed.
     If addend is set, inputs must be a tensor.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

@@ -28,8 +28,6 @@ class ArraySplitLayer(BaseLayer):
     """
     Performs a splitting of the input tensor into a list of tensors.
     Expands dimensions to ensure the output tensors are the same shape as the input.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

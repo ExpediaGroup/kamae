@@ -21,6 +21,8 @@ from typing import Any, List, Union
 import numpy as np
 from keras import ops
 
+from kamae.keras.core.typing import Tensor
+
 
 def listify_tensors(x: Union[Any, np.ndarray, List[Any]]) -> List[Any]:
     """
@@ -31,10 +33,26 @@ def listify_tensors(x: Union[Any, np.ndarray, List[Any]]) -> List[Any]:
     :param x: The input tensor or numpy array.
     :returns: The input as a list.
     """
-    # Check if it's a tensor using ops.is_tensor (works across backends)
     if hasattr(x, "numpy"):
         # Most backend tensors have a .numpy() method
         x = x.numpy()
     if isinstance(x, np.ndarray):
         x = x.tolist()
     return x
+
+
+def get_dtype_max(dtype_str: str) -> float:
+    """
+    Get the maximum value for a given dtype using numpy's dtype info.
+
+    :param dtype_str: Dtype string (e.g. 'float32', 'int64')
+    :returns: Maximum value for the dtype
+    """
+    np_dtype = np.dtype(dtype_str)
+    if np.issubdtype(np_dtype, np.floating):
+        return np.finfo(np_dtype).max
+    elif np.issubdtype(np_dtype, np.integer):
+        return np.iinfo(np_dtype).max
+    else:
+        # Fallback for unsupported dtypes
+        return float("inf")

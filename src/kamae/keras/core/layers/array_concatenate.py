@@ -28,8 +28,6 @@ from kamae.keras.core.utils.shape_utils import reshape_to_equal_rank
 class ArrayConcatenateLayer(BaseLayer):
     """
     Performs a concatenation of the input tensors.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

@@ -28,8 +28,6 @@ from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_i
 class SubtractLayer(BaseLayer):
     """
     Performs the subtract(x, y) operation on a given input tensor.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

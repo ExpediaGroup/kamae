@@ -33,8 +33,6 @@ class ImputeLayer(BaseLayer):
 
     The impute value is either the mean or median and is computed while ignoring rows
     in the data which are equal to the mask value or are null.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

@@ -36,8 +36,6 @@ class StandardScaleLayer(NormalizeLayer):
     runtime. mask_value is used to ignore certain values in the standard scaling
     process. They will remain the same value in the output value as they were in
     the input value.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

@@ -18,10 +18,8 @@ Multi-backend type hints for backend-agnostic Keras layers.
 These type hints work across TensorFlow, JAX, and PyTorch backends.
 """
 
-from typing import Union
-
 import keras
 
 # Backend-agnostic tensor type
 # keras.KerasTensor works across all backends
-Tensor = Union[keras.KerasTensor, keras.Variable]
+Tensor = keras.KerasTensor

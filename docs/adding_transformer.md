@@ -112,6 +112,7 @@ Note that the methods are named `_fit` and `_transform`. `fit` and `transform` w
 ```python
 from typing import List, Optional
 
+import keras
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
@@ -199,7 +200,7 @@ class MyTransformer(
     def compatible_dtypes(self) -> Optional[List[DataType]]:
         return [StringType(), BinaryType()]
 
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         # Ensure that the layer has the layer name, input dtype, and output dtype
         # as arguments `name`, `input_dtype`, and `output_dtype` respectively.
         return MyLayer(

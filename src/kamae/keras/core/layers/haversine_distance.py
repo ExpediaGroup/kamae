@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import math
 from typing import Any, Dict, Iterable, List, Optional
 
 import keras
@@ -22,6 +21,7 @@ import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
+from kamae.keras.core.utils.ops_utils import get_radians
 
 
 @keras.saving.register_keras_serializable(package=kamae.__name__)
@@ -36,8 +36,6 @@ class HaversineDistanceLayer(BaseLayer):
 
     We DO NOT check if the lat/lon values are out of bounds.
     For lat, this is [-90, 90] and for lon, this is [-180, 180].
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True
@@ -81,19 +79,6 @@ class HaversineDistanceLayer(BaseLayer):
         """
         return ["bfloat16", "float16", "float32", "float64"]
 
-    @staticmethod
-    def get_radians(degrees: Tensor) -> Tensor:
-        """
-        Converts degrees tensor to radians. We need to cast to float64 otherwise
-        pi / 180 will lose precision.
-
-        :param degrees: Tensor of degrees.
-        :returns: Tensor of radians.
-        """
-        return ops.cast(degrees, dtype="float64") * ops.convert_to_tensor(
-            math.pi / 180, dtype="float64"
-        )
-
     def compute_haversine_distance(
         self, lat1: Tensor, lon1: Tensor, lat2: Tensor, lon2: Tensor
     ) -> Tensor:
@@ -106,10 +91,10 @@ class HaversineDistanceLayer(BaseLayer):
         :param lon2: Tensor of longitudes of the second point.
         :returns: Tensor of haversine distances.
         """
-        lat1_radians = self.get_radians(lat1)
-        lon1_radians = self.get_radians(lon1)
-        lat2_radians = self.get_radians(lat2)
-        lon2_radians = self.get_radians(lon2)
+        lat1_radians = get_radians(lat1)
+        lon1_radians = get_radians(lon1)
+        lat2_radians = get_radians(lat2)
+        lon2_radians = get_radians(lon2)
 
         lat_diff = lat2_radians - lat1_radians
         lon_diff = lon2_radians - lon1_radians

@@ -38,8 +38,6 @@ class ConditionalStandardScaleLayer(NormalizeLayer):
     The skip_zeros parameter allows to apply the standard scaling process
     only when input is not equal to zero. If equal to zero, it will remain zero in
     the output value as it was in the input value.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

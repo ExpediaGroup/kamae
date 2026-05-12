@@ -30,8 +30,6 @@ class DivideLayer(BaseLayer):
     """
     Performs the divide(x, y) operation on a given input tensor. If divisor is not set,
     inputs must be a list. If divisor is set, inputs must be a tensor.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

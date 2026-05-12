@@ -71,8 +71,8 @@ Located in `kamae.keras.tensorflow.layers/`, require TensorFlow backend:
 
 ```python
 # OLD (Keras 2)
-model.save("model.h5")
-model = tf.keras.models.load_model("model.h5")
+model.save("path/to/model")
+model = tf.keras.models.load_model("path/to/model")
 
 # NEW (Keras 3)
 model.save("model.keras")
@@ -88,7 +88,7 @@ from kamae.tensorflow.layers import AbsoluteValueLayer
 
 layer = AbsoluteValueLayer()
 model = tf.keras.Model(inputs=inputs, outputs=outputs)
-model.save("model.h5")
+model.save("path/to/model")
 
 # NEW (Keras 3)
 import keras
@@ -142,36 +142,6 @@ def compatible_dtypes(self) -> Optional[List[str]]:
 | `get_all_tf_layers()` | `get_all_keras_layers()` | PipelineModel |
 | `tf_input_schema` parameter | `input_schema` parameter | build_keras_model() |
 
-**Migration Example:**
-
-```python
-# OLD (Keras 2)
-class MyTransformer(BaseTransformer):
-    def get_tf_layer(self):
-        return MyLayer(
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype()
-        )
-
-# Build model
-keras_model = pipeline.build_keras_model(
-    tf_input_schema=[{"name": "col1", "dtype": "int32", "shape": (None, 1)}]
-)
-
-# NEW (Keras 3)
-class MyTransformer(BaseTransformer):
-    def get_keras_layer(self):
-        return MyLayer(
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype()
-        )
-
-# Build model
-keras_model = pipeline.build_keras_model(
-    input_schema=[{"name": "col1", "dtype": "int32", "shape": (None, 1)}]
-)
-```
-
 ## Migration Checklist
 
 ### For Users
@@ -187,11 +157,11 @@ keras_model = pipeline.build_keras_model(
 
 - [ ] Use `kamae.keras.core.layers` for new numeric operations (multi-backend)
 - [ ] Use `kamae.keras.tensorflow.layers` for string/datetime operations (TF-only)
-- [ ] Import from `kamae.keras.core.base.BaseLayer` (not `tensorflow.layers.base`)
+- [ ] Import from `kamae.keras.core.base.BaseLayer` (not `kamae.tensorflow.layers.base`)
 - [ ] Use `@keras.saving.register_keras_serializable` decorator (not `tf.keras.utils`)
 - [ ] Return string dtypes from `compatible_dtypes` property (not tf.DType objects)
 - [ ] Use `keras.ops` for numeric operations (not `tf.math`)
-- [ ] Add tests to `tests/kamae/keras/core/layers/` or `tests/kamae/keras/tensorflow/layers/`
+- [ ] Add tests to the corresponding test directory (`tests/kamae/keras/core/layers/` for multi-backend layers, `tests/kamae/keras/tensorflow/layers/` for TF-only layers)
 - [ ] Use `get_keras_layer()` instead of `get_tf_layer()` in transformer implementations
 - [ ] Use `getInputKerasDtype()` and `getOutputKerasDtype()` instead of TF-prefixed versions
 

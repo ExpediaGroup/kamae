@@ -27,10 +27,6 @@ from kamae.utils import get_condition_operator
 @keras.saving.register_keras_serializable(package=kamae.__name__)
 class NumericalIfStatementLayer(BaseLayer):
     """
-    Performs a numerical if statement
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
-
     Performs a numerical if statement on the input tensor,
     returning a tensor of the same shape as the input tensor.
 

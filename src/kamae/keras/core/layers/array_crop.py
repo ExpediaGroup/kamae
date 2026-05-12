@@ -30,8 +30,6 @@ class ArrayCropLayer(BaseLayer):
     If the tensor is shorter than the specified length, it is
     padded with specified pad value.
 
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
-
     TODO: Currently only supports cropping the final dimension of the tensor.
     """
 

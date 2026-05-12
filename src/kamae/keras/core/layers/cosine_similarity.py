@@ -21,14 +21,13 @@ import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
+from kamae.keras.core.utils.ops_utils import l2_normalize
 
 
 @keras.saving.register_keras_serializable(package=kamae.__name__)
 class CosineSimilarityLayer(BaseLayer):
     """
     Computes the cosine similarity between two input tensors.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True
@@ -75,25 +74,6 @@ class CosineSimilarityLayer(BaseLayer):
             "complex128",
         ]
 
-    @staticmethod
-    def l2_normalize(x: Tensor, axis: int) -> Tensor:
-        """
-        L2 normalize a tensor along a specified axis.
-
-        This is a backend-agnostic implementation of L2 normalization:
-        normalized = x / sqrt(sum(x^2))
-
-        :param x: Input tensor to normalize.
-        :param axis: Axis along which to normalize.
-        :returns: L2-normalized tensor.
-        """
-        # Compute L2 norm: sqrt(sum(x^2))
-        square_sum = ops.sum(ops.square(x), axis=axis, keepdims=True)
-        norm = ops.sqrt(
-            ops.maximum(square_sum, ops.convert_to_tensor(1e-12, dtype=x.dtype))
-        )
-        return x / norm
-
     @enforce_multiple_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
         """
@@ -114,8 +94,8 @@ class CosineSimilarityLayer(BaseLayer):
             raise ValueError(
                 f"Expected 2 inputs, received {len(inputs)} inputs instead."
             )
-        x = self.l2_normalize(inputs[0], axis=self.axis)
-        y = self.l2_normalize(inputs[1], axis=self.axis)
+        x = l2_normalize(inputs[0], axis=self.axis)
+        y = l2_normalize(inputs[1], axis=self.axis)
 
         return ops.sum(ops.multiply(x, y), axis=self.axis, keepdims=self.keepdims)
 

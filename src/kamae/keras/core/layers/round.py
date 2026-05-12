@@ -32,8 +32,6 @@ class RoundLayer(BaseLayer):
     - 'ceil' rounds up to the nearest integer.
     - 'floor' rounds down to the nearest integer.
     - 'round' rounds to the nearest integer.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True

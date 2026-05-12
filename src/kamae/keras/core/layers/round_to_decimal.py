@@ -15,13 +15,13 @@
 from typing import Any, Dict, List, Optional
 
 import keras
-import numpy as np
 from keras import ops
 
 import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.keras.core.utils.tensor_utils import get_dtype_max
 
 
 @keras.saving.register_keras_serializable(package=kamae.__name__)
@@ -34,8 +34,6 @@ class RoundToDecimalLayer(BaseLayer):
     multiplying the input tensor by 10 to the power of the number of decimals, rounding
     the result to the nearest integer, and then dividing by 10 to the power of the
     number of decimals.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True
@@ -72,22 +70,6 @@ class RoundToDecimalLayer(BaseLayer):
         """
         return ["float16", "float32", "float64", "int32", "int64"]
 
-    def _get_dtype_max(self, dtype_str: str) -> float:
-        """
-        Get the maximum value for a given dtype using numpy's dtype info.
-
-        :param dtype_str: Dtype string (e.g. 'float32', 'int64')
-        :returns: Maximum value for the dtype
-        """
-        np_dtype = np.dtype(dtype_str)
-        if np.issubdtype(np_dtype, np.floating):
-            return np.finfo(np_dtype).max
-        elif np.issubdtype(np_dtype, np.integer):
-            return np.iinfo(np_dtype).max
-        else:
-            # Fallback for unsupported dtypes
-            return float("inf")
-
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
@@ -102,7 +84,7 @@ class RoundToDecimalLayer(BaseLayer):
         # WARNING: Depending on the type of the input and the number of decimals,
         # this multiplier could overflow.
         dtype_str = keras.backend.standardize_dtype(inputs.dtype)
-        max_val = self._get_dtype_max(dtype_str)
+        max_val = get_dtype_max(dtype_str)
 
         if 10**self.decimals > max_val:
             raise ValueError(

@@ -21,6 +21,7 @@ import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
+from kamae.keras.core.utils.ops_utils import l2_normalize
 
 
 @keras.saving.register_keras_serializable(package=kamae.__name__)
@@ -58,14 +59,6 @@ class PairwiseCosineSimilarityLayer(BaseLayer):
             "float64",
         ]
 
-    @staticmethod
-    def l2_normalize(x: Tensor, axis: int) -> Tensor:
-        square_sum = ops.sum(ops.square(x), axis=axis, keepdims=True)
-        norm = ops.sqrt(
-            ops.maximum(square_sum, ops.convert_to_tensor(1e-12, dtype=x.dtype))
-        )
-        return x / norm
-
     @enforce_multiple_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
         if len(inputs) != 2:
@@ -84,8 +77,8 @@ class PairwiseCosineSimilarityLayer(BaseLayer):
         query_expanded = ops.expand_dims(query, axis=-2)
 
         # L2 normalize along embedding dimension
-        q_norm = self.l2_normalize(query_expanded, axis=-1)
-        c_norm = self.l2_normalize(candidates, axis=-1)
+        q_norm = l2_normalize(query_expanded, axis=-1)
+        c_norm = l2_normalize(candidates, axis=-1)
 
         # Dot product along last axis: (..., N)
         similarities = ops.sum(ops.multiply(q_norm, c_norm), axis=-1)

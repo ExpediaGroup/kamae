@@ -27,8 +27,6 @@ from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 class IdentityLayer(BaseLayer):
     """
     Performs an identity transform on the input tensor.
-
-    This is a backend-agnostic layer that works with TensorFlow, JAX, and PyTorch.
     """
 
     jit_compatible = True
