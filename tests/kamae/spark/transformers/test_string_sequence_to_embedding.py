@@ -204,10 +204,10 @@ class TestStringSequenceToEmbedding:
             ]
         )
 
+        # Use input shape (batch, 1); the layer drops the trailing size-1 axis
+        # so the output is (batch, seq_len, embedding_dim), matching Spark.
         tf_input = tf.constant([[s] for s in input_strings])
         tf_values = transformer.get_tf_layer()(tf_input).numpy()
-        # Drop the artificial list axis (size 1) inserted for the TF input.
-        tf_values = tf_values[:, 0, :, :]
 
         np.testing.assert_allclose(
             spark_values,

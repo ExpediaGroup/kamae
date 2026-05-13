@@ -106,13 +106,22 @@ class StringSequenceToEmbeddingLayer(BaseLayer):
         """
         Parses each string element into a ``(seq_len, embedding_dim)`` float
         matrix. The resulting tensor has the input shape with ``seq_len`` and
-        ``embedding_dim`` appended as trailing dimensions.
+        ``embedding_dim`` appended as trailing dimensions. If the input has a
+        trailing size-1 axis, it is dropped so the output is
+        ``input.shape[:-1] + (seq_len, embedding_dim)``. This matches the
+        convention used by ``StringToStringListLayer``.
 
         :param inputs: String tensor of arbitrary shape.
         :returns: Float32 tensor with shape
-        ``input.shape + (seq_len, embedding_dim)``.
+        ``input.shape + (seq_len, embedding_dim)`` or, if the input has a
+        trailing size-1 axis, ``input.shape[:-1] + (seq_len, embedding_dim)``.
         """
         input_dynamic_shape = tf.shape(inputs)
+        input_static_shape = inputs.shape.as_list()
+        drop_trailing_axis = (
+            len(input_static_shape) >= 1 and input_static_shape[-1] == 1
+        )
+
         flat = tf.reshape(inputs, [-1])
 
         # Unify the two separators so a single split yields all floats.
@@ -135,9 +144,12 @@ class StringSequenceToEmbeddingLayer(BaseLayer):
             seq_lengths = tf.reduce_sum(tf.cast(row_norms > 0, tf.int32), axis=-1)
             result = tf.reverse_sequence(result, seq_lengths, seq_axis=1, batch_axis=0)
 
+        leading_shape = (
+            input_dynamic_shape[:-1] if drop_trailing_axis else input_dynamic_shape
+        )
         output_shape = tf.concat(
             [
-                input_dynamic_shape,
+                leading_shape,
                 tf.constant(
                     [self.seq_len, self.embedding_dim], dtype=input_dynamic_shape.dtype
                 ),
