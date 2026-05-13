@@ -85,6 +85,9 @@ from .string_isin_list import StringIsInListTransformer  # noqa: F401
 from .string_list_to_string import StringListToStringTransformer  # noqa: F401
 from .string_map import StringMapTransformer  # noqa: F401
 from .string_replace import StringReplaceTransformer  # noqa: F401
+from .string_sequence_to_embedding import (  # noqa: F401
+    StringSequenceToEmbeddingTransformer,
+)
 from .string_to_string_list import StringToStringListTransformer  # noqa: F401
 from .sub_string_delim_at_index import SubStringDelimAtIndexTransformer  # noqa: F401
 from .subtract import SubtractTransformer  # noqa: F401
