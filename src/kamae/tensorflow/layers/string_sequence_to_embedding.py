@@ -134,6 +134,10 @@ class StringSequenceToEmbeddingLayer(BaseLayer):
         dense = split.to_tensor(
             default_value=self.pad_value, shape=[None, total_floats]
         )
+        # Replace any empty tokens (from leading/trailing/repeated separators
+        # or entirely empty inputs) with the pad value so tf.strings.to_number
+        # does not fail on the empty string.
+        dense = tf.where(tf.equal(dense, ""), self.pad_value, dense)
 
         floats = tf.strings.to_number(dense, out_type=tf.float32)
         result = tf.reshape(floats, [-1, self.seq_len, self.embedding_dim])

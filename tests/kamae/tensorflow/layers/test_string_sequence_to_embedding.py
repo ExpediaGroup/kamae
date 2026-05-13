@@ -125,6 +125,36 @@ class TestStringSequenceToEmbedding:
         output = layer(inputs)
         tf.debugging.assert_near(expected, output)
 
+    def test_empty_and_malformed_inputs_do_not_fail(self):
+        """Inputs with empty cells or leading/repeated separators should not
+        crash tf.strings.to_number; empty tokens should be treated as pad."""
+        layer = StringSequenceToEmbeddingLayer(
+            name="empty_handling",
+            seq_len=3,
+            embedding_dim=2,
+            pad_value="0",
+        )
+        inputs = tf.constant(
+            [
+                [""],  # fully empty cell
+                [",1|2,3|4"],  # leading separator
+                ["1|2,,3|4"],  # repeated separator producing empty token
+                ["1|2,3|4,"],  # trailing separator
+            ]
+        )
+        expected = tf.constant(
+            [
+                [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+                [[0.0, 1.0], [2.0, 3.0], [4.0, 0.0]],
+                [[1.0, 2.0], [0.0, 3.0], [4.0, 0.0]],
+                [[1.0, 2.0], [3.0, 4.0], [0.0, 0.0]],
+            ],
+            dtype=tf.float32,
+        )
+        output = layer(inputs)
+        assert output.shape == (4, 3, 2)
+        tf.debugging.assert_near(expected, output)
+
     def test_custom_separators(self):
         layer = StringSequenceToEmbeddingLayer(
             name="custom_separators",
