@@ -14,6 +14,7 @@
 from numbers import Number
 from typing import Any, Iterable, Union
 
+import keras
 import tensorflow as tf
 
 from kamae.keras.core.backend import TENSORFLOW_ONLY
@@ -71,7 +72,6 @@ class IfStatementLayer(BaseLayer):
         ),
     }
 
-    @staticmethod
     def _post_init(self):
         if (
             self.value_to_compare is not None

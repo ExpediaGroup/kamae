@@ -144,7 +144,7 @@ from kamae.keras.tensorflow.layers import (
                 tf.constant(0.0, shape=(100, 10, 1)),
                 tf.constant(90.0, shape=(100, 10, 1)),
             ],
-            {"lat_lon_constant": [-45.9, 180.67]},
+            {"lat_lon_constant": [-45.9, 179.67]},
             False,
         ),
         (
@@ -245,7 +245,7 @@ from kamae.keras.tensorflow.layers import (
                 tf.constant(-90.0, shape=(100, 10, 1)),
                 tf.constant(178.9, shape=(100, 10, 1)),
             ],
-            {"lat_lon_constant": [-45.9, 180.67], "unit": "miles"},
+            {"lat_lon_constant": [-45.9, 179.67], "unit": "miles"},
             False,
         ),
         (IdentityLayer, [tf.random.normal((100, 10, 5))], None, False),
