@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import math
 from typing import Any, Dict, Iterable, List, Optional
 
 import keras
@@ -22,6 +21,7 @@ import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
+from kamae.keras.core.utils.ops_utils import get_degrees, get_radians
 
 
 @keras.saving.register_keras_serializable(package=kamae.__name__)
@@ -73,31 +73,6 @@ class BearingAngleLayer(BaseLayer):
         """
         return ["bfloat16", "float16", "float32", "float64"]
 
-    @staticmethod
-    def get_radians(degrees: Tensor) -> Tensor:
-        """
-        Converts degrees tensor to radians. We need to cast to float64 otherwise
-        pi / 180 will lose precision.
-
-        :param degrees: Tensor of degrees.
-        :returns: Tensor of radians.
-        """
-        return ops.cast(degrees, dtype="float64") * ops.convert_to_tensor(
-            math.pi / 180, dtype="float64"
-        )
-
-    @staticmethod
-    def get_degrees(radians: Tensor) -> Tensor:
-        """
-        Converts radians tensor to degrees.
-
-        :param radians: Tensor of radians.
-        :returns: Tensor of degrees.
-        """
-        return ops.cast(radians, dtype="float64") * ops.convert_to_tensor(
-            180 / math.pi, dtype="float64"
-        )
-
     def compute_bearing_angle(
         self, lat1: Tensor, lon1: Tensor, lat2: Tensor, lon2: Tensor
     ) -> Tensor:
@@ -110,10 +85,10 @@ class BearingAngleLayer(BaseLayer):
         :param lon2: Tensor of longitudes of the second point.
         :returns: Tensor of bearing angles.
         """
-        lat1_radians = self.get_radians(lat1)
-        lon1_radians = self.get_radians(lon1)
-        lat2_radians = self.get_radians(lat2)
-        lon2_radians = self.get_radians(lon2)
+        lat1_radians = get_radians(lat1)
+        lon1_radians = get_radians(lon1)
+        lat2_radians = get_radians(lat2)
+        lon2_radians = get_radians(lon2)
 
         lon_difference = lon2_radians - lon1_radians
         # Bearing formula calculation
@@ -124,7 +99,7 @@ class BearingAngleLayer(BaseLayer):
 
         # Calculate bearing in degrees
         bearing = ops.arctan2(y, x)
-        bearing_deg = ops.mod(self.get_degrees(bearing) + 360, 360)
+        bearing_deg = ops.mod(get_degrees(bearing) + 360, 360)
         return bearing_deg
 
     @enforce_multiple_tensor_input

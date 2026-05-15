@@ -53,6 +53,18 @@ def get_radians(degrees: Tensor) -> Tensor:
     )
 
 
+def get_degrees(radians: Tensor) -> Tensor:
+    """
+    Converts radians tensor to degrees.
+
+    :param radians: Tensor of radians.
+    :returns: Tensor of degrees.
+    """
+    return ops.cast(radians, dtype="float64") * ops.convert_to_tensor(
+        180 / math.pi, dtype="float64"
+    )
+
+
 def l2_normalize(x: Tensor, axis: int, epsilon: float = 1e-12) -> Tensor:
     """
     L2 normalize a tensor along a specified axis.
