@@ -64,7 +64,7 @@ class SparkOperation(
 
         :returns: List of compatible data types for the spark operation.
         """
-        raise NotImplementedError
+        ...
 
     @keyword_only
     def setParams(self, **kwargs: Any) -> "SparkOperation":
