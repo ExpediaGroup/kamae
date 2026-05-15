@@ -23,6 +23,12 @@ from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.params import ParamSpec
 
 
+def _validate_string_case_type(value):
+    if value not in ["upper", "lower"]:
+        raise ValueError(f"string_case_type must be 'upper' or 'lower'. Got {value}")
+    return value
+
+
 class StringCaseLayer(BaseLayer):
     """
     Performs a string case transform on the input tensor.
@@ -36,6 +42,7 @@ class StringCaseLayer(BaseLayer):
         "string_case_type": ParamSpec(
             default="lower",
             doc="The type of string case transform to perform. Supported types are 'upper' and 'lower'.",
+            validator=_validate_string_case_type,
         ),
     }
 

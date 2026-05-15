@@ -22,6 +22,12 @@ from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.params import ParamSpec
 
 
+def _validate_round_type(value):
+    if value not in ["ceil", "floor", "round"]:
+        raise ValueError("round_type must be one of 'ceil', 'floor' or 'round'.")
+    return value
+
+
 class RoundLayer(BaseLayer):
     """
     Performs a standard rounding operation on the input tensor.
@@ -39,12 +45,9 @@ class RoundLayer(BaseLayer):
         "round_type": ParamSpec(
             default="round",
             doc="The type of rounding to perform: 'ceil', 'floor', or 'round'",
+            validator=_validate_round_type,
         ),
     }
-
-    def _post_init(self):
-        if self.round_type not in ["ceil", "floor", "round"]:
-            raise ValueError("roundType must be one of 'ceil', 'floor' or 'round'.")
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:

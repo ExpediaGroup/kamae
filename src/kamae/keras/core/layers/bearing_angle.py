@@ -21,6 +21,7 @@ from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 from kamae.keras.core.utils.ops_utils import get_degrees, get_radians
 from kamae.params import ParamSpec
+from kamae.params.shared_specs import _validate_lat_lon_constant
 
 
 class BearingAngleLayer(BaseLayer):
@@ -43,12 +44,9 @@ class BearingAngleLayer(BaseLayer):
         "lat_lon_constant": ParamSpec(
             default=None,
             doc="The lat/lons to use in the bearing angle calculation",
+            validator=lambda v: _validate_lat_lon_constant(v) if v is not None else v,
         ),
     }
-
-    def _post_init(self):
-        if self.lat_lon_constant is not None and len(self.lat_lon_constant) != 2:
-            raise ValueError("If set, lat_lon_constant must be a list of 2 floats")
 
     def compute_bearing_angle(
         self, lat1: Tensor, lon1: Tensor, lat2: Tensor, lon2: Tensor

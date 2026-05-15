@@ -22,6 +22,18 @@ from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.params import ParamSpec
 
 
+def _validate_array_length(value):
+    if value < 1:
+        raise ValueError("Array length must be greater than 0.")
+    return value
+
+
+def _validate_pad_value(value):
+    if value is None:
+        raise ValueError("Pad value must be provided and not None.")
+    return value
+
+
 class ArrayCropLayer(BaseLayer):
     """
     Performs a cropping of the input tensor to a certain length.
@@ -39,18 +51,14 @@ class ArrayCropLayer(BaseLayer):
         "array_length": ParamSpec(
             default=128,
             doc="The length to crop or pad the arrays to",
+            validator=_validate_array_length,
         ),
         "pad_value": ParamSpec(
             default=None,
             doc="The value to pad the arrays with",
+            validator=_validate_pad_value,
         ),
     }
-
-    def _post_init(self):
-        if self.array_length < 1:
-            raise ValueError("Array length must be greater than 0.")
-        if self.pad_value is None:
-            raise ValueError("Pad value must be provided and not None.")
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:

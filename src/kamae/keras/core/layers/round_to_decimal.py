@@ -25,6 +25,12 @@ from kamae.keras.core.utils.tensor_utils import get_dtype_max
 from kamae.params import ParamSpec
 
 
+def _validate_decimals(value):
+    if value < 0:
+        raise ValueError("decimals must be greater than or equal to 0")
+    return value
+
+
 class RoundToDecimalLayer(BaseLayer):
     """
     Performs a rounding to the nearest decimal operation on the input tensor.
@@ -43,12 +49,9 @@ class RoundToDecimalLayer(BaseLayer):
         "decimals": ParamSpec(
             default=1,
             doc="The number of decimal places to round to",
+            validator=_validate_decimals,
         ),
     }
-
-    def _post_init(self):
-        if self.decimals < 0:
-            raise ValueError("decimals must be greater than or equal to 0")
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:

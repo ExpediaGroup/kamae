@@ -18,8 +18,8 @@
 # pylint: disable=no-member
 from typing import List
 
-import keras
 import pyspark.sql.functions as F
+import tensorflow as tf
 from pyspark.sql import DataFrame
 from pyspark.sql.types import IntegerType, StringType
 

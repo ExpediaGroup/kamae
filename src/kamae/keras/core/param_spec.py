@@ -46,7 +46,7 @@ def install_params(
                     )
                 if value is _UNSET:
                     value = None
-                if spec.validator is not None and value is not None:
+                if spec.validator is not None:
                     value = spec.validator(value)
                 setattr(self, param_name, value)
             _super(cls, self).__init__(
