@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import keras
+import numpy as np
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.core.utils.tensor_utils import get_dtype_max
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class RoundToDecimalLayer(BaseLayer):
     """
     Performs a rounding to the nearest decimal operation on the input tensor.
@@ -38,45 +38,22 @@ class RoundToDecimalLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        decimals: int = 1,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the RoundToDecimalLayer layer.
+    _compatible_dtypes = ["float16", "float32", "float64", "int32", "int64"]
+    _params = {
+        "decimals": ParamSpec(
+            default=1,
+            doc="The number of decimal places to round to",
+        ),
+    }
 
-        :param decimals: The number of decimal places to round to.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        if decimals < 0:
-            raise ValueError("""decimals must be greater than or equal to 0.""")
-        self.decimals = decimals
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["float16", "float32", "float64", "int32", "int64"]
+    def _post_init(self):
+        if self.decimals < 0:
+            raise ValueError("decimals must be greater than or equal to 0")
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the rounding operation on the input tensor.
-
-        Decorated with `@enforce_single_tensor_input` to ensure that the input is a
-        single tensor. Raises an error if multiple tensors are passed in as an iterable.
 
         :param inputs: Input tensor to perform the rounding on.
         :returns: The input tensor with the rounding applied.
@@ -93,16 +70,3 @@ class RoundToDecimalLayer(BaseLayer):
             )
         multiplier = ops.cast(10**self.decimals, dtype=inputs.dtype)
         return ops.divide(ops.round(ops.multiply(inputs, multiplier)), multiplier)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the RoundToDecimal layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `decimals` value to the configuration.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"decimals": self.decimals})
-        return config

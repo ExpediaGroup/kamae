@@ -12,19 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Iterable, List, Optional
+import math
+from typing import Any, Iterable
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 from kamae.keras.core.utils.ops_utils import get_radians
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class HaversineDistanceLayer(BaseLayer):
     """
     Computes the haversine distance operation on a given input tensor.
@@ -40,44 +39,24 @@ class HaversineDistanceLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        lat_lon_constant: Optional[List[float]] = None,
-        unit: str = "km",
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the HaversineDistanceLayer layer
+    _compatible_dtypes = ["bfloat16", "float16", "float32", "float64"]
+    _params = {
+        "lat_lon_constant": ParamSpec(
+            default=None,
+            doc="The lat/lons to use in the haversine distance calculation",
+        ),
+        "unit": ParamSpec(
+            default="km",
+            doc="The unit of the distance. Must be either 'km' or 'miles'",
+        ),
+    }
 
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param lat_lon_constant: The lat/lons to use in the haversine distance.
-        :param unit: The unit of the distance. Must be either 'km' or 'miles'.
-        calculation. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        if lat_lon_constant is not None and len(lat_lon_constant) != 2:
+    def _post_init(self):
+        if self.lat_lon_constant is not None and len(self.lat_lon_constant) != 2:
             raise ValueError("If set, lat_lon_constant must be a list of 2 floats")
-        self.lat_lon_constant = lat_lon_constant
-        if unit not in ["km", "miles"]:
+        if self.unit not in ["km", "miles"]:
             raise ValueError("unit must be either 'km' or 'miles'")
-        self.unit = unit
-        self.earth_radius = 6371.0 if unit == "km" else 3958.8
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["bfloat16", "float16", "float32", "float64"]
+        self.earth_radius = 6371.0 if self.unit == "km" else 3958.8
 
     def compute_haversine_distance(
         self, lat1: Tensor, lon1: Tensor, lat2: Tensor, lon2: Tensor
@@ -112,11 +91,7 @@ class HaversineDistanceLayer(BaseLayer):
         """
         Computes the haversine distance between two lat/lon pairs.
 
-        Decorated with @enforce_multiple_tensor_input to ensure that the input
-        is an iterable of tensors. Raises an error if a single tensor is passed.
 
-        After decoration, we check the length of the inputs to ensure we have the right
-        number of lat/lon tensors.
 
         :param inputs: Iterable of tensors.
         :returns: Tensor of haversine distances.
@@ -145,16 +120,3 @@ class HaversineDistanceLayer(BaseLayer):
                 inputs[2],
                 inputs[3],
             )
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the HaversineDistance layer.
-        Used for saving and loading from a model.
-
-        Specifically, we add the `lat_lon_constant` and `unit` to the config.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"lat_lon_constant": self.lat_lon_constant, "unit": self.unit})
-        return config

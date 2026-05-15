@@ -13,18 +13,16 @@
 # limitations under the License.
 
 from functools import reduce
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, Union
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class SumLayer(BaseLayer):
     """
     Performs the sum(x, y) operation on a given input tensor.
@@ -34,48 +32,28 @@ class SumLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        addend: Optional[float] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the SumLayer layer
-
-        :param name: Name of the layer, defaults to `None`.
-        :param addend: The addend to add to the input, defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.addend = addend
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-            "uint8",
-            "uint16",
-            "uint32",
-            "uint64",
-            "int8",
-            "int16",
-            "int32",
-            "int64",
-            "complex64",
-            "complex128",
-        ]
+    _compatible_dtypes = [
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+        "uint8",
+        "uint16",
+        "uint32",
+        "uint64",
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "complex64",
+        "complex128",
+    ]
+    _params = {
+        "addend": ParamSpec(
+            default=None,
+            doc="The addend to add to the input",
+        ),
+    }
 
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
@@ -83,9 +61,6 @@ class SumLayer(BaseLayer):
         Performs the sum(x, y) operation on either an iterable of input tensors or
         a single input tensor and a constant.
 
-        Decorated with `@allow_single_or_multiple_tensor_input` to ensure that the input
-        is either a single tensor or an iterable of tensors. Returns this result as a
-        list of tensors for easier use here.
 
         :param inputs: Single tensor or iterable of tensors to perform the
         sum(x, y) operation on.
@@ -102,16 +77,3 @@ class SumLayer(BaseLayer):
             if not len(inputs) > 1:
                 raise ValueError("If addend is not set, must have multiple inputs")
             return reduce(ops.add, inputs)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the Sum layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `addend` to the config dictionary.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"addend": self.addend})
-        return config

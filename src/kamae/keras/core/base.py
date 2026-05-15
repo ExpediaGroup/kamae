@@ -38,14 +38,31 @@ from kamae.keras.core.backend import (
     require_tensorflow,
     validate_backend,
 )
+from kamae.keras.core.param_spec import install_params
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import _REQUIRED, ParamSpec
+from kamae.params.naming import _camel_to_snake
 
 
 @keras.saving.register_keras_serializable(package=kamae.__name__)
 class BaseLayer(keras.layers.Layer, ABC):
     """
     Abstract base layer for multi-backend layers with TensorFlow string support.
+
+    Subclasses may define the following class attributes for declarative
+    configuration:
+
+    ``_params``
+        Dict mapping param names to :class:`ParamSpec` instances. The base
+        class will auto-generate ``__init__`` and ``get_config`` from this dict.
+
+    ``_compatible_dtypes``
+        List of dtype name strings (or ``None`` for any-type). Replaces the
+        need to override the ``compatible_dtypes`` property.
+
+    Subclasses are automatically registered with
+    ``@keras.saving.register_keras_serializable``.
 
     Provides:
     - Multi-backend numeric dtype casting (works on TensorFlow, JAX, PyTorch)
@@ -60,6 +77,21 @@ class BaseLayer(keras.layers.Layer, ABC):
 
     supported_backends: frozenset = ALL_BACKENDS
     jit_compatible: bool = False
+    _params: Dict[str, ParamSpec] = {}
+    _compatible_dtypes: Optional[List[str]] = None
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+
+        if cls is BaseLayer:
+            return
+        raw_params = cls.__dict__.get("_params", {})
+        layer_params = {_camel_to_snake(k): v for k, v in raw_params.items()}
+        cls._params = layer_params
+        install_params(cls, layer_params)
+
+        # Auto-register all subclasses for Keras serialization
+        keras.saving.register_keras_serializable(package=kamae.__name__)(cls)
 
     def __init__(
         self,
@@ -89,7 +121,6 @@ class BaseLayer(keras.layers.Layer, ABC):
         self.false_bool_strings = ["false", "f", "no", "n", "0"]
 
     @property
-    @abstractmethod
     def compatible_dtypes(self) -> Optional[List[str]]:
         """
         List of compatible data type names for the layer.
@@ -98,7 +129,7 @@ class BaseLayer(keras.layers.Layer, ABC):
         :returns: List of compatible dtype names (e.g., ['float32', 'float64'])
         or None if any dtype is compatible.
         """
-        raise NotImplementedError
+        return self._compatible_dtypes
 
     def _string_to_bool_cast(self, inputs: Tensor) -> Tensor:
         """

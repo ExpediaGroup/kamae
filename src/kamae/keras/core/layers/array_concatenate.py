@@ -12,19 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterable
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 from kamae.keras.core.utils.shape_utils import reshape_to_equal_rank
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class ArrayConcatenateLayer(BaseLayer):
     """
     Performs a concatenation of the input tensors.
@@ -32,42 +30,18 @@ class ArrayConcatenateLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        axis: int = -1,
-        auto_broadcast: bool = False,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the ArrayConcatenateLayer layer.
+    _compatible_dtypes = None
+    _params = {
+        "axis": ParamSpec(default=-1, doc="Axis to concatenate on"),
+        "auto_broadcast": ParamSpec(
+            default=False,
+            doc="If True, broadcast input tensors to biggest rank before concatenating",
+        ),
+    }
 
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param axis: Axis to concatenate on. Defaults to -1.
-        :param auto_broadcast: If `True`, will broadcast the input tensors to the
-        biggest rank before concatenating. Defaults to `False`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        if auto_broadcast and axis != -1:
+    def _post_init(self):
+        if self.auto_broadcast and self.axis != -1:
             raise ValueError("auto_broadcast is only supported for axis=-1")
-        self.axis = axis
-        self.auto_broadcast = auto_broadcast
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer. Returns `None` as the
-        compatible dtypes are not restricted.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return None
 
     @enforce_multiple_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
@@ -76,9 +50,6 @@ class ArrayConcatenateLayer(BaseLayer):
         If auto_broadcast is set to True, the tensors are broadcasted to the
         same rank before concatenating.
 
-        Decorated with `@enforce_multiple_tensor_input` to ensure that the input
-        is an iterable of tensors. Raises an error if a single tensor is passed
-        in.
 
         :param inputs: Iterable of tensors to concatenate.
         :returns: Concatenated tensor.
@@ -127,21 +98,3 @@ class ArrayConcatenateLayer(BaseLayer):
             inputs = reshaped_inputs
 
         return ops.concatenate(inputs, axis=self.axis)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the ArrayConcatenate layer.
-        Used for saving and loading from a model.
-
-        Specifically, adds the `axis` and `auto_broadcast` to the config.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "axis": self.axis,
-                "auto_broadcast": self.auto_broadcast,
-            }
-        )
-        return config

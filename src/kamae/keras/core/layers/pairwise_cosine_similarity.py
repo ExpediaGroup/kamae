@@ -22,9 +22,9 @@ from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 from kamae.keras.core.utils.ops_utils import l2_normalize
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class PairwiseCosineSimilarityLayer(BaseLayer):
     """
     Computes pairwise cosine similarity between a query embedding and
@@ -37,27 +37,19 @@ class PairwiseCosineSimilarityLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        embedding_dim: int = 32,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.embedding_dim = embedding_dim
+    _compatible_dtypes = [
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+    ]
 
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        return [
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-        ]
+    _params = {
+        "embedding_dim": ParamSpec(
+            default=32,
+            doc="Dimension of each embedding vector",
+        ),
+    }
 
     @enforce_multiple_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
@@ -89,8 +81,3 @@ class PairwiseCosineSimilarityLayer(BaseLayer):
             ops.zeros_like(similarities),
             similarities,
         )
-
-    def get_config(self) -> Dict[str, Any]:
-        config = super().get_config()
-        config.update({"embedding_dim": self.embedding_dim})
-        return config

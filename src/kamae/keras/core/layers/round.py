@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class RoundLayer(BaseLayer):
     """
     Performs a standard rounding operation on the input tensor.
@@ -36,46 +34,22 @@ class RoundLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        round_type: str = "round",
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the RoundLayer layer.
+    _compatible_dtypes = ["float16", "float32", "float64"]
+    _params = {
+        "round_type": ParamSpec(
+            default="round",
+            doc="The type of rounding to perform: 'ceil', 'floor', or 'round'",
+        ),
+    }
 
-        :param round_type: The type of rounding to perform.
-        Supported types are 'ceil', 'floor' and 'round'. Defaults to 'round'.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        if round_type not in ["ceil", "floor", "round"]:
-            raise ValueError("""roundType must be one of 'ceil', 'floor' or 'round'.""")
-        self.round_type = round_type
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["float16", "float32", "float64"]
+    def _post_init(self):
+        if self.round_type not in ["ceil", "floor", "round"]:
+            raise ValueError("roundType must be one of 'ceil', 'floor' or 'round'.")
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the rounding operation on the input tensor.
-
-        Decorated with `@enforce_single_tensor_input` to ensure that the input is a
-        single tensor. Raises an error if multiple tensors are passed in as an iterable.
 
         :param inputs: Input tensor to perform the rounding on.
         :returns: The input tensor with the rounding applied.
@@ -87,17 +61,4 @@ class RoundLayer(BaseLayer):
         elif self.round_type == "round":
             return ops.round(inputs)
         else:
-            raise ValueError("""roundType must be one of 'ceil', 'floor' or 'round'.""")
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the Round layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `round_type` value to the configuration.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"round_type": self.round_type})
-        return config
+            raise ValueError("roundType must be one of 'ceil', 'floor' or 'round'.")

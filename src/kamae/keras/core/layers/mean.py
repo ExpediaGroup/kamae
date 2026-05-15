@@ -13,22 +13,19 @@
 # limitations under the License.
 
 from functools import reduce
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, Union
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class MeanLayer(BaseLayer):
     """
     Performs the mean(x, y) operation on a given input tensor.
-
     If mean_constant is not set, inputs are assumed to be a list of tensors and
     the mean of all the tensors is computed.
     If mean_constant is set, inputs must be a tensor.
@@ -36,66 +33,46 @@ class MeanLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        mean_constant: Optional[float] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the Mean layer
-
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param mean_constant: The constant to mean against the input, defaults
-        to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.mean_constant = mean_constant
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-            "int8",
-            "uint8",
-            "int16",
-            "uint16",
-            "int32",
-            "uint32",
-            "int64",
-            "uint64",
-        ]
+    _compatible_dtypes = [
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+        "int8",
+        "uint8",
+        "int16",
+        "uint16",
+        "int32",
+        "uint32",
+        "int64",
+        "uint64",
+    ]
+    _params = {
+        "mean_constant": ParamSpec(
+            default=None,
+            doc="The constant to mean against the input",
+        ),
+    }
 
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
+        Performs the mean(x, y) operation on either an iterable of input tensors or
+        a single input tensor and a constant.
+
+
         :param inputs: Single tensor or iterable of tensors to perform the
-            mean(x, y) operation on.
+        mean(x, y) operation on.
         :returns: The tensor resulting from the mean(x, y) operation.
         """
         if self.mean_constant is not None:
             if len(inputs) > 1:
-                raise ValueError("If mean_constant is set, inputs must be a tensor")
+                raise ValueError("If mean_constant is set, cannot have multiple inputs")
             (
                 cast_input,
                 cast_mean_constant,
             ) = self._force_cast_to_compatible_numeric_type(
-                inputs[0],
-                self.mean_constant,
+                inputs[0], self.mean_constant
             )
             return ops.true_divide(ops.add(cast_input, cast_mean_constant), 2)
         else:
@@ -103,18 +80,4 @@ class MeanLayer(BaseLayer):
                 raise ValueError(
                     "If mean_constant is not set, must have multiple inputs"
                 )
-
             return ops.true_divide(reduce(ops.add, inputs), len(inputs))
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the Mean layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `mean_constant` to the config dictionary.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"mean_constant": self.mean_constant})
-        return config

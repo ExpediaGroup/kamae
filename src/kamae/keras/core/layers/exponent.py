@@ -11,18 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, Dict, List, Optional
+from typing import Any, Iterable, Union
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class ExponentLayer(BaseLayer):
     """
     Performs the x^exponent operation on a given input tensor.
@@ -30,47 +28,28 @@ class ExponentLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        exponent: Optional[float] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the exponent layer
-
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param exponent: The exponent to raise the input to, defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.exponent = exponent
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "float16",
-            "float32",
-            "float64",
-            "complex64",
-            "complex128",
-        ]
+    _compatible_dtypes = [
+        "float16",
+        "float32",
+        "float64",
+        "complex64",
+        "complex128",
+    ]
+    _params = {
+        "exponent": ParamSpec(
+            default=None,
+            doc="The exponent to raise the input to",
+        ),
+    }
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
+    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
+        Performs the x^exponent operation on a given input tensor.
+
+
         :param inputs: Single tensor or iterable of tensors to perform the x^pow
-            operation on.
+         operation on.
         :returns: The tensor raised to the power of the exponent.
         """
         if self.exponent is not None:
@@ -84,16 +63,3 @@ class ExponentLayer(BaseLayer):
             if not len(inputs) == 2:
                 raise ValueError("If exponent is not set, must have exactly 2 inputs")
             return ops.power(inputs[0], inputs[1])
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the exp layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `exponent` to the config dictionary
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"exponent": self.exponent})
-        return config

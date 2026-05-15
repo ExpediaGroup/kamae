@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, Union
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class ModuloLayer(BaseLayer):
     """
     Performs the modulo(x, y) operation on a given input tensor.
@@ -34,48 +32,23 @@ class ModuloLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        divisor: Optional[float] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the ModuloLayer layer
-
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param divisor: The divisor to modulo the input by, defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.divisor = divisor
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "int8",
-            "int16",
-            "int32",
-            "int64",
-            "uint8",
-            "uint16",
-            "uint32",
-            "uint64",
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-        ]
+    _compatible_dtypes = [
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "uint8",
+        "uint16",
+        "uint32",
+        "uint64",
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+    ]
+    _params = {
+        "divisor": ParamSpec(default=None, doc="The divisor to modulo by"),
+    }
 
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
@@ -83,9 +56,6 @@ class ModuloLayer(BaseLayer):
         Performs the modulo(x, y) operation on either an iterable of input tensors or
         a single input tensor and a constant.
 
-        Decorated with `@allow_single_or_multiple_tensor_input` to ensure that the input
-        is either a single tensor or an iterable of tensors. Returns this result as a
-        list of tensors for easier use here.
 
         :param inputs: Single tensor or iterable of tensors to perform the
         modulo(x, y) operation on.
@@ -102,16 +72,3 @@ class ModuloLayer(BaseLayer):
             if len(inputs) != 2:
                 raise ValueError("If divisor is not set, must have exactly 2 inputs")
             return ops.mod(inputs[0], inputs[1])
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the Modulo layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `divisor` to the config dictionary.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"divisor": self.divisor})
-        return config

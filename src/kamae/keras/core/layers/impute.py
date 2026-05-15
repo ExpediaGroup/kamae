@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import _REQUIRED, ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class ImputeLayer(BaseLayer):
     """
     Performs imputation on the input.
@@ -37,43 +36,23 @@ class ImputeLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        impute_value: Union[float, str, int],
-        mask_value: Union[float, str, int],
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialise the ImputeLayer layer.
+    _compatible_dtypes = None
+    _params = {
+        "impute_value": ParamSpec(
+            default=_REQUIRED,
+            doc="The value to use for imputation",
+        ),
+        "mask_value": ParamSpec(
+            default=_REQUIRED,
+            doc="Value which should be replaced by the impute value at inference",
+        ),
+    }
 
-        :param impute_value: The value to use for imputation.
-        :param mask_value: Value which should be replaced by the
-        impute value at inference.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.impute_value = impute_value
-        self.mask_value = mask_value
+    def _post_init(self):
         if not isinstance(self.mask_value, type(self.impute_value)):
             raise ValueError(
                 "The mask value and impute value must be of the same type."
             )
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return None
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -81,9 +60,6 @@ class ImputeLayer(BaseLayer):
         Performs imputation on the input tensor(s). It imputes over values which
         are equal to the mask_value.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that
-        the input is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input tensor to perform the imputation on.
         :returns: The input tensor with the imputation applied.
@@ -113,19 +89,3 @@ class ImputeLayer(BaseLayer):
         )
 
         return imputed_outputs
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the ImputeLayer layer.
-        Used for saving and loading from a model.
-        Specifically adds additional parameters to the base configuration.
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "impute_value": self.impute_value,
-                "mask_value": self.mask_value,
-            }
-        )
-        return config

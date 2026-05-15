@@ -13,18 +13,15 @@
 # limitations under the License.
 
 from functools import reduce
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterable
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class LogicalOrLayer(BaseLayer):
     """
     Performs the or(x, y) operation on a given input tensor.
@@ -32,41 +29,13 @@ class LogicalOrLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the LogicalOrLayer layer
-
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["bool"]
+    _compatible_dtypes = ["bool"]
 
     @enforce_multiple_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
         """
         Performs the or(x, y) operation on an iterable of input tensors
 
-        Decorated with `@enforce_multiple_tensor_input` to ensure that the input
-        is an iterable of tensors. Raises an error if a single tensor is passed
-        in.
 
         :param inputs: Iterable of tensors to perform the or(x, y) operation on.
         :returns: The tensor resulting from the or(x, y) operation.
@@ -74,13 +43,3 @@ class LogicalOrLayer(BaseLayer):
         if len(inputs) == 1:
             raise ValueError("Expected multiple inputs, but got a single input")
         return reduce(ops.logical_or, inputs)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the LogicalOr layer.
-        Used for saving and loading from a model.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        return config

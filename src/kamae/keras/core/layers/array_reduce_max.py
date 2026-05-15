@@ -21,9 +21,9 @@ import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class ArrayReduceMaxLayer(BaseLayer):
     """
     Reduces the last dimension of a tensor by taking the maximum.
@@ -36,27 +36,19 @@ class ArrayReduceMaxLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        default_value: float = 0.0,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.default_value = default_value
+    _compatible_dtypes = [
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+    ]
 
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        return [
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-        ]
+    _params = {
+        "default_value": ParamSpec(
+            default=0.0,
+            doc="Value to use when result is NaN",
+        ),
+    }
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -66,8 +58,3 @@ class ArrayReduceMaxLayer(BaseLayer):
             ops.cast(self.default_value, dtype=result.dtype),
             result,
         )
-
-    def get_config(self) -> Dict[str, Any]:
-        config = super().get_config()
-        config.update({"default_value": self.default_value})
-        return config

@@ -12,19 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, Union
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import _REQUIRED, ParamSpec
 from kamae.utils import get_condition_operator
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class NumericalIfStatementLayer(BaseLayer):
     """
     Performs a numerical if statement on the input tensor,
@@ -51,51 +49,25 @@ class NumericalIfStatementLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        condition_operator: str,
-        value_to_compare: Optional[float] = None,
-        result_if_true: Optional[float] = None,
-        result_if_false: Optional[float] = None,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the NumericalIfStatementLayer layer.
-
-        :param condition_operator: Operator to use in the if statement. Can be one of:
-            - "eq": Equal to
-            - "neq": Not equal to
-            - "lt": Less than
-            - "leq": Less than or equal to
-            - "gt": Greater than
-            - "geq": Greater than or equal to
-        :param value_to_compare: Float value to compare the input tensor to. If None, we
-        assume it is passed in as an input to the layer.
-        :param result_if_true: Float value to return if the condition is true. If None,
-        we assume it is passed in as an input to the layer.
-        :param result_if_false: Float value to return if the condition is false. If
-        None, we assume it is passed in as an input to the layer.
-        :param name: The name of the layer. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.condition_operator = condition_operator
-        self.value_to_compare = value_to_compare
-        self.result_if_true = result_if_true
-        self.result_if_false = result_if_false
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["bfloat16", "float16", "float32", "float64"]
+    _compatible_dtypes = ["bfloat16", "float16", "float32", "float64"]
+    _params = {
+        "condition_operator": ParamSpec(
+            default=_REQUIRED,
+            doc="Operator to use in the if statement",
+        ),
+        "value_to_compare": ParamSpec(
+            default=None,
+            doc="Float value to compare the input tensor to. If None, passed as input to the layer",
+        ),
+        "result_if_true": ParamSpec(
+            default=None,
+            doc="Float value to return if the condition is true. If None, passed as input to the layer",
+        ),
+        "result_if_false": ParamSpec(
+            default=None,
+            doc="Float value to return if the condition is false. If None, passed as input to the layer",
+        ),
+    }
 
     def _construct_input_tensors(self, inputs: Iterable[Tensor]) -> Iterable[Tensor]:
         """
@@ -144,9 +116,6 @@ class NumericalIfStatementLayer(BaseLayer):
         provided. If the inputs are not a tensor, we assume any not provided are
         provided as inputs to the layer.
 
-        Decorated with `@allow_single_or_multiple_tensor_input` to ensure that the input
-        is either a single tensor or an iterable of tensors. Returns this result as a
-        list of tensors for easier use here.
 
         :param inputs: Tensor or list of tensors.
         :returns: Tensor after computing the numerical if statement.
@@ -185,26 +154,3 @@ class NumericalIfStatementLayer(BaseLayer):
                 input_tensors[3],
             )
             return cond
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the NumericalIfStatement layer.
-
-        Specifically adds the following to the base configuration:
-        - condition_operator
-        - value_to_compare
-        - result_if_true
-        - result_if_false
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "condition_operator": self.condition_operator,
-                "value_to_compare": self.value_to_compare,
-                "result_if_true": self.result_if_true,
-                "result_if_false": self.result_if_false,
-            }
-        )
-        return config

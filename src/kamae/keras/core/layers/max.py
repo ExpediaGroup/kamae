@@ -13,22 +13,19 @@
 # limitations under the License.
 
 from functools import reduce
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, Union
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class MaxLayer(BaseLayer):
     """
     Performs the max(x, y) operation on a given input tensor.
-
     If max_constant is not set, inputs are assumed to be a list of tensors and
     the max of all the tensors is computed.
     If max_constant is set, inputs must be a tensor.
@@ -36,54 +33,36 @@ class MaxLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        max_constant: Optional[float] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the MaxLayer layer
-
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param max_constant: The constant to max against the input, defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.max_constant = max_constant
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-            "int8",
-            "uint8",
-            "int16",
-            "uint16",
-            "int32",
-            "uint32",
-            "int64",
-            "uint64",
-        ]
+    _compatible_dtypes = [
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+        "int8",
+        "uint8",
+        "int16",
+        "uint16",
+        "int32",
+        "uint32",
+        "int64",
+        "uint64",
+    ]
+    _params = {
+        "max_constant": ParamSpec(
+            default=None,
+            doc="The constant to max against the input",
+        ),
+    }
 
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
+        Performs the max(x, y) operation on either an iterable of input tensors or
+        a single input tensor and a constant.
+
+
         :param inputs: Single tensor or iterable of tensors to perform the
-            max(x, y) operation on.
+        max(x, y) operation on.
         :returns: The tensor resulting from the max(x, y) operation.
         """
         if self.max_constant is not None:
@@ -92,26 +71,10 @@ class MaxLayer(BaseLayer):
             cast_input, cast_max_constant = self._force_cast_to_compatible_numeric_type(
                 inputs[0], self.max_constant
             )
-            return ops.maximum(
-                cast_input,
-                cast_max_constant,
-            )
+            return ops.maximum(cast_input, cast_max_constant)
         else:
             if not len(inputs) > 1:
                 raise ValueError(
                     "If max_constant is not set, must have multiple inputs"
                 )
             return reduce(ops.maximum, inputs)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the Max layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `max_constant` to the config dictionary.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"max_constant": self.max_constant})
-        return config

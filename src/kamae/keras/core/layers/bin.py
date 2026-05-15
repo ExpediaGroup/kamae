@@ -12,19 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import _REQUIRED, ParamSpec
 from kamae.utils import get_condition_operator
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class BinLayer(BaseLayer):
     """
     Performs a binning operation on a given input tensor.
@@ -38,72 +36,48 @@ class BinLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        condition_operators: List[str],
-        bin_values: List[float],
-        bin_labels: List[Union[float, int, str]],
-        default_label: Union[float, int, str],
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the BinLayer layer
+    _compatible_dtypes = [
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+        "int8",
+        "uint8",
+        "int16",
+        "uint16",
+        "int32",
+        "uint32",
+        "int64",
+        "uint64",
+    ]
+    _params = {
+        "condition_operators": ParamSpec(
+            default=_REQUIRED,
+            doc="List of operators to use in the if statement (eq, neq, lt, leq, gt, geq)",
+        ),
+        "bin_values": ParamSpec(
+            default=_REQUIRED,
+            doc="List of values to compare the input tensor to",
+        ),
+        "bin_labels": ParamSpec(
+            default=_REQUIRED,
+            doc="List of labels to use for each bin",
+        ),
+        "default_label": ParamSpec(
+            default=_REQUIRED,
+            doc="Label to use if none of the conditions are met",
+        ),
+    }
 
-        :param condition_operators: List of operators to use in the if statement.
-        Can be one of:
-            - "eq": Equal to
-            - "neq": Not equal to
-            - "lt": Less than
-            - "leq": Less than or equal to
-            - "gt": Greater than
-            - "geq": Greater than or equal to
-        :param bin_values: List of values to compare the input tensor to. Must be the
-        same length as condition_operators.
-        :param bin_labels: List of labels to use for each bin. Must be the same length
-        as condition_operators.
-        :param default_label: Label to use if none of the conditions are met.
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        if len(condition_operators) != len(bin_labels) != len(bin_values):
+    def _post_init(self):
+        if len(self.condition_operators) != len(self.bin_labels) or len(
+            self.condition_operators
+        ) != len(self.bin_values):
             raise ValueError(
-                f"""condition_operators, bin_labels and bin_values must be the same
-                length. Got lengths: {len(condition_operators)}, {len(bin_labels)},
-                {len(bin_values)}"""
+                f"condition_operators, bin_labels and bin_values must be the same "
+                f"length. Got lengths: {len(self.condition_operators)}, {len(self.bin_labels)}, "
+                f"{len(self.bin_values)}"
             )
-        self.condition_operators = condition_operators
-        self.bin_values = bin_values
-        self.bin_labels = bin_labels
-        self.default_label = default_label
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-            "int8",
-            "uint8",
-            "int16",
-            "uint16",
-            "int32",
-            "uint32",
-            "int64",
-            "uint64",
-        ]
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -116,9 +90,6 @@ class BinLayer(BaseLayer):
         the condition operators to the input tensor, and returning the label of the
         first bin that the element belongs to.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that the input
-        is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Tensor to perform the binning operation on.
         :returns: The binned input tensor.
@@ -149,21 +120,3 @@ class BinLayer(BaseLayer):
             )
 
         return outputs
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the Bin layer.
-        Used for saving and loading from a model.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "condition_operators": self.condition_operators,
-                "bin_values": self.bin_values,
-                "bin_labels": self.bin_labels,
-                "default_label": self.default_label,
-            }
-        )
-        return config

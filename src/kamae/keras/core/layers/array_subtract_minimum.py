@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import keras
+import numpy as np
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.core.utils.tensor_utils import get_dtype_max
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class ArraySubtractMinimumLayer(BaseLayer):
     """
     Computes the difference across an axis from the minimum non-padded element
@@ -41,53 +41,30 @@ class ArraySubtractMinimumLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        axis: int = -1,
-        pad_value: Optional[Union[int, float]] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the ArraySubtractMinimum layer.
-
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param axis: The axis along which the differences are calculated.
-        Defaults to -1.
-        :param pad_value: The value to be considered as padding. Defaults to `None`.
-        :returns: None
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.axis = axis
-        self.pad_value = pad_value
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-            "uint8",
-            "int8",
-            "uint16",
-            "int16",
-            "int32",
-            "int64",
-            "uint32",
-            "uint64",
-        ]
+    _compatible_dtypes = [
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+        "uint8",
+        "int8",
+        "uint16",
+        "int16",
+        "int32",
+        "int64",
+        "uint32",
+        "uint64",
+    ]
+    _params = {
+        "axis": ParamSpec(
+            default=-1,
+            doc="The axis along which the differences are calculated",
+        ),
+        "pad_value": ParamSpec(
+            default=None,
+            doc="The value to be considered as padding",
+        ),
+    }
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -133,19 +110,3 @@ class ArraySubtractMinimumLayer(BaseLayer):
             inputs, ops.expand_dims(first_non_pad_value, self.axis)
         )
         return ops.where(ops.equal(inputs, pad_tensor), inputs, subtracted_val)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Returns the configuration of the layer.
-        Used for saving and loading from a model.
-
-        :returns: Dictionary of the configuration of the layer
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "pad_value": self.pad_value,
-                "axis": self.axis,
-            }
-        )
-        return config

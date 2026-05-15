@@ -12,19 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterable
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 from kamae.keras.core.utils.ops_utils import l2_normalize
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class CosineSimilarityLayer(BaseLayer):
     """
     Computes the cosine similarity between two input tensors.
@@ -32,47 +30,22 @@ class CosineSimilarityLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        axis: int = -1,
-        keepdims: bool = False,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the CosineSimilarityLayer layer
-
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param axis: The axis along which to compute the cosine similarity. Defaults to
-        `-1`.
-        :param keepdims: Whether to keep the shape of the input tensor. Defaults to
-        `False`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.axis = axis
-        self.keepdims = keepdims
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-            "complex64",
-            "complex128",
-        ]
+    _compatible_dtypes = [
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+        "complex64",
+        "complex128",
+    ]
+    _params = {
+        "axis": ParamSpec(
+            default=-1, doc="The axis along which to compute the cosine similarity"
+        ),
+        "keepdims": ParamSpec(
+            default=False, doc="Whether to keep the shape of the input tensor"
+        ),
+    }
 
     @enforce_multiple_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
@@ -81,11 +54,7 @@ class CosineSimilarityLayer(BaseLayer):
         `True`, the shape is retained. Otherwise, the shape is reduced along the
         specified axis.
 
-        Decorated with @enforce_multiple_tensor_input to ensure that the input
-        is an iterable of tensors. Raises an error if a single tensor is passed.
 
-        After decoration, we check the length of the inputs to ensure we have the right
-        number of input tensors.
 
         :param inputs: List of two tensors to compute the cosine similarity between.
         :returns: The tensor resulting from the cosine similarity.
@@ -98,14 +67,3 @@ class CosineSimilarityLayer(BaseLayer):
         y = l2_normalize(inputs[1], axis=self.axis)
 
         return ops.sum(ops.multiply(x, y), axis=self.axis, keepdims=self.keepdims)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the CosineSimilarity layer.
-        Used for saving and loading from a model.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"axis": self.axis, "keepdims": self.keepdims})
-        return config

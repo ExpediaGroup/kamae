@@ -12,66 +12,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class ArrayCropLayer(BaseLayer):
     """
     Performs a cropping of the input tensor to a certain length.
     If the tensor is shorter than the specified length, it is
     padded with specified pad value.
 
+
     TODO: Currently only supports cropping the final dimension of the tensor.
     """
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Union[str, int, float] = None,
-        output_dtype: Union[str, int, float] = None,
-        array_length: int = 128,
-        pad_value: Union[str, int, float] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the ArrayCropLayer.
+    _compatible_dtypes = None
+    _params = {
+        "array_length": ParamSpec(
+            default=128,
+            doc="The length to crop or pad the arrays to",
+        ),
+        "pad_value": ParamSpec(
+            default=None,
+            doc="The value to pad the arrays with",
+        ),
+    }
 
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param array_length: The length to crop or pad the arrays to. Defaults to 128.
-        :param pad_value: The value to pad the arrays with. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        if array_length < 1:
+    def _post_init(self):
+        if self.array_length < 1:
             raise ValueError("Array length must be greater than 0.")
-        self.array_length = array_length
-
-        if pad_value is None:
+        if self.pad_value is None:
             raise ValueError("Pad value must be provided and not None.")
-        self.pad_value = pad_value
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return None
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -110,16 +89,3 @@ class ArrayCropLayer(BaseLayer):
         new_shape_list.append(self.array_length)
 
         return ops.reshape(padded, new_shape_list)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the ArrayCrop layer.
-        Used for saving and loading from a model.
-
-        Specifically, adds the `array_length` and `pad_value` to the config.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"array_length": self.array_length, "pad_value": self.pad_value})
-        return config

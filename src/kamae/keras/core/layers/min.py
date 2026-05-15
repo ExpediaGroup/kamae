@@ -13,22 +13,19 @@
 # limitations under the License.
 
 from functools import reduce
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, Union
 
-import keras
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class MinLayer(BaseLayer):
     """
     Performs the min(x, y) operation on a given input tensor.
-
     If min_constant is not set, inputs are assumed to be a list of tensors and
     the min of all the tensors is computed.
     If min_constant is set, inputs must be a tensor.
@@ -36,83 +33,48 @@ class MinLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        min_constant: Optional[float] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the MinLayer layer
-
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param min_constant: The constant to min against the input, defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.min_constant = min_constant
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-            "int8",
-            "uint8",
-            "int16",
-            "uint16",
-            "int32",
-            "uint32",
-            "int64",
-            "uint64",
-        ]
+    _compatible_dtypes = [
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+        "int8",
+        "uint8",
+        "int16",
+        "uint16",
+        "int32",
+        "uint32",
+        "int64",
+        "uint64",
+    ]
+    _params = {
+        "min_constant": ParamSpec(
+            default=None,
+            doc="The constant to min against the input",
+        ),
+    }
 
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
         """
+        Performs the min(x, y) operation on either an iterable of input tensors or
+        a single input tensor and a constant.
+
+
         :param inputs: Single tensor or iterable of tensors to perform the
-            min(x, y) operation on.
+        min(x, y) operation on.
         :returns: The tensor resulting from the min(x, y) operation.
         """
         if self.min_constant is not None:
             if len(inputs) > 1:
-                raise ValueError("If min_constant is set, inputs must be a tensor")
+                raise ValueError("If min_constant is set, cannot have multiple inputs")
             cast_input, cast_min_constant = self._force_cast_to_compatible_numeric_type(
                 inputs[0], self.min_constant
             )
-            return ops.minimum(
-                cast_input,
-                cast_min_constant,
-            )
+            return ops.minimum(cast_input, cast_min_constant)
         else:
             if not len(inputs) > 1:
                 raise ValueError(
                     "If min_constant is not set, must have multiple inputs"
                 )
-
             return reduce(ops.minimum, inputs)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the Min layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `min_constant` to the config dictionary.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"min_constant": self.min_constant})
-        return config
