@@ -264,14 +264,14 @@ class TestConditionalStandardScale:
         )
 
     @pytest.mark.parametrize(
-        "example_dataframe_name, input_col, output_col, mean, stddev, expected_dataframe",
+        "example_dataframe_name, input_col, output_col, mean, variance, expected_dataframe",
         [
             (
                 "example_dataframe",
                 "col1_col2_col3",
                 "scaled_features",
                 [2.0, 1.0, 8.0],
-                [3.05, 3.46, 1.73],
+                [9.3025, 11.9716, 2.9929],
                 "cond_standard_scale_expected",
             ),
             (
@@ -279,7 +279,7 @@ class TestConditionalStandardScale:
                 "col1",
                 "col1_scaled",
                 [2.0],
-                [3.05],
+                [9.3025],
                 "cond_standard_scale_w_scalar_input_col1_expected",
             ),
             (
@@ -287,7 +287,7 @@ class TestConditionalStandardScale:
                 "col2",
                 "col2_scaled",
                 [1.0],
-                [3.46],
+                [11.9716],
                 "cond_standard_scale_w_scalar_input_col2_expected",
             ),
             (
@@ -303,7 +303,7 @@ class TestConditionalStandardScale:
                 "col1",
                 "scaled_col1",
                 [2.0, 1.0, 8.0],
-                [3.05, 3.46, 1.73],
+                [9.3025, 11.9716, 2.9929],
                 "cond_standard_scale_expected_nested",
             ),
         ],
@@ -314,7 +314,7 @@ class TestConditionalStandardScale:
         input_col,
         output_col,
         mean,
-        stddev,
+        variance,
         expected_dataframe,
         request,
     ):
@@ -326,7 +326,7 @@ class TestConditionalStandardScale:
             inputCol=input_col,
             outputCol=output_col,
             mean=mean,
-            stddev=stddev,
+            variance=variance,
         )
         actual = standard_scaler_model.transform(df)
         # then
@@ -334,14 +334,14 @@ class TestConditionalStandardScale:
         assert diff.isEmpty(), "Expected and actual dataframes are not equal"
 
     @pytest.mark.parametrize(
-        "input_tensor, input_dtype, output_dtype, mean, stddev, skip_zeros, epsilon",
+        "input_tensor, input_dtype, output_dtype, mean, variance, skip_zeros, epsilon",
         [
             (
                 tf.constant([[1.0, 2.0, 3.0, 4.0, 5.0], [6.0, 7.0, 8.0, 9.0, 10.0]]),
                 None,
                 None,
                 [3.0, 10.0, -1.0, 4.0, 2.0],
-                [2.0, 2.0, 1.0, 3.0, 4.0],
+                [4.0, 4.0, 1.0, 9.0, 16.0],
                 False,
                 0.0,
             ),
@@ -356,7 +356,7 @@ class TestConditionalStandardScale:
                 None,
                 "string",
                 [3.0, 10.0, -1.0, 4.0, 2.0],
-                [2.0, 2.0, 1.0, 3.0, 4.0],
+                [4.0, 4.0, 1.0, 9.0, 16.0],
                 False,
                 0.0,
             ),
@@ -365,7 +365,7 @@ class TestConditionalStandardScale:
                 "double",
                 None,
                 [3.0, -1.0, 4.0, 2.0],
-                [2.0, 2.0, 1.0, 4.0],
+                [4.0, 4.0, 1.0, 16.0],
                 False,
                 0.0,
             ),
@@ -374,7 +374,7 @@ class TestConditionalStandardScale:
                 "float",
                 "double",
                 [3.0, -1.0, 4.0, 2.0],
-                [2.0, 2.0, 1.0, 4.0],
+                [4.0, 4.0, 1.0, 16.0],
                 False,
                 0.0,
             ),
@@ -383,7 +383,7 @@ class TestConditionalStandardScale:
                 None,
                 "string",
                 [-1.0, 4.0, 10.0],
-                [2.0, 4.0, 10.0],
+                [4.0, 16.0, 100.0],
                 False,
                 0.0,
             ),
@@ -392,7 +392,7 @@ class TestConditionalStandardScale:
                 None,
                 None,
                 [-1.0, 4.0, 10.0],
-                [2.0, 4.0, 10.0],
+                [4.0, 16.0, 100.0],
                 True,
                 0.0,
             ),
@@ -401,7 +401,7 @@ class TestConditionalStandardScale:
                 None,
                 None,
                 [-1.0, 4.0, 10.0],
-                [2.0, 4.0, 10.0],
+                [4.0, 16.0, 100.0],
                 True,
                 0.0001,
             ),
@@ -416,7 +416,7 @@ class TestConditionalStandardScale:
         skip_zeros,
         epsilon,
         mean,
-        stddev,
+        variance,
     ):
         # given
         transformer = ConditionalStandardScaleTransformer(
@@ -425,7 +425,7 @@ class TestConditionalStandardScale:
             inputDtype=input_dtype,
             outputDtype=output_dtype,
             mean=mean,
-            stddev=stddev,
+            variance=variance,
             skipZeros=skip_zeros,
             epsilon=epsilon,
         )

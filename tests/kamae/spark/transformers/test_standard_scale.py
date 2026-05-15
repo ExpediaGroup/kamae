@@ -268,14 +268,14 @@ class TestStandardScale:
         )
 
     @pytest.mark.parametrize(
-        "input_dataframe, input_col, output_col, mean, stddev, expected_dataframe",
+        "input_dataframe, input_col, output_col, mean, variance, expected_dataframe",
         [
             (
                 "example_dataframe",
                 "col1_col2_col3",
                 "scaled_features",
                 [2.0, 1.0, 8.0],
-                [3.05, 3.46, 1.73],
+                [9.3025, 11.9716, 2.9929],
                 "standard_scaler_expected",
             ),
             (
@@ -283,7 +283,7 @@ class TestStandardScale:
                 "col1",
                 "col1_scaled",
                 [2.0],
-                [3.05],
+                [9.3025],
                 "standard_scale_w_scalar_input_col1_expected",
             ),
             (
@@ -291,7 +291,7 @@ class TestStandardScale:
                 "col2",
                 "col2_scaled",
                 [1.0],
-                [3.46],
+                [11.9716],
                 "standard_scale_w_scalar_input_col2_expected",
             ),
             (
@@ -299,7 +299,7 @@ class TestStandardScale:
                 "col1",
                 "scaled_col1",
                 [2.0, 1.0, 8.0],
-                [3.05, 3.46, 1.73],
+                [9.3025, 11.9716, 2.9929],
                 "standard_scale_expected_nested",
             ),
         ],
@@ -310,7 +310,7 @@ class TestStandardScale:
         input_col,
         output_col,
         mean,
-        stddev,
+        variance,
         expected_dataframe,
         request,
     ):
@@ -322,7 +322,7 @@ class TestStandardScale:
             inputCol=input_col,
             outputCol=output_col,
             mean=mean,
-            stddev=stddev,
+            variance=variance,
         )
         actual = standard_scaler_model.transform(input_dataframe)
         # then
@@ -330,13 +330,13 @@ class TestStandardScale:
         assert diff.isEmpty(), "Expected and actual dataframes are not equal"
 
     @pytest.mark.parametrize(
-        "input_col, output_col, mean, stddev, expected_dataframe",
+        "input_col, output_col, mean, variance, expected_dataframe",
         [
             (
                 "col4",
                 "scaled_features",
                 [4.8, 4.8, 4.8, 4.8, 4.8],
-                [2.6, 2.6, 2.6, 2.6, 2.6],
+                [6.76, 6.76, 6.76, 6.76, 6.76],
                 "standard_scaler_expected_with_masking",
             ),
         ],
@@ -347,7 +347,7 @@ class TestStandardScale:
         input_col,
         output_col,
         mean,
-        stddev,
+        variance,
         expected_dataframe,
         request,
     ):
@@ -358,7 +358,7 @@ class TestStandardScale:
             inputCol=input_col,
             outputCol=output_col,
             mean=mean,
-            stddev=stddev,
+            variance=variance,
             maskValue=-1,
         )
         actual = standard_scaler_model.transform(example_dataframe_with_padding)
@@ -369,7 +369,7 @@ class TestStandardScale:
     def test_standard_scaler_model_defaults(self):
         # when
         standard_scaler_model = StandardScaleTransformer(
-            mean=[1.0, 2.0, 3.0], stddev=[4.0, 5.0, 6.0]
+            mean=[1.0, 2.0, 3.0], variance=[4.0, 5.0, 6.0]
         )
         # then
         assert standard_scaler_model.getLayerName() == standard_scaler_model.uid
@@ -379,14 +379,14 @@ class TestStandardScale:
         )
 
     @pytest.mark.parametrize(
-        "input_tensor, input_dtype, output_dtype, mean, stddev",
+        "input_tensor, input_dtype, output_dtype, mean, variance",
         [
             (
                 tf.constant([[1.0, 2.0, 3.0, 4.0, 5.0], [6.0, 7.0, 8.0, 9.0, 10.0]]),
                 None,
                 None,
                 [3.0, 10.0, -1.0, 4.0, 2.0],
-                [2.0, 2.0, 1.0, 3.0, 4.0],
+                [4.0, 4.0, 1.0, 9.0, 16.0],
             ),
             (
                 tf.constant(
@@ -399,26 +399,26 @@ class TestStandardScale:
                 "double",
                 "float",
                 [3.0, 10.0, -1.0, 4.0, 2.0],
-                [2.0, 2.0, 1.0, 3.0, 4.0],
+                [4.0, 4.0, 1.0, 9.0, 16.0],
             ),
             (
                 tf.constant([[-1.0, -2.0, 3.0, 5.0], [6.0, -7.0, -9.0, 10.0]]),
                 "float",
                 None,
                 [3.0, -1.0, 4.0, 2.0],
-                [2.0, 2.0, 1.0, 4.0],
+                [4.0, 4.0, 1.0, 16.0],
             ),
             (
                 tf.constant([[1.0, 2.0], [6.0, 10.0]]),
                 "double",
                 "double",
                 [-1.0, 4.0],
-                [2.0, 4.0],
+                [4.0, 16.0],
             ),
         ],
     )
     def test_standard_scaler_spark_tf_parity(
-        self, spark_session, input_tensor, input_dtype, output_dtype, mean, stddev
+        self, spark_session, input_tensor, input_dtype, output_dtype, mean, variance
     ):
         # given
         transformer = StandardScaleTransformer(
@@ -427,7 +427,7 @@ class TestStandardScale:
             inputDtype=input_dtype,
             outputDtype=output_dtype,
             mean=mean,
-            stddev=stddev,
+            variance=variance,
         )
         # when
         spark_df = spark_session.createDataFrame(

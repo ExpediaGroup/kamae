@@ -134,10 +134,10 @@ STANDARD_SCALE_PARAMS = {
         doc="Mean of the feature values.",
         validator=_validate_mean_stddev,
     ),
-    "stddev": ParamSpec(
+    "variance": ParamSpec(
         spark_typeconverter=TypeConverters.toListFloat,
         default=None,
-        doc="Standard deviation of the feature values.",
+        doc="Variance of the feature values.",
         validator=_validate_mean_stddev,
     ),
 }

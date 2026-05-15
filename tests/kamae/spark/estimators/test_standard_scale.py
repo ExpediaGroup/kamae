@@ -21,28 +21,28 @@ from kamae.spark.transformers import StandardScaleTransformer
 
 class TestStandardScale:
     @pytest.mark.parametrize(
-        "input_dataframe, input_col, output_col, expected_mean, expected_stddev",
+        "input_dataframe, input_col, output_col, expected_mean, expected_variance",
         [
             (
                 "example_dataframe",
                 "col1_col2_col3",
                 "scaled_features",
                 [4.0, 4.0, 4.0],
-                [2.449489742783178, 2.8284271247461903, 1.4142135623730951],
+                [6.0, 8.0, 2.0],
             ),
             (
                 "example_dataframe",
                 "col1",
                 "scaled_features",
                 [4.0],
-                [2.449489742783178],
+                [6.0],
             ),
             (
                 "example_dataframe_w_nested_arrays",
                 "col1",
                 "scaled_features",
                 [3.8333333, 1.6666667, 0.5],
-                [2.7028791, 4.6067583, 4.2130749],
+                [7.3055556, 21.2222222, 17.75],
             ),
         ],
     )
@@ -52,7 +52,7 @@ class TestStandardScale:
         input_col,
         output_col,
         expected_mean,
-        expected_stddev,
+        expected_variance,
         request,
     ):
         # when
@@ -63,10 +63,10 @@ class TestStandardScale:
         )
         actual = standard_scaler.fit(input_dataframe)
         # then
-        actual_mean, actual_stddev = actual.getMean(), actual.getStddev()
+        actual_mean, actual_variance = actual.getMean(), actual.getVariance()
         np.testing.assert_almost_equal(np.array(actual_mean), np.array(expected_mean))
         np.testing.assert_almost_equal(
-            np.array(actual_stddev), np.array(expected_stddev)
+            np.array(actual_variance), np.array(expected_variance)
         )
         assert isinstance(actual, StandardScaleTransformer)
         assert actual.getInputCol() == input_col
@@ -74,13 +74,13 @@ class TestStandardScale:
         assert actual.getLayerName() == standard_scaler.uid
 
     @pytest.mark.parametrize(
-        "input_col, output_col, expected_mean, expected_stddev",
+        "input_col, output_col, expected_mean, expected_variance",
         [
             (
                 "col4",
                 "scaled_features",
                 [5.5, 4.333333333333333, 2.0, 9.0, 0.0],
-                [1.5, 2.6246693, 1.0, 0.0, 0.0],
+                [2.25, 6.8888889, 1.0, 0.0, 0.0],
             ),
         ],
     )
@@ -90,7 +90,7 @@ class TestStandardScale:
         input_col,
         output_col,
         expected_mean,
-        expected_stddev,
+        expected_variance,
     ):
         # when
         standard_scaler = StandardScaleEstimator(
@@ -100,10 +100,10 @@ class TestStandardScale:
         )
         actual = standard_scaler.fit(example_dataframe_with_padding)
         # then
-        actual_mean, actual_stddev = actual.getMean(), actual.getStddev()
+        actual_mean, actual_variance = actual.getMean(), actual.getVariance()
         np.testing.assert_almost_equal(np.array(actual_mean), np.array(expected_mean))
         np.testing.assert_almost_equal(
-            np.array(actual_stddev), np.array(expected_stddev)
+            np.array(actual_variance), np.array(expected_variance)
         )
         assert isinstance(actual, StandardScaleTransformer)
         assert actual.getInputCol() == input_col
@@ -111,13 +111,13 @@ class TestStandardScale:
         assert actual.getLayerName() == standard_scaler.uid
 
     @pytest.mark.parametrize(
-        "input_col, output_col, expected_mean, expected_stddev",
+        "input_col, output_col, expected_mean, expected_variance",
         [
             (
                 "col1_col2_col3",
                 "scaled_features",
                 [6.0, 6.0, 4.5],
-                [1.4142135623730951, 2.8284271247461903, 1.5],
+                [2.0, 8.0, 2.25],
             ),
         ],
     )
@@ -127,7 +127,7 @@ class TestStandardScale:
         input_col,
         output_col,
         expected_mean,
-        expected_stddev,
+        expected_variance,
     ):
         # when
         standard_scaler = StandardScaleEstimator(
@@ -136,10 +136,10 @@ class TestStandardScale:
         )
         actual = standard_scaler.fit(example_dataframe_with_nulls)
         # then
-        actual_mean, actual_stddev = actual.getMean(), actual.getStddev()
+        actual_mean, actual_variance = actual.getMean(), actual.getVariance()
         np.testing.assert_almost_equal(np.array(actual_mean), np.array(expected_mean))
         np.testing.assert_almost_equal(
-            np.array(actual_stddev), np.array(expected_stddev)
+            np.array(actual_variance), np.array(expected_variance)
         )
         assert isinstance(actual, StandardScaleTransformer)
         assert actual.getInputCol() == input_col
@@ -178,4 +178,4 @@ class TestStandardScale:
         assert result.getInputCol() == "col1"
         assert result.getOutputCol() == "scaled_features"
         assert all(isinstance(v, float) for v in result.getMean())
-        assert all(isinstance(v, float) for v in result.getStddev())
+        assert all(isinstance(v, float) for v in result.getVariance())

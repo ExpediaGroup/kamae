@@ -86,23 +86,25 @@ class StandardScaleEstimator(
             for i in range(1, array_size + 1)
         ]
 
-        stddev_cols = [
-            F.stddev_pop(
+        variance_cols = [
+            F.var_pop(
                 F.when(
                     F.col(f"element_struct.element_{i}") == F.lit(self.getMaskValue()),
                     F.lit(None),
                 ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"stddev_{i}")
+            ).alias(f"variance_{i}")
             for i in range(1, array_size + 1)
         ]
 
-        metric_cols = mean_cols + stddev_cols
+        metric_cols = mean_cols + variance_cols
 
-        mean_and_stddev_dict = (
+        mean_and_variance_dict = (
             dataset.select(element_struct).agg(*metric_cols).first().asDict()
         )
-        mean = [mean_and_stddev_dict[f"mean_{i}"] for i in range(1, array_size + 1)]
-        stddev = [mean_and_stddev_dict[f"stddev_{i}"] for i in range(1, array_size + 1)]
+        mean = [mean_and_variance_dict[f"mean_{i}"] for i in range(1, array_size + 1)]
+        variance = [
+            mean_and_variance_dict[f"variance_{i}"] for i in range(1, array_size + 1)
+        ]
 
         return StandardScaleTransformer(
             inputCol=self.getInputCol(),
@@ -111,6 +113,6 @@ class StandardScaleEstimator(
             inputDtype=self.getInputDtype(),
             outputDtype=self.getOutputDtype(),
             mean=mean,
-            stddev=stddev,
+            variance=variance,
             maskValue=self.getMaskValue(),
         )

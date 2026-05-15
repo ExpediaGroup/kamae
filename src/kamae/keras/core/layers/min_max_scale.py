@@ -18,15 +18,15 @@ import keras
 import numpy as np
 from keras import ops
 
-import kamae
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.core.utils.ops_utils import divide_no_nan
 from kamae.keras.core.utils.tensor_utils import listify_tensors
+from kamae.params import _REQUIRED, ParamSpec
+from kamae.params.shared_specs import MASK_VALUE_PARAMS
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class MinMaxScaleLayer(BaseLayer):
     """
     Performs a min-max scaling operation on the input tensor(s).
@@ -39,57 +39,36 @@ class MinMaxScaleLayer(BaseLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        min: Union[List[float], np.array],
-        max: Union[List[float], np.array],
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        axis: int = -1,
-        mask_value: Optional[float] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialise the MinMaxScaleLayer layer.
+    _compatible_dtypes = ["bfloat16", "float16", "float32", "float64"]
+    _params = {
+        "min": ParamSpec(
+            default=_REQUIRED,
+            doc="The min value(s) to use during scaling",
+        ),
+        "max": ParamSpec(
+            default=_REQUIRED,
+            doc="The max value(s) to use during scaling",
+        ),
+        "axis": ParamSpec(
+            default=-1,
+            doc="The axis that should have a separate min and max",
+        ),
+        **MASK_VALUE_PARAMS,
+    }
 
-        :param min: The min value(s) to use during scaling.
-        :param max: The max value(s) to use during scaling.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param axis: The axis that should have a separate min and max. For
-        example, if shape is `(None, 5)` and `axis=1`, the layer will track 5
-        separate min and max values for the last axis.
-        :param mask_value: Value which should be ignored during scaling.
-        """
-        super().__init__(
-            name=name,
-            input_dtype=input_dtype,
-            output_dtype=output_dtype,
-            **kwargs,
-        )
+    def _post_init(self):
+        """Standardize axis to tuple format and store input min/max."""
         # Standardize `axis` to a tuple.
-        if axis is None:
-            axis = ()
-        elif isinstance(axis, int):
-            axis = (axis,)
+        if self.axis is None:
+            self.axis = ()
+        elif isinstance(self.axis, int):
+            self.axis = (self.axis,)
         else:
-            axis = tuple(axis)
+            self.axis = tuple(self.axis)
 
-        self.axis = axis
-        self.input_min = min
-        self.input_max = max
-        self.mask_value = mask_value
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["bfloat16", "float16", "float32", "float64"]
+        # Store original min/max for serialization
+        self.input_min = self.min
+        self.input_max = self.max
 
     def build(self, input_shape: Tuple[int]) -> None:
         """
@@ -161,14 +140,8 @@ class MinMaxScaleLayer(BaseLayer):
         """
         config = super().get_config()
         # Ensure min and max are lists for serialization.
-        config.update(
-            {
-                "min": listify_tensors(self.input_min),
-                "max": listify_tensors(self.input_max),
-                "axis": self.axis,
-                "mask_value": self.mask_value,
-            }
-        )
+        config["min"] = listify_tensors(self.input_min)
+        config["max"] = listify_tensors(self.input_max)
         return config
 
     def get_build_config(self) -> Optional[Dict[str, Any]]:
@@ -200,9 +173,6 @@ class MinMaxScaleLayer(BaseLayer):
         """
         Performs normalization on the input tensor(s) to scale it to the range [0, 1]
 
-        Decorated with `@enforce_single_tensor_input` to ensure that
-        the input is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input tensor to perform the normalization on.
         :returns: The input tensor with the normalization applied.

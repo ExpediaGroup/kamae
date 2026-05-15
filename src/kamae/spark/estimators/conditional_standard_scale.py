@@ -144,7 +144,7 @@ class ConditionalStandardScaleEstimator(
         :param n: Number of samples.
         :returns:
             - mean - The mean of the distribution.
-            - stddev - The stddev of the distribution.
+            - variance - The variance of the distribution.
         """
         true_ratio = np.where(n <= 0, 0, f / n)
         variance = np.where(
@@ -153,8 +153,7 @@ class ConditionalStandardScaleEstimator(
             (f * pow(1 - true_ratio, 2) + (n - f) * pow(0 - true_ratio, 2)) / (n - 1),
         )
         mean = 1 - true_ratio
-        stddev = np.sqrt(variance)
-        return mean, stddev
+        return mean, variance
 
     def _validate_mask_ops(self) -> None:
         """
@@ -289,7 +288,7 @@ class ConditionalStandardScaleEstimator(
             fill_val = self.getNanFillValue()
             count = [fill_val if c is None else c for c in count]
             count_ones = [fill_val if c is None else c for c in count_ones]
-        mean, stddev = self._get_binary_moments(np.array(count_ones), np.array(count))
+        mean, variance = self._get_binary_moments(np.array(count_ones), np.array(count))
         return ConditionalStandardScaleTransformer(
             inputCol=self.getInputCol(),
             outputCol=self.getOutputCol(),
@@ -297,7 +296,7 @@ class ConditionalStandardScaleEstimator(
             inputDtype=self.getInputDtype(),
             outputDtype=self.getOutputDtype(),
             mean=mean.tolist(),
-            stddev=stddev.tolist(),
+            variance=variance.tolist(),
             skipZeros=self.getSkipZeros(),
             epsilon=self.getEpsilon(),
         )
@@ -330,8 +329,8 @@ class ConditionalStandardScaleEstimator(
             F.mean(F.col(f"element_struct.element_{i}")).alias(f"mean_{i}")
             for i in range(1, array_size + 1)
         ]
-        stddev_cols = [
-            F.stddev_pop(F.col(f"element_struct.element_{i}")).alias(f"stddev_{i}")
+        variance_cols = [
+            F.var_pop(F.col(f"element_struct.element_{i}")).alias(f"variance_{i}")
             for i in range(1, array_size + 1)
         ]
         # Use relevance column and skip zeros (with epsilon)
@@ -348,15 +347,15 @@ class ConditionalStandardScaleEstimator(
                 ).alias(f"mean_{i}")
                 for i in range(1, array_size + 1)
             ]
-            stddev_cols = [
-                F.stddev_pop(
+            variance_cols = [
+                F.var_pop(
                     F.when(
                         # x != (0 +- eps)
                         (F.abs(F.col(f"element_struct.element_{i}")) > F.lit(eps))
                         & (F.col(self.getRelevanceCol()) > 0),
                         F.col(f"element_struct.element_{i}"),
                     )
-                ).alias(f"stddev_{i}")
+                ).alias(f"variance_{i}")
                 for i in range(1, array_size + 1)
             ]
         # Use relevance column
@@ -370,13 +369,13 @@ class ConditionalStandardScaleEstimator(
                 ).alias(f"mean_{i}")
                 for i in range(1, array_size + 1)
             ]
-            stddev_cols = [
-                F.stddev_pop(
+            variance_cols = [
+                F.var_pop(
                     F.when(
                         (F.col(self.getRelevanceCol()) > 0),
                         F.col(f"element_struct.element_{i}"),
                     )
-                ).alias(f"stddev_{i}")
+                ).alias(f"variance_{i}")
                 for i in range(1, array_size + 1)
             ]
         # Skip zeros on fit (with epsilon)
@@ -392,30 +391,32 @@ class ConditionalStandardScaleEstimator(
                 ).alias(f"mean_{i}")
                 for i in range(1, array_size + 1)
             ]
-            stddev_cols = [
-                F.stddev_pop(
+            variance_cols = [
+                F.var_pop(
                     F.when(
                         # x != (0 +- eps)
                         F.abs(F.col(f"element_struct.element_{i}")) > F.lit(eps),
                         F.col(f"element_struct.element_{i}"),
                     ),
-                ).alias(f"stddev_{i}")
+                ).alias(f"variance_{i}")
                 for i in range(1, array_size + 1)
             ]
         # apply the aggregations
-        metric_cols = mean_cols + stddev_cols
-        mean_and_stddev_dict = (
+        metric_cols = mean_cols + variance_cols
+        mean_and_variance_dict = (
             dataset.withColumn("element_struct", element_struct)
             .agg(*metric_cols)
             .first()
             .asDict()
         )
-        mean = [mean_and_stddev_dict[f"mean_{i}"] for i in range(1, array_size + 1)]
-        stddev = [mean_and_stddev_dict[f"stddev_{i}"] for i in range(1, array_size + 1)]
+        mean = [mean_and_variance_dict[f"mean_{i}"] for i in range(1, array_size + 1)]
+        variance = [
+            mean_and_variance_dict[f"variance_{i}"] for i in range(1, array_size + 1)
+        ]
         if self.getNanFillValue() is not None:
             fill_val = self.getNanFillValue()
             mean = [fill_val if m is None else m for m in mean]
-            stddev = [fill_val if s is None else s for s in stddev]
+            variance = [fill_val if v is None else v for v in variance]
         return ConditionalStandardScaleTransformer(
             inputCol=self.getInputCol(),
             outputCol=self.getOutputCol(),
@@ -423,7 +424,7 @@ class ConditionalStandardScaleEstimator(
             inputDtype=self.getInputDtype(),
             outputDtype=self.getOutputDtype(),
             mean=mean,
-            stddev=stddev,
+            variance=variance,
             skipZeros=self.getSkipZeros(),
             epsilon=self.getEpsilon(),
         )

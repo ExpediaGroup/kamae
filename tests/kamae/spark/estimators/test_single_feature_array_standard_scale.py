@@ -21,21 +21,21 @@ from kamae.spark.transformers import StandardScaleTransformer
 
 class TestSingleFeatureArrayStandardScale:
     @pytest.mark.parametrize(
-        "input_dataframe, input_col, output_col, expected_mean, expected_stddev",
+        "input_dataframe, input_col, output_col, expected_mean, expected_variance",
         [
             (
                 "example_dataframe",
                 "col1_col2_col3",
                 "scaled_features",
                 [4.0, 4.0, 4.0],
-                [2.3094010767585, 2.3094010767585, 2.3094010767585],
+                [5.3333333, 5.3333333, 5.3333333],
             ),
             (
                 "example_dataframe_w_nested_arrays",
                 "col1",
                 "scaled_features",
                 [2, 2, 2],
-                [4.163332, 4.163332, 4.163332],
+                [17.3333333, 17.3333333, 17.3333333],
             ),
         ],
     )
@@ -45,7 +45,7 @@ class TestSingleFeatureArrayStandardScale:
         input_col,
         output_col,
         expected_mean,
-        expected_stddev,
+        expected_variance,
         request,
     ):
         # when
@@ -56,10 +56,10 @@ class TestSingleFeatureArrayStandardScale:
         )
         actual = standard_scaler.fit(input_dataframe)
         # then
-        actual_mean, actual_stddev = actual.getMean(), actual.getStddev()
+        actual_mean, actual_variance = actual.getMean(), actual.getVariance()
         np.testing.assert_almost_equal(np.array(actual_mean), np.array(expected_mean))
         np.testing.assert_almost_equal(
-            np.array(actual_stddev), np.array(expected_stddev)
+            np.array(actual_variance), np.array(expected_variance)
         )
         assert isinstance(actual, StandardScaleTransformer)
         assert actual.getInputCol() == input_col
@@ -67,13 +67,13 @@ class TestSingleFeatureArrayStandardScale:
         assert actual.getLayerName() == standard_scaler.uid
 
     @pytest.mark.parametrize(
-        "input_col, output_col, expected_mean, expected_stddev",
+        "input_col, output_col, expected_mean, expected_variance",
         [
             (
                 "col4",
                 "scaled_features",
                 [4.3636364, 4.3636364, 4.3636364, 4.3636364, 4.3636364],
-                [2.8371794, 2.8371794, 2.8371794, 2.8371794, 2.8371794],
+                [8.0495868, 8.0495868, 8.0495868, 8.0495868, 8.0495868],
             ),
         ],
     )
@@ -83,7 +83,7 @@ class TestSingleFeatureArrayStandardScale:
         input_col,
         output_col,
         expected_mean,
-        expected_stddev,
+        expected_variance,
     ):
         # when
         standard_scaler = SingleFeatureArrayStandardScaleEstimator(
@@ -93,10 +93,10 @@ class TestSingleFeatureArrayStandardScale:
         )
         actual = standard_scaler.fit(example_dataframe_with_padding)
         # then
-        actual_mean, actual_stddev = actual.getMean(), actual.getStddev()
+        actual_mean, actual_variance = actual.getMean(), actual.getVariance()
         np.testing.assert_almost_equal(np.array(actual_mean), np.array(expected_mean))
         np.testing.assert_almost_equal(
-            np.array(actual_stddev), np.array(expected_stddev)
+            np.array(actual_variance), np.array(expected_variance)
         )
         assert isinstance(actual, StandardScaleTransformer)
         assert actual.getInputCol() == input_col
@@ -104,13 +104,13 @@ class TestSingleFeatureArrayStandardScale:
         assert actual.getLayerName() == standard_scaler.uid
 
     @pytest.mark.parametrize(
-        "input_col, output_col, expected_mean, expected_stddev",
+        "input_col, output_col, expected_mean, expected_variance",
         [
             (
                 "col1_col2_col3",
                 "scaled_features",
                 [5.625, 5.625, 5.625],
-                [2.1758619, 2.1758619, 2.1758619],
+                [4.734375, 4.734375, 4.734375],
             ),
         ],
     )
@@ -120,7 +120,7 @@ class TestSingleFeatureArrayStandardScale:
         input_col,
         output_col,
         expected_mean,
-        expected_stddev,
+        expected_variance,
     ):
         # when
         standard_scaler = SingleFeatureArrayStandardScaleEstimator(
@@ -129,10 +129,10 @@ class TestSingleFeatureArrayStandardScale:
         )
         actual = standard_scaler.fit(example_dataframe_with_nulls)
         # then
-        actual_mean, actual_stddev = actual.getMean(), actual.getStddev()
+        actual_mean, actual_variance = actual.getMean(), actual.getVariance()
         np.testing.assert_almost_equal(np.array(actual_mean), np.array(expected_mean))
         np.testing.assert_almost_equal(
-            np.array(actual_stddev), np.array(expected_stddev)
+            np.array(actual_variance), np.array(expected_variance)
         )
         assert isinstance(actual, StandardScaleTransformer)
         assert actual.getInputCol() == input_col
@@ -173,4 +173,4 @@ class TestSingleFeatureArrayStandardScale:
         assert result.getInputCol() == "col1_col2_col3"
         assert result.getOutputCol() == "scaled_features"
         assert all(isinstance(v, float) for v in result.getMean())
-        assert all(isinstance(v, float) for v in result.getStddev())
+        assert all(isinstance(v, float) for v in result.getVariance())

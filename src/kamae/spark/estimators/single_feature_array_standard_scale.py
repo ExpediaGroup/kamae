@@ -86,7 +86,7 @@ class SingleFeatureArrayStandardScaleEstimator(
             column=F.col(self.getInputCol()), column_data_type=input_column_type
         )
 
-        mean_and_stddev_dict: Dict[str, float] = (
+        mean_and_variance_dict: Dict[str, float] = (
             dataset.select(F.explode(flattened_array_col).alias(self.getInputCol()))
             .withColumn(
                 "mask",
@@ -97,14 +97,14 @@ class SingleFeatureArrayStandardScaleEstimator(
             .filter(F.col("mask") == F.lit(0))
             .agg(
                 F.mean(self.getInputCol()).alias("mean"),
-                F.stddev_pop(self.getInputCol()).alias("stddev"),
+                F.var_pop(self.getInputCol()).alias("variance"),
             )
             .first()
             .asDict()
         )
-        mean: List[float] = [mean_and_stddev_dict["mean"] for _ in range(array_size)]
-        stddev: List[float] = [
-            mean_and_stddev_dict["stddev"] for _ in range(array_size)
+        mean: List[float] = [mean_and_variance_dict["mean"] for _ in range(array_size)]
+        variance: List[float] = [
+            mean_and_variance_dict["variance"] for _ in range(array_size)
         ]
 
         return StandardScaleTransformer(
@@ -114,6 +114,6 @@ class SingleFeatureArrayStandardScaleEstimator(
             inputDtype=self.getInputDtype(),
             outputDtype=self.getOutputDtype(),
             mean=mean,
-            stddev=stddev,
+            variance=variance,
             maskValue=self.getMaskValue(),
         )

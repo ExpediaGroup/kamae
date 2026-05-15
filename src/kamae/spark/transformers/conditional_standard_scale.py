@@ -53,8 +53,7 @@ class ConditionalStandardScaleTransformer(
     jit_compatible = True
 
     _compatible_dtypes = [FloatType(), DoubleType()]
-    # Codegen cannot bridge this: Spark uses stddev, Keras uses variance
-    _keras_layer_class = None
+    _keras_layer_class = ConditionalStandardScaleLayer
     _params = {
         **STANDARD_SCALE_PARAMS,
         "skipZeros": ParamSpec(
@@ -93,7 +92,9 @@ class ConditionalStandardScaleTransformer(
             input_datatype = original_input_datatype
 
         shift = F.array([F.lit(m) for m in self.getMean()])
-        scale = F.array([F.lit(1.0 / s if s != 0 else 0.0) for s in self.getStddev()])
+        # Compute scale from variance: scale = 1/sqrt(variance)
+        variance = self.getVariance()
+        scale = F.array([F.lit(1.0 / (v**0.5) if v != 0 else 0.0) for v in variance])
         if self.getSkipZeros():
             eps = self.getEpsilon()
             func = lambda x: F.transform(  # noqa: E731
@@ -117,23 +118,3 @@ class ConditionalStandardScaleTransformer(
         if not isinstance(original_input_datatype, ArrayType):
             output_col = output_col.getItem(0)
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the standard scaler transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter
-         that performs the standardization.
-        """
-        # Overrides codegen: Spark param is stddev but Keras layer requires variance
-        np_mean = np.array(self.getMean())
-        np_variance = np.array(self.getStddev()) ** 2
-        return ConditionalStandardScaleLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            mean=np_mean,
-            variance=np_variance,
-            skip_zeros=self.getSkipZeros(),
-            epsilon=self.getEpsilon(),
-        )
