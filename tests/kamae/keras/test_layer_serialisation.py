@@ -378,7 +378,7 @@ from kamae.keras.tensorflow.layers import (
             {
                 "axis": 1,
                 "top_n": 5,
-                "sort_order": "descending",
+                "sort_order": "desc",
                 "nan_fill_value": 0,
                 "min_filter_value": 0,
             },
@@ -390,7 +390,7 @@ from kamae.keras.tensorflow.layers import (
             {
                 "axis": 1,
                 "top_n": 5,
-                "sort_order": "descending",
+                "sort_order": "desc",
                 "nan_fill_value": 0,
                 "min_filter_value": 0,
             },
@@ -402,7 +402,7 @@ from kamae.keras.tensorflow.layers import (
             {
                 "axis": 1,
                 "top_n": 5,
-                "sort_order": "descending",
+                "sort_order": "desc",
                 "nan_fill_value": 0,
                 "min_filter_value": 0,
             },
@@ -414,7 +414,7 @@ from kamae.keras.tensorflow.layers import (
             {
                 "axis": -1,
                 "top_n": 5,
-                "sort_order": "descending",
+                "sort_order": "desc",
                 "nan_fill_value": 0,
                 "min_filter_value": 0,
             },
@@ -426,7 +426,7 @@ from kamae.keras.tensorflow.layers import (
             {
                 "axis": -1,
                 "top_n": 5,
-                "sort_order": "descending",
+                "sort_order": "desc",
                 "nan_fill_value": 0,
                 "min_filter_value": 0,
             },

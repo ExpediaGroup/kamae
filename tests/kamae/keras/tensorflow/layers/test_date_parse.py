@@ -348,7 +348,7 @@ class TestDateParse:
     )
     def test_failed_date_parse(self, inputs, date_part):
         with pytest.raises(ValueError):
-            x = DateParseLayer(date_part)(inputs)
+            x = DateParseLayer(date_part=date_part)(inputs)
 
     @pytest.mark.parametrize(
         "inputs, input_name, input_dtype, output_dtype",
