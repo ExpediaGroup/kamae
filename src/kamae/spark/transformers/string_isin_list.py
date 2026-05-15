@@ -24,6 +24,7 @@ from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringIsInListLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -41,6 +42,8 @@ class StringIsInListTransformer(
     This transformer performs a string equality operation on the input column over all
     constants in the passed constantStringArray.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     # Overrides codegen: Spark param constantStringArray maps to Keras string_constant_list (name mismatch)

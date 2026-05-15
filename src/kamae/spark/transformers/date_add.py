@@ -29,6 +29,7 @@ from pyspark.sql.types import (
     StringType,
 )
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import DateAddLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import (
@@ -59,6 +60,8 @@ class DateAddTransformer(
 
     WARNING: This transform destroys the time component of the date column.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [
         StringType(),

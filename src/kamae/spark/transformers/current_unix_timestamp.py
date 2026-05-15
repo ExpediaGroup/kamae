@@ -19,6 +19,7 @@
 import pyspark.sql.functions as F
 from pyspark.sql import Column, DataFrame
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import CurrentUnixTimestampLayer
 from kamae.params.shared_specs import UNIX_TIMESTAMP_PARAMS
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -38,6 +39,8 @@ class CurrentUnixTimestampTransformer(BaseTransformer, SingleInputSingleOutputPa
 
     It is recommended not to rely on parity at the millisecond level.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = None
     _keras_layer_class = CurrentUnixTimestampLayer

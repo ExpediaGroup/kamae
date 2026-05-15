@@ -18,10 +18,12 @@
 # pylint: disable=no-member
 from typing import List
 
+import keras
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 from pyspark.sql.types import IntegerType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringIndexLayer
 from kamae.params.shared_specs import STRING_INDEX_PARAMS
 from kamae.spark.params import MultiInputMultiOutputParams
@@ -47,6 +49,8 @@ class SharedStringIndexTransformer(
     This transformer could fail since the hashing algorithm uses cannot accept null
     characters. If you have null characters in your data, you should remove them.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = None  # Custom get_keras_layer due to multi-output

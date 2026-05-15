@@ -22,6 +22,7 @@ import pyspark.sql.functions as F
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import DateDiffLayer
 from kamae.params.shared_specs import DEFAULT_INT_VALUE_PARAMS
 from kamae.spark.params import MultiInputSingleOutputParams
@@ -38,6 +39,8 @@ class DateDiffTransformer(
     DateDiffLayer Spark Transformer for use in Spark pipelines.
     This transformer calculates the difference between two dates.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = DateDiffLayer

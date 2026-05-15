@@ -23,6 +23,7 @@ from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import SubStringDelimAtIndexLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -43,6 +44,8 @@ class SubStringDelimAtIndexTransformer(
     If the index is negative, start counting from the end of the string.
     If the index is out of bounds, the default value is returned.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = SubStringDelimAtIndexLayer

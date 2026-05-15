@@ -18,6 +18,7 @@ import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import ListMedianLayer
 from kamae.params.shared_specs import LISTWISE_FILTER_PARAMS, LISTWISE_PARAMS
 from kamae.spark.params import (
@@ -68,6 +69,8 @@ class ListMedianTransformer(
     """
 
     jit_compatible = True
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [FloatType(), DoubleType()]
     _keras_layer_class = ListMedianLayer

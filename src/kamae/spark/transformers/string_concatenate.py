@@ -25,6 +25,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringConcatenateLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import MultiInputSingleOutputParams
@@ -42,6 +43,8 @@ class StringConcatenateTransformer(
     This transformer takes in multiple columns and concatenates them together into a
     single column using a separator. Input columns must be of type string.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = StringConcatenateLayer

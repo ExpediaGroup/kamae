@@ -20,6 +20,7 @@ import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.params.shared_specs import STRING_INDEX_PARAMS
 from kamae.spark.params import MultiInputMultiOutputParams
 from kamae.spark.transformers import SharedStringIndexTransformer
@@ -39,6 +40,8 @@ class SharedStringIndexEstimator(
     When fit is called it returns a SharedStringIndexerLayerModel which can be used
     to index additional feature columns using the same string labels.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _params = {**STRING_INDEX_PARAMS}

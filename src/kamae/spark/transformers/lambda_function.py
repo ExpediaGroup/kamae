@@ -27,6 +27,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, StructField, StructType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import LambdaFunctionLayer
 from kamae.keras.tensorflow.utils.typing import Tensor
 from kamae.spark.params import (
@@ -137,6 +138,8 @@ class LambdaFunctionTransformer(
     (in Spark), consider composing it from other transformers, that are written in
     native Spark functions.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = None
     _keras_layer_class = None

@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import IfStatementLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import (
@@ -81,6 +82,8 @@ class IfStatementTransformer(
     This transformer computes an if statement between a set of constants
     and columns.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = None
     _keras_layer_class = IfStatementLayer

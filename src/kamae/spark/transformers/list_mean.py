@@ -27,6 +27,7 @@ from pyspark.sql.types import (
     StringType,
 )
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import ListMeanLayer
 from kamae.params.shared_specs import (
     LISTWISE_FILTER_PARAMS,
@@ -90,6 +91,8 @@ class ListMeanTransformer(
     """
 
     jit_compatible = True
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [FloatType(), DoubleType(), StringType()]
     _keras_layer_class = ListMeanLayer

@@ -24,6 +24,7 @@ from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringEqualsIfStatementLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import (
@@ -46,6 +47,8 @@ class StringEqualsIfStatementTransformer(
     This transformer computes an if equal statement between a set of constants
     and columns.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = StringEqualsIfStatementLayer

@@ -23,6 +23,7 @@ from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringReplaceLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import (
@@ -52,6 +53,8 @@ class StringReplaceTransformer(
     the backslash must be double escaped (\\\\) in order to be added properly.
     This is consistent in both spark and tensorflow components.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = StringReplaceLayer

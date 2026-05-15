@@ -22,6 +22,7 @@ import pyspark.sql.functions as F
 from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame, SparkSession
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import CurrentDateLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers.base import BaseTransformer
@@ -32,6 +33,8 @@ class CurrentDateTransformer(BaseTransformer, SingleInputSingleOutputParams):
     """
     Returns the current UTC date in yyyy-MM-dd format.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = None
     _keras_layer_class = CurrentDateLayer

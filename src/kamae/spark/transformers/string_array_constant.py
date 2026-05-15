@@ -21,6 +21,7 @@ import pyspark.sql.functions as F
 from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringArrayConstantLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -37,6 +38,8 @@ class StringArrayConstantTransformer(
     String Array Constant Spark Transformer for use in Spark pipelines.
     This transformer populates a column with a constant string array.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = None
     _keras_layer_class = StringArrayConstantLayer

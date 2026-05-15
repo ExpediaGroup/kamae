@@ -26,6 +26,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringToStringListLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -48,6 +49,8 @@ class StringToStringListTransformer(
     StringToStringListLayer Spark Transformer for use in Spark pipelines.
     This transformer takes a column of string lists and joins them into a single string.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = StringToStringListLayer

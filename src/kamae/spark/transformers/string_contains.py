@@ -23,6 +23,7 @@ from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringContainsLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import (
@@ -47,6 +48,8 @@ class StringContainsTransformer(
     we check if the first input column contains the second.
     Used for cases where you want to keep the input the same.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = StringContainsLayer

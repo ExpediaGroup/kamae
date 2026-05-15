@@ -21,6 +21,7 @@ import tensorflow as tf
 from pyspark.sql import DataFrame
 from pyspark.sql.types import IntegerType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringIndexLayer
 from kamae.params.shared_specs import STRING_INDEX_PARAMS
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -46,6 +47,8 @@ class StringIndexTransformer(
     This transformer could fail since the hashing algorithm uses cannot accept null
     characters. If you have null characters in your data, you should remove them.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = None

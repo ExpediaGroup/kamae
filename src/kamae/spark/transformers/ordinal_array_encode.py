@@ -19,6 +19,7 @@ from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import OrdinalArrayEncodeLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -41,6 +42,8 @@ class OrdinalArrayEncodeTransformer(
     according to the order in which they appear in the array. It will also
     ignore the pad value if specified.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = OrdinalArrayEncodeLayer

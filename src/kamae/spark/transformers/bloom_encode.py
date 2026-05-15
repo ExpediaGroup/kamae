@@ -23,6 +23,7 @@ from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import BloomEncodeLayer
 from kamae.params import ParamSpec
 from kamae.params.shared_specs import MASK_STRING_VALUE_PARAMS
@@ -67,6 +68,8 @@ class BloomEncodeTransformer(
     array of integers of size equal to numHashFns.
     See paper for more details: https://arxiv.org/pdf/1706.03993.pdf
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = BloomEncodeLayer

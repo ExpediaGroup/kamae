@@ -20,6 +20,7 @@ import pyspark.sql.functions as F
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import DateTimeToUnixTimestampLayer
 from kamae.params.shared_specs import UNIX_TIMESTAMP_PARAMS
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -35,6 +36,8 @@ class DateTimeToUnixTimestampTransformer(
 
     The unix timestamp can be in milliseconds or seconds, set by the `unit` parameter.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [StringType()]
     _keras_layer_class = DateTimeToUnixTimestampLayer

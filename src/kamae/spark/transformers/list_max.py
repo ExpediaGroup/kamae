@@ -18,6 +18,7 @@ import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import ListMaxLayer
 from kamae.params.shared_specs import (
     LISTWISE_FILTER_PARAMS,
@@ -81,6 +82,8 @@ class ListMaxTransformer(
     """
 
     jit_compatible = True
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [FloatType(), DoubleType(), StringType()]
     _keras_layer_class = ListMaxLayer

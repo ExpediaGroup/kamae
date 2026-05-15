@@ -20,6 +20,7 @@ import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 from pyspark.sql.types import IntegerType, LongType, ShortType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.params.shared_specs import DROP_UNSEEN_PARAMS, STRING_INDEX_PARAMS
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers import OneHotEncodeTransformer
@@ -39,6 +40,8 @@ class OneHotEncodeEstimator(
     to create one-hot arrays from additional feature columns using the
     same string labels.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [ShortType(), IntegerType(), LongType(), StringType()]
     _params = {**STRING_INDEX_PARAMS, **DROP_UNSEEN_PARAMS}

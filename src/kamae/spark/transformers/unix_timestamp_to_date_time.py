@@ -22,6 +22,7 @@ from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql.types import DoubleType, LongType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import UnixTimestampToDateTimeLayer
 from kamae.params import ParamSpec
 from kamae.params.shared_specs import UNIX_TIMESTAMP_PARAMS
@@ -42,6 +43,8 @@ class UnixTimestampToDateTimeTransformer(
     yyyy-MM-dd HH:mm:ss.SSS format. If set to False, the output will be in
     yyyy-MM-dd format.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [DoubleType(), LongType()]
     _keras_layer_class = UnixTimestampToDateTimeLayer

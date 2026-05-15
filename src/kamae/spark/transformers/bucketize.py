@@ -26,6 +26,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, IntegerType, LongType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import BucketizeLayer
 from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -55,6 +56,8 @@ class BucketizeTransformer(
     """
 
     jit_compatible = True
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [IntegerType(), LongType(), FloatType(), DoubleType()]
     _keras_layer_class = BucketizeLayer

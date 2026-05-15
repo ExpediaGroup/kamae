@@ -31,6 +31,7 @@ from pyspark.sql.types import (
     StringType,
 )
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import OneHotEncodeLayer
 from kamae.params.shared_specs import DROP_UNSEEN_PARAMS, STRING_INDEX_PARAMS
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -56,6 +57,8 @@ class OneHotEncodeTransformer(
     This transformer could fail since the hashing algorithm uses cannot accept null
     characters. If you have null characters in your data, you should remove them.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [ShortType(), IntegerType(), LongType(), StringType()]
     _keras_layer_class = None

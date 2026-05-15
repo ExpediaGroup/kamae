@@ -22,6 +22,7 @@ import pyspark.sql.functions as F
 from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame, SparkSession
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import CurrentDateTimeLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers.base import BaseTransformer
@@ -39,6 +40,8 @@ class CurrentDateTimeTransformer(BaseTransformer, SingleInputSingleOutputParams)
 
     It is recommended not to rely on parity at the millisecond level.
     """
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = None
     _keras_layer_class = CurrentDateTimeLayer

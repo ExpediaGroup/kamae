@@ -25,6 +25,7 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import ListRankLayer
 from kamae.params import ParamSpec
 from kamae.params.shared_specs import LISTWISE_PARAMS, _validate_sort_order
@@ -43,6 +44,8 @@ class ListRankTransformer(
     """
 
     jit_compatible = True
+
+    supported_backends = TENSORFLOW_ONLY
 
     _compatible_dtypes = [
         FloatType(),
