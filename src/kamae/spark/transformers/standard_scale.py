@@ -21,12 +21,14 @@ from typing import List, Optional
 import keras
 import numpy as np
 import pyspark.sql.functions as F
+import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
-from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
+from pyspark.sql.types import ArrayType, DoubleType, FloatType
 
 from kamae.keras.core.layers import StandardScaleLayer
-from kamae.spark.params import SingleInputSingleOutputParams, StandardScaleParams
+from kamae.params.shared_specs import MASK_VALUE_PARAMS, STANDARD_SCALE_PARAMS
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
 
 from .base import BaseTransformer
@@ -34,7 +36,6 @@ from .base import BaseTransformer
 
 class StandardScaleTransformer(
     BaseTransformer,
-    StandardScaleParams,
     SingleInputSingleOutputParams,
 ):
     """
@@ -48,51 +49,13 @@ class StandardScaleTransformer(
 
     jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        mean: Optional[List[float]] = None,
-        stddev: Optional[List[float]] = None,
-        maskValue: Optional[float] = None,
-    ) -> None:
-        """
-        Initializes a StandardScaleTransformer transformer.
-
-        :param inputCol: Input column name to standardize.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model.
-        :param mean: List of mean values corresponding to the input column.
-        :param stddev: List of standard deviation values corresponding to the
-        input column.
-        :param maskValue: Value which should be ignored in the standard scaling process.
-        That is disregarded when calculating the mean and standard deviation and
-        when the scaling is applied.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(maskValue=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [FloatType(), DoubleType()]
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    # Codegen cannot bridge this: Spark uses stddev, Keras uses variance
+    _keras_layer_class = None
+    _params = {
+        **MASK_VALUE_PARAMS,
+        **STANDARD_SCALE_PARAMS,
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -139,6 +102,7 @@ class StandardScaleTransformer(
         :returns: Keras layer with name equal to the layerName parameter
          that performs the standardization.
         """
+        # Overrides codegen: Spark param is stddev but Keras layer requires variance
         np_mean = np.array(self.getMean())
         np_variance = np.array(self.getStddev()) ** 2
         mask_value = self.getMaskValue()

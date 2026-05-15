@@ -16,21 +16,19 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from typing import List
 
 import keras
 import numpy as np
 import pyspark.sql.functions as F
-from pyspark import keyword_only
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
-from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
+from pyspark.sql.types import ArrayType, DoubleType, FloatType
 
 from kamae.keras.core.layers import ConditionalStandardScaleLayer
-from kamae.spark.params import (
-    SingleInputSingleOutputParams,
-    StandardScaleSkipZerosParams,
-)
-from kamae.spark.transformers.standard_scale import StandardScaleParams
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import STANDARD_SCALE_PARAMS
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils.transform_utils import single_input_single_output_array_transform
 
 from .base import BaseTransformer
@@ -38,8 +36,6 @@ from .base import BaseTransformer
 
 class ConditionalStandardScaleTransformer(
     BaseTransformer,
-    StandardScaleParams,
-    StandardScaleSkipZerosParams,
     SingleInputSingleOutputParams,
 ):
     """
@@ -56,56 +52,24 @@ class ConditionalStandardScaleTransformer(
 
     jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        layerName: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        mean: Optional[List[float]] = None,
-        stddev: Optional[List[float]] = None,
-        skipZeros: bool = False,
-        epsilon: float = 0,
-    ) -> None:
-        """
-        Initializes a ConditionalStandardScaleParams transformer.
-        It differs from the default StandardScaleParams in that it gives
-        more control over the standard scaling process by allowing the user
-        to specify a mask to be used during the fit and transform process, and
-        to specify whether to skip zeros during the transform process.
-
-        :param inputCol: Input column name to standardize.
-        :param outputCol: Output column name.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param mean: List of mean values corresponding to the input column.
-        :param stddev: List of standard deviation values corresponding to the
-        input column.
-        :param skipZeros: If True, during spark transform and keras inference,
-        do not apply the scaling when the values to scale are equal to zero.
-        :param epsilon: Small value to add to conditional check of zeros. Valid only
-        when skipZeros is True. Defaults to 0.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(skipZeros=False, epsilon=0)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [FloatType(), DoubleType()]
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    # Codegen cannot bridge this: Spark uses stddev, Keras uses variance
+    _keras_layer_class = None
+    _params = {
+        **STANDARD_SCALE_PARAMS,
+        "skipZeros": ParamSpec(
+            spark_typeconverter=TypeConverters.toBoolean,
+            default=False,
+            doc="If True, during spark transform and keras inference, do not apply "
+            "the scaling when the values to scale are equal to zero.",
+        ),
+        "epsilon": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=0.0,
+            doc="Small value to add to conditional check of zeros. Valid only when "
+            "skipZeros is True.",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -161,6 +125,7 @@ class ConditionalStandardScaleTransformer(
         :returns: Keras layer with name equal to the layerName parameter
          that performs the standardization.
         """
+        # Overrides codegen: Spark param is stddev but Keras layer requires variance
         np_mean = np.array(self.getMean())
         np_variance = np.array(self.getStddev()) ** 2
         return ConditionalStandardScaleLayer(
