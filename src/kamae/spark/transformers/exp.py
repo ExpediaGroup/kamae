@@ -16,13 +16,10 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DataType, DoubleType, FloatType
+from pyspark.sql.types import DoubleType, FloatType
 
 from kamae.keras.core.layers import ExpLayer
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -42,50 +39,10 @@ class ExpTransformer(
 
     jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes an ExpTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [FloatType(), DoubleType()]
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    _keras_layer_class = ExpLayer
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
-        """
-        Transforms the input dataset. Creates a new column with name `outputCol`,
-        which applies exp(`inputCol`).
-
-        :param dataset: Pyspark dataframe to transform.
-        :returns: Transformed pyspark dataframe.
-        """
         input_datatype = self.get_column_datatype(
             dataset=dataset, column_name=self.getInputCol()
         )
@@ -95,16 +52,3 @@ class ExpTransformer(
             func=lambda x: F.exp(x),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the exp value transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs an exp value operation.
-        """
-        return ExpLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-        )

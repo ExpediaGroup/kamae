@@ -16,16 +16,16 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from typing import List
 
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType
 
 from kamae.keras.core.layers import ArrayConcatenateLayer
-from kamae.spark.params import AutoBroadcastParams, MultiInputSingleOutputParams
+from kamae.params import _UNSET, ParamSpec
+from kamae.spark.params import MultiInputSingleOutputParams
 from kamae.spark.utils import (
     broadcast_scalar_column_to_array_with_inner_singleton_array,
     get_array_nesting_level,
@@ -39,7 +39,6 @@ from .base import BaseTransformer
 class ArrayConcatenateTransformer(
     BaseTransformer,
     MultiInputSingleOutputParams,
-    AutoBroadcastParams,
 ):
     """
     ArrayConcatenate Spark Transformer for use in Spark pipelines.
@@ -48,46 +47,15 @@ class ArrayConcatenateTransformer(
 
     jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        autoBroadcast: Optional[bool] = False,
-    ) -> None:
-        """
-        Initialize a ArrayConcatenateTransformer transformer.
-
-        :param inputCols: List of input column names.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param autoBroadcast: If True, the Keras transformer will broadcast scalar
-        inputs to the biggest rank. Default is False.
-        WARNING: This modifies only the Keras layer, not the Spark transformer!
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(autoBroadcast=False)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return None
+    _compatible_dtypes = None
+    _keras_layer_class = ArrayConcatenateLayer
+    _params = {
+        "autoBroadcast": ParamSpec(
+            spark_typeconverter=TypeConverters.toBoolean,
+            default=_UNSET,
+            doc="Whether to enable auto broadcast for the layer.",
+        ),
+    }
 
     @staticmethod
     def array_concatenate_transform(
@@ -276,18 +244,3 @@ class ArrayConcatenateTransformer(
             input_col_datatypes=input_col_datatypes,
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer that concatneates the input tensors.
-
-        :returns: Keras layer with name equal to the layerName parameter
-        that concatenates the input tensors.
-        """
-        return ArrayConcatenateLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            axis=-1,
-            auto_broadcast=self.getAutoBroadcast(),
-        )

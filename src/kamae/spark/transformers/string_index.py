@@ -16,17 +16,14 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
-
 import pyspark.sql.functions as F
 import tensorflow as tf
-from pyspark import keyword_only
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DataType, IntegerType, StringType
+from pyspark.sql.types import IntegerType, StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringIndexLayer
-from kamae.spark.params import SingleInputSingleOutputParams, StringIndexParams
+from kamae.params.shared_specs import STRING_INDEX_PARAMS
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import (
     indexer_udf,
     single_input_single_output_scalar_udf_transform,
@@ -37,7 +34,6 @@ from .base import BaseTransformer
 
 class StringIndexTransformer(
     BaseTransformer,
-    StringIndexParams,
     SingleInputSingleOutputParams,
 ):
     """
@@ -51,57 +47,9 @@ class StringIndexTransformer(
     characters. If you have null characters in your data, you should remove them.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        labelsArray: Optional[List[str]] = None,
-        stringOrderType: Optional[str] = None,
-        maskToken: Optional[str] = None,
-        numOOVIndices: int = 1,
-    ) -> None:
-        """
-        Initializes the StringIndexTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param stringOrderType: How to order the string indices.
-        Options are 'frequencyAsc', 'frequencyDesc', 'alphabeticalAsc',
-        'alphabeticalDesc'.
-        :param maskToken: Token to use for masking.
-        If set, the token will be indexed as 0.
-        :param numOOVIndices: Number of out of vocabulary indices to use.
-        Default is 1.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(
-            stringOrderType="frequencyDesc", numOOVIndices=1, maskToken=None
-        )
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = None
+    _params = {**STRING_INDEX_PARAMS}
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -144,6 +92,7 @@ class StringIndexTransformer(
         :returns: Keras layer with name equal to the layerName parameter
         that performs the indexing.
         """
+        # Spark param is labelsArray but Keras layer expects vocabulary
         return StringIndexLayer(
             name=self.getLayerName(),
             input_dtype=self.getInputKerasDtype(),

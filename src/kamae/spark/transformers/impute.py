@@ -18,128 +18,50 @@
 # pylint: disable=no-member
 from typing import List, Optional, Union
 
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType
 
 from kamae.keras.core.layers import ImputeLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
 
 from .base import BaseTransformer
 
 
-class ImputeParams(Params):
-    """
-    Mixin class used to provide imputation and mask value needed for imputation.
-    """
-
-    jit_compatible = True
-
-    imputeValue = Param(
-        Params._dummy(),
-        "imputeValue",
-        "Value to be imputed.",
-        typeConverter=TypeConverters.identity,
-    )
-
-    maskValue = Param(
-        Params._dummy(),
-        "maskValue",
-        """
-        Value which is to be replaced with the imputation value.
-        Value is ignored when computing the imputation value.
-        """,
-        typeConverter=TypeConverters.identity,
-    )
-
-    def setImputeValue(self, value: Union[float, int, str]) -> "ImputeParams":
-        """
-        Sets the parameter imputeValue to the given scalar value.
-
-        :param value: List of imputeValues values.
-        :returns: Instance of class mixed in.
-        """
-        if value is None:
-            raise ValueError("Impute value cannot be None")
-        return self._set(imputeValue=value)
-
-    def getImputeValue(self) -> Union[float, int, str]:
-        """
-        Gets the imputeValue parameter.
-
-        :returns: String, float or int imputeValue
-        """
-        return self.getOrDefault(self.imputeValue)
-
-    def setMaskValue(self, value: Union[float, int, str]) -> "ImputeParams":
-        """
-        Sets the maskValue parameter.
-
-        :param value: Float value to use as the mask value.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(maskValue=value)
-
-    def getMaskValue(self) -> Union[float, int, str]:
-        """
-        Gets the maskValue parameter.
-        :returns: String, float or int value of the mask value.
-        """
-        return self.getOrDefault(self.maskValue)
+def _validate_impute_value(value: Union[float, int, str]) -> Union[float, int, str]:
+    if value is None:
+        raise ValueError("Impute value cannot be None")
+    return value
 
 
-class ImputeTransformer(BaseTransformer, ImputeParams, SingleInputSingleOutputParams):
+class ImputeTransformer(BaseTransformer, SingleInputSingleOutputParams):
     """
     Imputation transformer for use in Spark pipelines.
     This is used to impute the mean or median value when
     value is null or equalling a mask
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        imputeValue: Optional[Union[float, int, str]] = None,
-        maskValue: Optional[Union[float, int, str]] = None,
-    ) -> None:
-        """
-        Initializes an ImputeTransformer transformer.
+    jit_compatible = True
 
-        :param inputCol: Input column name to impute over.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model.
-        :param imputeValue: String, float or int value to impute in place of mask or
-        nulls.
-        :param maskValue: String, float or int value which should be ignored when
-        computing the imputation statistic and to be replaced by the imputation.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return None
+    _compatible_dtypes = None
+    _keras_layer_class = ImputeLayer
+    _params = {
+        "imputeValue": ParamSpec(
+            spark_typeconverter=TypeConverters.identity,
+            default=None,
+            doc="Value to be imputed.",
+            validator=_validate_impute_value,
+        ),
+        "maskValue": ParamSpec(
+            spark_typeconverter=TypeConverters.identity,
+            default=None,
+            doc="Value which is to be replaced with the imputation value. "
+            "Value is ignored when computing the imputation value.",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -164,20 +86,3 @@ class ImputeTransformer(BaseTransformer, ImputeParams, SingleInputSingleOutputPa
             ).otherwise(x),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the imputation transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter
-         that performs the imputation.
-        """
-        mask_value = self.getMaskValue()
-
-        return ImputeLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            impute_value=self.getImputeValue(),
-            mask_value=mask_value,
-        )

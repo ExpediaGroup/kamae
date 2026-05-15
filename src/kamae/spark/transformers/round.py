@@ -16,62 +16,30 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DataType, DoubleType, FloatType
+from pyspark.sql.types import DoubleType, FloatType
 
 from kamae.keras.core.layers import RoundLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
 
 from .base import BaseTransformer
 
 
-class RoundParams(Params):
-    """
-    Mixin class containing roundType parameter needed for rounding transform layers.
-    """
-
-    jit_compatible = True
-
-    roundType = Param(
-        Params._dummy(),
-        "roundType",
-        "Round type to use in round transform, one of 'floor', 'ceil' or 'round'.",
-        typeConverter=TypeConverters.toString,
-    )
-
-    def setRoundType(self, value: str) -> "RoundParams":
-        """
-        Sets the roundType parameter.
-
-        :param value: Rounding type to use in round transform,
-        one of 'floor', 'ceil' or 'round'.
-        :returns: Instance of class mixed in.
-        """
-        if value not in ["floor", "ceil", "round"]:
-            raise ValueError("roundType must be one of 'floor', 'ceil' or 'round'")
-        return self._set(roundType=value)
-
-    def getRoundType(self) -> str:
-        """
-        Gets the roundType parameter.
-
-        :returns: Rounding type to use in round transform,
-        one of 'floor', 'ceil' or 'round'.
-        """
-        return self.getOrDefault(self.roundType)
+def _validate_round_type(value: str) -> str:
+    """Validator for roundType parameter."""
+    if value not in ["floor", "ceil", "round"]:
+        raise ValueError("roundType must be one of 'floor', 'ceil' or 'round'")
+    return value
 
 
 class RoundTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    RoundParams,
 ):
     """
     Round Spark Transformer for use in Spark pipelines.
@@ -79,54 +47,20 @@ class RoundTransformer(
     specified rounding type.
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        roundType: str = "round",
-    ) -> None:
-        """
-        Initializes an RoundTransformer transformer.
+    jit_compatible = True
 
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param roundType: Rounding type to use in round transform,
-        one of 'floor', 'ceil' or 'round'. Defaults to 'round'.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self._setDefault(roundType="round")
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [FloatType(), DoubleType()]
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    _keras_layer_class = RoundLayer
+    _params = {
+        "roundType": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default="round",
+            doc="Round type to use in round transform, one of 'floor', 'ceil' or 'round'.",
+            validator=_validate_round_type,
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
-        """
-        Transforms the input dataset. Creates a new column with name `outputCol`,
-        which applies the rounding operation to the input column.
-
-        :param dataset: Pyspark dataframe to transform.
-        :returns: Transformed pyspark dataframe.
-        """
         func_dict = {
             "floor": F.floor,
             "ceil": F.ceil,
@@ -142,17 +76,3 @@ class RoundTransformer(
             func=lambda x: func_dict[self.getRoundType()](x),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the round transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a rounding operation.
-        """
-        return RoundLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            round_type=self.getRoundType(),
-        )

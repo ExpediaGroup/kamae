@@ -26,8 +26,8 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, IntegerType, LongType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import BucketizeLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils.transform_utils import (
     single_input_single_output_scalar_udf_transform,
@@ -36,52 +36,14 @@ from kamae.spark.utils.transform_utils import (
 from .base import BaseTransformer
 
 
-class BucketizeParams(Params):
-    """
-    Mixin class containing splits parameter needed for bucketing.
-    """
-
-    jit_compatible = True
-
-    splits = Param(
-        Params._dummy(),
-        "splits",
-        "List of split points for bucketing.",
-        typeConverter=TypeConverters.toListFloat,
-    )
-
-    @staticmethod
-    def check_splits_sorted(splits: List[float]) -> None:
-        """
-        Checks that the splits parameter is sorted.
-
-        :param splits: List of float values to use for bucketing.
-        """
-        if splits is not None and splits != sorted(splits):
-            raise ValueError("`splits` argument must be a sorted list!")
-
-    def setSplits(self, value: List[float]) -> "BucketizeParams":
-        """
-        Sets the splits parameter.
-
-        :param value: List of float values to use for bucketing.
-        :returns: Instance of class mixed in.
-        """
-        self.check_splits_sorted(value)
-        return self._set(splits=value)
-
-    def getSplits(self) -> List[float]:
-        """
-        Gets the splits parameter.
-
-        :returns: List of float values to use for bucketing.
-        """
-        return self.getOrDefault(self.splits)
+def _validate_splits(value: List[float]) -> List[float]:
+    if value is not None and value != sorted(value):
+        raise ValueError("`splits` argument must be a sorted list!")
+    return value
 
 
 class BucketizeTransformer(
     BaseTransformer,
-    BucketizeParams,
     SingleInputSingleOutputParams,
 ):
     """
@@ -92,45 +54,18 @@ class BucketizeTransformer(
     The 0 index is reserved for masking/padding.
     """
 
-    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        splits: Optional[List[float]] = None,
-    ) -> None:
-        """
-        Initializes an BucketizeTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param splits: List of float values to use for bucketing.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [IntegerType(), LongType(), FloatType(), DoubleType()]
+    _compatible_dtypes = [IntegerType(), LongType(), FloatType(), DoubleType()]
+    _keras_layer_class = BucketizeLayer
+    _params = {
+        "splits": ParamSpec(
+            spark_typeconverter=TypeConverters.toListFloat,
+            default=None,
+            doc="List of split points for bucketing.",
+            validator=_validate_splits,
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -163,18 +98,4 @@ class BucketizeTransformer(
         return dataset.withColumn(
             self.getOutputCol(),
             output_col,
-        )
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for the BucketizeLayer transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a bucketing operation.
-        """
-        return BucketizeLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            splits=self.getSplits(),
         )

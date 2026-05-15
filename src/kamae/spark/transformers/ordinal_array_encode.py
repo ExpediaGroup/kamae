@@ -15,14 +15,13 @@
 from typing import List, Optional
 
 import pyspark.sql.functions as F
-import tensorflow as tf
-from pyspark import keyword_only
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import OrdinalArrayEncodeLayer
-from kamae.spark.params import PadValueParams, SingleInputSingleOutputParams
+from kamae.params import ParamSpec
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import (
     ordinal_array_encode_udf,
     single_input_single_output_array_udf_transform,
@@ -34,7 +33,6 @@ from .base import BaseTransformer
 class OrdinalArrayEncodeTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    PadValueParams,
 ):
     """
     Transformer that encodes an array of strings into an array of integers.
@@ -44,46 +42,20 @@ class OrdinalArrayEncodeTransformer(
     ignore the pad value if specified.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        padValue: Optional[str] = None,
-    ) -> None:
-        """
-        Initialises the OrdinalArrayEncodeTransformer
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        :param padValue: The value to be considered as padding. Defaults to `None`.
-        :returns: None
-        """
-        super().__init__()
-        self._setDefault(padValue=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [
-            StringType(),
-        ]
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = OrdinalArrayEncodeLayer
+    _params = {
+        "padValue": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="The value to be considered as padding.",
+        ),
+        "axis": ParamSpec(
+            spark_typeconverter=TypeConverters.toInt,
+            default=-1,
+            doc="The axis along which to encode the array. Defaults to -1.",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -129,19 +101,4 @@ class OrdinalArrayEncodeTransformer(
         return dataset.withColumn(
             self.getOutputCol(),
             output_col,
-        )
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer that performs the ordinal array encoding.
-
-        :returns: Keras layer with name equal to the layerName parameter
-        that performs the ordinal array encoding operation.
-        """
-        return OrdinalArrayEncodeLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            pad_value=self.getPadValue(),
-            axis=-1,
         )

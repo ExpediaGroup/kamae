@@ -25,59 +25,29 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringCaseLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
 
 from .base import BaseTransformer
 
 
-class StringCaseParams(Params):
-    """
-    Mixin class containing stringCaseType parameter needed for string casing transforms.
-    """
-
-    stringCaseType = Param(
-        Params._dummy(),
-        "stringCaseType",
-        "How to change the case of the string.",
-        typeConverter=TypeConverters.toString,
-    )
-
-    def setStringCaseType(self, value: str) -> "StringCaseParams":
-        """
-        Sets the stringCaseType parameter to the given value.
-        Must be one of:
-        - 'upper'
-        - 'lower'
-
-        :param value: String to set the stringCaseType parameter to.
-        :returns: Instance of class mixed in.
-        """
-        possible_order_options = [
-            "upper",
-            "lower",
-        ]
-        if value not in possible_order_options:
-            raise ValueError(
-                f"stringCaseType must be one of {', '.join(possible_order_options)}"
-            )
-        return self._set(stringCaseType=value)
-
-    def getStringCaseType(self) -> str:
-        """
-        Gets the stringCaseType parameter.
-
-        :returns: String value of how to change the case of the string.
-        """
-        return self.getOrDefault(self.stringCaseType)
+def _validate_string_case_type(value: str) -> str:
+    possible_order_options = [
+        "upper",
+        "lower",
+    ]
+    if value not in possible_order_options:
+        raise ValueError(
+            f"stringCaseType must be one of {', '.join(possible_order_options)}"
+        )
+    return value
 
 
 class StringCaseTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    StringCaseParams,
 ):
     """
     StringCaseLayer Spark Transformer for use in Spark pipelines.
@@ -85,49 +55,16 @@ class StringCaseTransformer(
     on the input column.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        stringCaseType: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes an StringCaseTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param stringCaseType: How to change the case of the string. Must be one of:
-        - 'upper'
-        - 'lower'
-        Default is 'lower'.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(stringCaseType="lower")
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = StringCaseLayer
+    _params = {
+        "stringCaseType": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default="lower",
+            doc="How to change the case of the string.",
+            validator=_validate_string_case_type,
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -160,17 +97,3 @@ class StringCaseTransformer(
         )
 
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for the StringCaseLayer transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs the string casing operation.
-        """
-        return StringCaseLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            string_case_type=self.getStringCaseType(),
-        )

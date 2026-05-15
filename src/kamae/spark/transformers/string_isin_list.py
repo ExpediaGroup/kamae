@@ -16,21 +16,17 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from typing import List
 
 import pyspark.sql.functions as F
 import tensorflow as tf
-from pyspark import keyword_only
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
-from pyspark.sql.types import DataType, StringType
+from pyspark.sql.types import StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringIsInListLayer
-from kamae.spark.params import (
-    ConstantStringArrayParams,
-    NegationParams,
-    SingleInputSingleOutputParams,
-)
+from kamae.params import ParamSpec
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
 
 from .base import BaseTransformer
@@ -39,8 +35,6 @@ from .base import BaseTransformer
 class StringIsInListTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    NegationParams,
-    ConstantStringArrayParams,
 ):
     """
     String is in list Spark Transformer for use in Spark pipelines.
@@ -48,49 +42,21 @@ class StringIsInListTransformer(
     constants in the passed constantStringArray.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        constantStringArray: Optional[List[str]] = None,
-        negation: bool = False,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Intializes a StringIsInListTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param constantStringArray: String constant array to use in string isin list
-        operation.
-        :param negation: Whether to negate the string isin list operation.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(negation=False)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    # Overrides codegen: Spark param constantStringArray maps to Keras string_constant_list (name mismatch)
+    _keras_layer_class = None
+    _params = {
+        "constantStringArray": ParamSpec(
+            spark_typeconverter=TypeConverters.toListString,
+            default=None,
+            doc="String constant array to use in string isin list operation.",
+        ),
+        "negation": ParamSpec(
+            spark_typeconverter=TypeConverters.toBoolean,
+            default=False,
+            doc="Whether to negate the string isin list operation.",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """

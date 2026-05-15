@@ -19,15 +19,14 @@
 from typing import List, Optional
 
 import pyspark.sql.functions as F
-import tensorflow as tf
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import BloomEncodeLayer
-from kamae.spark.params import HashIndexParams, SingleInputSingleOutputParams
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import MASK_STRING_VALUE_PARAMS
+from kamae.spark.params import _UNSET, SingleInputSingleOutputParams
 from kamae.spark.utils import (
     hash_udf,
     single_input_single_output_array_udf_transform,
@@ -37,71 +36,66 @@ from kamae.spark.utils import (
 from .base import BaseTransformer
 
 
-class BloomEncodeParams(HashIndexParams):
+def _validate_num_hash_fns(value: int) -> int:
+    """Validate numHashFns parameter."""
+    if value < 2:
+        raise ValueError("numHashFns must be at least 2.")
+    return value
+
+
+def _validate_feature_cardinality(value: int) -> int:
+    """Validate featureCardinality parameter."""
+    if value < 1:
+        raise ValueError("featureCardinality must be greater than 0")
+    return value
+
+
+def _validate_num_bins(value: int) -> int:
+    """Validate numBins parameter."""
+    if value <= 0:
+        raise ValueError("Number of bins must be greater than 0.")
+    return value
+
+
+class BloomEncodeTransformer(
+    BaseTransformer,
+    SingleInputSingleOutputParams,
+):
     """
-    Mixin class containing parameters needed for bloom encoding.
+    Bloom encoder Spark Transformer for use in Spark pipelines.
+    This transformer performs bloom encoding on the input column resulting in an
+    array of integers of size equal to numHashFns.
+    See paper for more details: https://arxiv.org/pdf/1706.03993.pdf
     """
 
-    numHashFns = Param(
-        Params._dummy(),
-        "numHashFns",
-        "Number of hash functions to use for bloom encoding",
-        typeConverter=TypeConverters.toInt,
-    )
-
-    featureCardinality = Param(
-        Params._dummy(),
-        "featureCardinality",
-        "Dimension/cardinality of the feature",
-        typeConverter=TypeConverters.toInt,
-    )
-
-    useHeuristicNumBins = Param(
-        Params._dummy(),
-        "useHeuristicNumBins",
-        "Whether to use te heuristic from the paper to determine the number of bins",
-        typeConverter=TypeConverters.toBoolean,
-    )
-
-    def setNumHashFns(self, value: int) -> "BloomEncodeParams":
-        """
-        Sets the `numHashFns` parameter.
-        """
-        if value < 2:
-            raise ValueError("numHashFns must be at least 2.")
-        return self._set(numHashFns=value)
-
-    def getNumHashFns(self) -> int:
-        """
-        Gets the value of `numHashFns` parameter.
-        """
-        return self.getOrDefault(self.numHashFns)
-
-    def setFeatureCardinality(self, value: int) -> "BloomEncodeParams":
-        """
-        Sets the `featureCardinality` parameter.
-        """
-        if value < 1:
-            raise ValueError("featureCardinality must be greater than 0")
-        return self._set(featureCardinality=value)
-
-    def getFeatureCardinality(self) -> int:
-        """
-        Gets the value of `featureCardinality` parameter.
-        """
-        return self.getOrDefault(self.featureCardinality)
-
-    def setUseHeuristicNumBins(self, value: bool) -> "BloomEncodeParams":
-        """
-        Sets the `useHeuristicNumBins` parameter.
-        """
-        return self._set(useHeuristicNumBins=value)
-
-    def getUseHeuristicNumBins(self) -> bool:
-        """
-        Gets the value of `useHeuristicNumBins` parameter.
-        """
-        return self.getOrDefault(self.useHeuristicNumBins)
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = BloomEncodeLayer
+    _params = {
+        "numHashFns": ParamSpec(
+            spark_typeconverter=TypeConverters.toInt,
+            default=3,
+            doc="Number of hash functions to use for bloom encoding",
+            validator=_validate_num_hash_fns,
+        ),
+        "numBins": ParamSpec(
+            spark_typeconverter=TypeConverters.toInt,
+            default=None,
+            doc="Number of bins to use for hash indexing",
+            validator=_validate_num_bins,
+        ),
+        **MASK_STRING_VALUE_PARAMS,
+        "featureCardinality": ParamSpec(
+            spark_typeconverter=TypeConverters.toInt,
+            default=None,
+            doc="Dimension/cardinality of the feature",
+            validator=_validate_feature_cardinality,
+        ),
+        "useHeuristicNumBins": ParamSpec(
+            spark_typeconverter=TypeConverters.toBoolean,
+            default=False,
+            doc="Whether to use te heuristic from the paper to determine the number of bins",
+        ),
+    }
 
     def getNumBins(self) -> int:
         """
@@ -115,88 +109,6 @@ class BloomEncodeParams(HashIndexParams):
                 parameter must be set."""
             )
         return self.getOrDefault(self.numBins)
-
-
-class BloomEncodeTransformer(
-    BaseTransformer,
-    BloomEncodeParams,
-    SingleInputSingleOutputParams,
-):
-    """
-    Bloom encoder Spark Transformer for use in Spark pipelines.
-    This transformer performs bloom encoding on the input column resulting in an
-    array of integers of size equal to numHashFns.
-    See paper for more details: https://arxiv.org/pdf/1706.03993.pdf
-    """
-
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        numHashFns: int = 3,
-        numBins: Optional[int] = None,
-        maskValue: Optional[str] = None,
-        featureCardinality: Optional[int] = None,
-        useHeuristicNumBins: bool = False,
-    ) -> None:
-        """
-        Instantiates a BloomEncode transformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param numHashFns: Number of hash functions to use. Defaults to 3.
-        The paper suggests a range of 2-4 hash functions for optimal performance.
-        :param numBins: Number of hash bins. Note that this includes the `maskValue`
-        bin, so the effective number of bins is `(num_bins - 1)` if `maskValue`
-        is set. If `useHeuristicNumBins` is set to True, then this parameter is
-        ignored and the number of bins is automatically set. See the description of this
-        parameter below for how the heuristic is built.
-        :param maskValue: A value that represents masked inputs, which are mapped to
-        index 0. Defaults to None, meaning no mask term will be added and the
-        hashing will start at index 0.
-        :param featureCardinality: The cardinality of the input tensor. Needed to
-        use the num of bins heuristic. Defaults to None, meaning the number of bins will
-        not use the heuristic and will need to be set manually.
-        :param useHeuristicNumBins: If set to True, the number of bins is automatically
-        set by fixing the ratio of the feature cardinality to the number of bins
-        to be b/f = 0.2. This ratio was found to be optimal in the paper for a wide
-        variety of usecases. Therefore, numBins = featureCardinality * 0.2. This reduces
-        the cardinality of the input tensor by 5x.
-        Requires the `featureCardinality` parameter to be set. Defaults to False.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self._setDefault(
-            numHashFns=3,
-            numBins=None,
-            maskValue=None,
-            featureCardinality=None,
-            useHeuristicNumBins=False,
-        )
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
 
     def _create_salted_input(self, column_data_type: DataType) -> Column:
         """
@@ -256,21 +168,3 @@ class BloomEncodeTransformer(
             udf_return_element_datatype=IntegerType(),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer that performs the bloom encoding.
-
-        :returns: Keras layer with name equal to the layerName parameter
-        that performs the bloom encoding operation.
-        """
-        return BloomEncodeLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            num_hash_fns=self.getNumHashFns(),
-            num_bins=self.getNumBins(),
-            mask_value=self.getMaskValue(),
-            feature_cardinality=self.getFeatureCardinality(),
-            use_heuristic_num_bins=self.getUseHeuristicNumBins(),
-        )

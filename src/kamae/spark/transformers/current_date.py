@@ -16,15 +16,12 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from typing import Optional
 
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame, SparkSession
-from pyspark.sql.types import DataType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import CurrentDateLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers.base import BaseTransformer
@@ -36,49 +33,19 @@ class CurrentDateTransformer(BaseTransformer, SingleInputSingleOutputParams):
     Returns the current UTC date in yyyy-MM-dd format.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initialises the CurrentDateTransformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-        # TODO: Remove this when we only support PySpark 3.5+. It is only used to get
-        #  the timezone set by the user for datetime operations. In 3.5+ we can use the
-        #  current_timezone() function. Also is there a better way to access this than
-        #  inside a class attribute? Setting it at the top of the file causes issues
-        #  in tests as we import all transformers when the package is loaded.
-        self.spark = SparkSession.builder.getOrCreate()
+    _compatible_dtypes = None
+    _keras_layer_class = CurrentDateLayer
 
     @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
+    def spark(self):
         """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
+        Returns the current Spark session.
 
-        :returns: List of compatible data types for the layer.
+        TODO: Remove this when we only support PySpark 3.5+. It is only used to get
+        the timezone set by the user for datetime operations. In 3.5+ we can use the
+        current_timezone() function.
         """
-        return None
+        return SparkSession.builder.getOrCreate()
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -115,15 +82,3 @@ class CurrentDateTransformer(BaseTransformer, SingleInputSingleOutputParams):
         )
 
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer.
-
-        :returns: CurrentDateLayer Keras layer.
-        """
-        return CurrentDateLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-        )

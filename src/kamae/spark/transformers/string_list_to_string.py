@@ -25,96 +25,33 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringListToStringLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
 
 from .base import BaseTransformer
 
 
-class StringListToStringParams(Params):
-    """
-    Mixin class containing separator parameter needed for
-    string list to string transforms.
-    """
-
-    separator = Param(
-        Params._dummy(),
-        "separator",
-        "Separator to use when joining the string list.",
-        typeConverter=TypeConverters.toString,
-    )
-
-    def getSeparator(self) -> str:
-        """
-        Gets the separator to use when joining the string list.
-
-        :returns: Separator to use when joining the string list.
-        """
-        return self.getOrDefault(self.separator)
-
-    def setSeparator(self, value: str) -> "StringListToStringParams":
-        """
-        Sets the separator to use when joining the string list.
-
-        :param value: Separator to use when joining the string list.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(separator=value)
-
-
 class StringListToStringTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    StringListToStringParams,
 ):
     """
     StringListToStringLayer Spark Transformer for use in Spark pipelines.
     This transformer takes a column of string lists and joins them into a single string.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        separator: str = "",
-    ) -> None:
-        """
-        Initializes an StringListToStringTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param separator: Separator to use when joining the string list.
-        Default is the empty string.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(separator="")
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    # Overrides codegen: Keras layer has axis/keepdims params with no Spark equivalent
+    _keras_layer_class = None
+    _params = {
+        "separator": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default="",
+            doc="Separator to use when joining the string list.",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -148,6 +85,7 @@ class StringListToStringTransformer(
         :returns: Keras layer with name equal to the layerName parameter that
         joins the string list.
         """
+        # Hardcodes axis=-1, keepdims=True to match Spark transform behaviour
         return StringListToStringLayer(
             name=self.getLayerName(),
             input_dtype=self.getInputKerasDtype(),

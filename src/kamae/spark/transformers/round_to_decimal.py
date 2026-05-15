@@ -18,58 +18,30 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
+import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, IntegerType, LongType
 
 from kamae.keras.core.layers import RoundToDecimalLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
 
 from .base import BaseTransformer
 
 
-class RoundToDecimalParams(Params):
-    """
-    Mixin class containing decimals parameter needed for rounding transform layers.
-    """
-
-    jit_compatible = True
-
-    decimals = Param(
-        Params._dummy(),
-        "decimals",
-        "Number of decimals to round to",
-        typeConverter=TypeConverters.toInt,
-    )
-
-    def setDecimals(self, value: int) -> "RoundToDecimalParams":
-        """
-        Sets the decimals parameter.
-
-        :param value: Number of decimals to round to.
-        :returns: Instance of class mixed in.
-        """
-        if value < 0:
-            raise ValueError("decimals must be a non-negative integer")
-        return self._set(decimals=value)
-
-    def getDecimals(self) -> int:
-        """
-        Gets the decimals parameter.
-
-        :returns: Number of decimals to round to.
-        """
-        return self.getOrDefault(self.decimals)
+def _validate_decimals(value: int) -> int:
+    if value < 0:
+        raise ValueError("decimals must be a non-negative integer")
+    return value
 
 
 class RoundToDecimalTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    RoundToDecimalParams,
 ):
     """
     Round Spark Transformer for use in Spark pipelines.
@@ -77,43 +49,18 @@ class RoundToDecimalTransformer(
     specified number of decimals.
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        decimals: Optional[int] = None,
-    ) -> None:
-        """
-        Initializes an RoundTransformer transformer.
+    jit_compatible = True
 
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param decimals: Number of decimals to round to.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [FloatType(), DoubleType(), IntegerType(), LongType()]
+    _compatible_dtypes = [FloatType(), DoubleType(), IntegerType(), LongType()]
+    _keras_layer_class = RoundToDecimalLayer
+    _params = {
+        "decimals": ParamSpec(
+            spark_typeconverter=TypeConverters.toInt,
+            default=1,
+            doc="Number of decimals to round to",
+            validator=_validate_decimals,
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -133,17 +80,3 @@ class RoundToDecimalTransformer(
             func=lambda x: F.round(x, scale=self.getDecimals()),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the round transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a rounding operation.
-        """
-        return RoundToDecimalLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            decimals=self.getDecimals(),
-        )

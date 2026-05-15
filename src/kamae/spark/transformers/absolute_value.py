@@ -16,15 +16,11 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
     ByteType,
-    DataType,
     DoubleType,
     FloatType,
     IntegerType,
@@ -50,48 +46,15 @@ class AbsoluteValueTransformer(
 
     jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes an AbsoluteValueTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [
-            FloatType(),
-            DoubleType(),
-            IntegerType(),
-            LongType(),
-            ShortType(),
-            ByteType(),
-        ]
+    _compatible_dtypes = [
+        FloatType(),
+        DoubleType(),
+        IntegerType(),
+        LongType(),
+        ShortType(),
+        ByteType(),
+    ]
+    _keras_layer_class = AbsoluteValueLayer
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -110,16 +73,3 @@ class AbsoluteValueTransformer(
             func=lambda x: F.abs(x),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the absolute value transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs an absolute value operation.
-        """
-        return AbsoluteValueLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-        )

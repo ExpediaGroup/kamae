@@ -19,51 +19,22 @@
 import math
 from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
 from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
-from pyspark.sql.types import DataType, DoubleType, FloatType
+from pyspark.sql.types import DoubleType, FloatType
 
 from kamae.keras.core.layers import BearingAngleLayer
-from kamae.spark.params import LatLonConstantParams, MultiInputSingleOutputParams
+from kamae.params.shared_specs import LAT_LON_CONSTANT_PARAMS
+from kamae.spark.params import MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_scalar_transform
 
 from .base import BaseTransformer
 
 
-class BearingAngleParams(LatLonConstantParams, MultiInputSingleOutputParams):
-    """
-    Mixin class setting input cols.
-    """
-
-    jit_compatible = True
-
-    def setInputCols(self, value: List[str]) -> "BearingAngleParams":
-        """
-        Overrides setting the input columns for the transformer.
-        Throws an error if we do not have either two or four input columns depending
-        on whether latLonConstant is provided.
-        :param value: List of input columns.
-        :returns: Class instance.
-        """
-        if self.getLatLonConstant() is not None and len(value) != 2:
-            raise ValueError(
-                """When setting inputCols for HaversineDistanceTransformer,
-                if the latLonConstant is not None,
-                there must be exactly two input columns."""
-            )
-        elif len(value) not in [2, 4]:
-            raise ValueError(
-                """When setting inputCols for HaversineDistanceTransformer,
-                there must be either two or four input columns."""
-            )
-        return self._set(inputCols=value)
-
-
 class BearingAngleTransformer(
     BaseTransformer,
-    BearingAngleParams,
+    MultiInputSingleOutputParams,
 ):
     """
     Bearing Angle Calculator Spark Transformer for use in Spark pipelines.
@@ -74,47 +45,34 @@ class BearingAngleTransformer(
     are out of bounds. For lat, this is [-90, 90] and for lon, this is [-180, 180].
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        latLonConstant: Optional[List[float]] = None,
-    ) -> None:
-        """
-        Initializes a BearingAngle transformer.
-        :param inputCols: Input column names. If latLonConstant is provided, then two
-        input columns are required. These must be in the order [lat, lon].
-        If latLonConstant is not provided, then four input columns are required.
-        These must be in the order [lat1, lon1, lat2, lon2].
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param latLonConstant: Optional list of lat/lon constant to use.
-        Must be in the order [lat, lon].
-        If not provided, then four input columns are required.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(latLonConstant=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
+    jit_compatible = True
 
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    _keras_layer_class = BearingAngleLayer
+    _params = {
+        **LAT_LON_CONSTANT_PARAMS,
+    }
+
+    def setInputCols(self, value: List[str]) -> "BearingAngleTransformer":
         """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-        :returns: List of compatible data types for the layer.
+        Overrides setting the input columns for the transformer.
+        Throws an error if we do not have either two or four input columns depending
+        on whether latLonConstant is provided.
+        :param value: List of input columns.
+        :returns: Class instance.
         """
-        return [FloatType(), DoubleType()]
+        if self.getLatLonConstant() is not None and len(value) != 2:
+            raise ValueError(
+                """When setting inputCols for BearingAngleTransformer,
+                if the latLonConstant is not None,
+                there must be exactly two input columns."""
+            )
+        elif len(value) not in [2, 4]:
+            raise ValueError(
+                """When setting inputCols for BearingAngleTransformer,
+                there must be either two or four input columns."""
+            )
+        return self._set(inputCols=value)
 
     @staticmethod
     def validate_lat_lon_column(x: Column, lat: bool = True) -> Column:
@@ -219,16 +177,3 @@ class BearingAngleTransformer(
         )
 
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the bearing angle transformer.
-        :returns: Keras layer with name equal to the layerName parameter that
-         computes the bearing angle between two lat/lon pairs.
-        """
-        return BearingAngleLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            lat_lon_constant=self.getLatLonConstant(),
-        )

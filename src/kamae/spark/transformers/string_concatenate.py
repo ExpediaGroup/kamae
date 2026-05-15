@@ -25,49 +25,17 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringConcatenateLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_scalar_transform
 
 from .base import BaseTransformer
 
 
-class StringConcatenateParams(Params):
-    """
-    Mixin class containing separator parameter needed for string concatenation
-    transforms.
-    """
-
-    separator = Param(
-        Params._dummy(),
-        "separator",
-        "Value to use as a separator when joining the strings.",
-        typeConverter=TypeConverters.toString,
-    )
-
-    def setSeparator(self, value: str) -> "StringConcatenateParams":
-        """
-        Sets the separator parameter.
-
-        :param value: String value to use as a separator when joining the strings.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(separator=value)
-
-    def getSeparator(self) -> str:
-        """
-        Gets the separator parameter.
-
-        :returns: String value to use as a separator when joining the strings.
-        """
-        return self.getOrDefault(self.separator)
-
-
 class StringConcatenateTransformer(
     BaseTransformer,
     MultiInputSingleOutputParams,
-    StringConcatenateParams,
 ):
     """
     String Concatenate Spark Transformer for use in Spark pipelines.
@@ -75,45 +43,15 @@ class StringConcatenateTransformer(
     single column using a separator. Input columns must be of type string.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        separator: str = "_",
-    ) -> None:
-        """
-        Initializes the string concatenate transformer.
-        :param inputCols: columns to concatenate together. Must be of type string.
-        :param outputCol: column to output the concatenated string to.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param separator: String to use as a separator when joining the strings.
-        If not provided, underscore `_` is used.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self._setDefault(separator="_")
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = StringConcatenateLayer
+    _params = {
+        "separator": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default="_",
+            doc="Value to use as a separator when joining the strings.",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -142,17 +80,3 @@ class StringConcatenateTransformer(
             ),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for the concatenate transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a concatenation.
-        """
-        return StringConcatenateLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            separator=self.getSeparator(),
-        )

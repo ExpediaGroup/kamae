@@ -19,53 +19,63 @@
 import math
 from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
 from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
-from pyspark.sql.types import DataType, DoubleType, FloatType
+from pyspark.sql.types import DoubleType, FloatType
 
 from kamae.keras.core.layers import HaversineDistanceLayer
-from kamae.spark.params import LatLonConstantParams, MultiInputSingleOutputParams
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import LAT_LON_CONSTANT_PARAMS
+from kamae.spark.params import MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_scalar_transform
 
 from .base import BaseTransformer
 
 
-class HaversineDistanceParams(LatLonConstantParams, MultiInputSingleOutputParams):
+def _validate_unit(value: str) -> str:
+    """Validates unit parameter."""
+    if value not in ["km", "miles"]:
+        raise ValueError("unit must be either 'km' or 'miles'")
+    return value
+
+
+class HaversineDistanceTransformer(
+    BaseTransformer,
+    MultiInputSingleOutputParams,
+):
     """
-    Mixin class containing unit parameters.
+    Haversine Distance Spark Transformer for use in Spark pipelines.
+    This transformer computes the haversine distance between two lat/lon pairs.
+    This can be between four columns (one for each lat/lon) or between two columns
+    and a constant.
+
+    The transformer will return null distance if any of the lat/lon values
+    are out of bounds. For lat, this is [-90, 90] and for lon, this is [-180, 180].
     """
 
     jit_compatible = True
 
-    unit = Param(
-        Params._dummy(),
-        "unit",
-        """The unit to use for the distance calculation.
-        Must be either "km" or "miles".""",
-        typeConverter=TypeConverters.toString,
-    )
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    _keras_layer_class = HaversineDistanceLayer
+    _params = {
+        **LAT_LON_CONSTANT_PARAMS,
+        "unit": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default="km",
+            doc="""The unit to use for the distance calculation.
+            Must be either "km" or "miles".""",
+            validator=_validate_unit,
+        ),
+    }
 
-    def setUnit(self, value: str) -> "HaversineDistanceParams":
-        """
-        Sets the unit parameter.
-        :param value: The unit to use for the distance calculation.
-        :returns: Instance of class mixed in.
-        """
-        if value not in ["km", "miles"]:
-            raise ValueError("unit must be either 'km' or 'miles'")
-        return self._set(unit=value)
+    @property
+    def earth_radius(self) -> float:
+        """Returns the earth radius in the configured unit."""
+        return 6371.0 if self.getUnit() == "km" else 3958.8
 
-    def getUnit(self) -> str:
-        """
-        Gets the unit parameter.
-        :returns: The unit to use for the distance calculation.
-        """
-        return self.getOrDefault(self.unit)
-
-    def setInputCols(self, value: List[str]) -> "HaversineDistanceParams":
+    def setInputCols(self, value: List[str]) -> "HaversineDistanceTransformer":
         """
         Overrides setting the input columns for the transformer.
         Throws an error if we do not have either two or four input columns depending
@@ -85,69 +95,6 @@ class HaversineDistanceParams(LatLonConstantParams, MultiInputSingleOutputParams
                 there must be either two or four input columns."""
             )
         return self._set(inputCols=value)
-
-
-class HaversineDistanceTransformer(
-    BaseTransformer,
-    HaversineDistanceParams,
-):
-    """
-    Haversine Distance Spark Transformer for use in Spark pipelines.
-    This transformer computes the haversine distance between two lat/lon pairs.
-    This can be between four columns (one for each lat/lon) or between two columns
-    and a constant.
-
-    The transformer will return null distance if any of the lat/lon values
-    are out of bounds. For lat, this is [-90, 90] and for lon, this is [-180, 180].
-    """
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        latLonConstant: Optional[List[float]] = None,
-        unit: str = "km",
-    ) -> None:
-        """
-        Initializes an HaversineDistanceTransformer transformer.
-
-        :param inputCols: Input column names. If latLonConstant is provided, then two
-        input columns are required. These must be in the order [lat, lon].
-        If latLonConstant is not provided, then four input columns are required.
-        These must be in the order [lat1, lon1, lat2, lon2].
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param latLonConstant: Optional list of lat/lon constant to use.
-        Must be in the order [lat, lon].
-        If not provided, then four input columns are required.
-        :param unit: The unit to use for the distance calculation.
-        Must be either "km" or "miles".
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(latLonConstant=None, unit="km")
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-        self.earth_radius = 6371.0 if unit == "km" else 3958.8
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [FloatType(), DoubleType()]
 
     @staticmethod
     def validate_lat_lon_column(x: Column, lat: bool = True) -> Column:
@@ -257,18 +204,3 @@ class HaversineDistanceTransformer(
         )
 
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the haversine distance transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         computes the haversine distance between two lat/lon pairs.
-        """
-        return HaversineDistanceLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            lat_lon_constant=self.getLatLonConstant(),
-            unit=self.getUnit(),
-        )

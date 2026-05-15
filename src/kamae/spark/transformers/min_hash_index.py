@@ -19,15 +19,14 @@
 from typing import List, Optional
 
 import pyspark.sql.functions as F
-import tensorflow as tf
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import MinHashIndexLayer
-from kamae.spark.params import MaskStringValueParams, SingleInputSingleOutputParams
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import MASK_STRING_VALUE_PARAMS
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import (
     min_hash_udf,
     single_input_single_output_array_udf_transform,
@@ -36,42 +35,15 @@ from kamae.spark.utils import (
 from .base import BaseTransformer
 
 
-class MinHashIndexParams(MaskStringValueParams):
-    """
-    Mixin class containing bin parameter needed for the MinHashIndexTransformer.
-    """
-
-    numPermutations = Param(
-        Params._dummy(),
-        "numPermutations",
-        """Number of permutations to perform the min hashing.
-        Will return an array with length equal to this.""",
-        typeConverter=TypeConverters.toInt,
-    )
-
-    def setNumPermutations(self, value: int) -> "MinHashIndexParams":
-        """
-        Sets the numPermutations parameter.
-
-        :param value: Integer value for the number of bins to use for hash indexing.
-        :returns: Instance of class mixed in.
-        """
-        if value <= 0:
-            raise ValueError("Number of permutations must be greater than 0.")
-        return self._set(numPermutations=value)
-
-    def getNumPermutations(self) -> int:
-        """
-        Gets the numPermutations parameter.
-
-        :returns: Integer value for the number of bins to use for hash indexing.
-        """
-        return self.getOrDefault(self.numPermutations)
+def _validate_num_permutations(value: int) -> int:
+    """Validate numPermutations parameter."""
+    if value <= 0:
+        raise ValueError("Number of permutations must be greater than 0.")
+    return value
 
 
 class MinHashIndexTransformer(
     BaseTransformer,
-    MinHashIndexParams,
     SingleInputSingleOutputParams,
 ):
     """
@@ -95,50 +67,17 @@ class MinHashIndexTransformer(
     characters. If you have null characters in your data, you should remove them.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        numPermutations: int = 128,
-        maskValue: Optional[str] = None,
-    ) -> None:
-        """
-        Instantiates a MinHashIndexTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param numPermutations: Number of permutations of your output min hash.
-        Defaults to 128. This is the length of the output array.
-        :param maskValue: Mask value to use when indexing the input column.
-        If set, the mask value will be ignored when computing the min hash.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(numPermutations=128, maskValue=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = MinHashIndexLayer
+    _params = {
+        "numPermutations": ParamSpec(
+            spark_typeconverter=TypeConverters.toInt,
+            default=128,
+            doc="Number of permutations to perform the min hashing. Will return an array with length equal to this.",
+            validator=_validate_num_permutations,
+        ),
+        **MASK_STRING_VALUE_PARAMS,
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -172,19 +111,4 @@ class MinHashIndexTransformer(
         return dataset.withColumn(
             self.getOutputCol(),
             output_col,
-        )
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer that performs the min hash indexing.
-
-        :returns: Keras layer with name equal to the layerName parameter
-        that performs the hash indexing operation.
-        """
-        return MinHashIndexLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            num_permutations=self.getNumPermutations(),
-            mask_value=self.getMaskValue(),
         )

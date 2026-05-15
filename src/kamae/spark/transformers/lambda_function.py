@@ -27,7 +27,6 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, StructField, StructType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import LambdaFunctionLayer
 from kamae.keras.tensorflow.utils.typing import Tensor
 from kamae.spark.params import (
@@ -139,52 +138,16 @@ class LambdaFunctionTransformer(
     native Spark functions.
     """
 
-    supported_backends = TENSORFLOW_ONLY
+    _compatible_dtypes = None
+    _keras_layer_class = None
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        outputCols: Optional[List[str]] = None,
-        function: Optional[
-            Callable[[Union[Tensor, List[Tensor]]], Union[Tensor, List[Tensor]]]
-        ] = None,
-        functionReturnTypes: Optional[List[DataType]] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes an LambdaFunctionTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param inputCols: List of input column names. Used for multiple input columns.
-        inputCols and inputCol cannot be set at the same time.
-        :param outputCol: Output column name.
-        :param outputCols: List of output column names. Used for multiple output
-        columns. outputCols and outputCol cannot be set at the same time.
-        :param function: Lambda function to apply to the input column. If single input,
-        the function should take a single tensor as input and return a single tensor.
-        If multiple input, the function should take a list of tensors as input and
-        return a single tensor.
-        :param functionReturnTypes: Return type(s) of the lambda function. List of
-        Pyspark datatypes. Used to understand the UDF return type in Spark.
-        Keras layer does not use this. E.g. "float", "array<string>" etc. If outputCol
-        is set, this should be a list of length 1. If outputCols is set, this should be
-        a list of the same length as outputCols.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
+    def get_keras_layer(self):
+        return LambdaFunctionLayer(
+            function=self.getFunction(),
+            name=self.getLayerName(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
+        )
 
     def setInputCol(self, value: str) -> "LambdaFunctionTransformer":
         """
@@ -426,18 +389,4 @@ class LambdaFunctionTransformer(
             input_col_names=input_col_names,
             output_col_names=output_col_names,
             function_return_types=function_return_types,
-        )
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for the lambda function transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs the lambda function on the input.
-        """
-        return LambdaFunctionLayer(
-            function=self.getFunction(),
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
         )

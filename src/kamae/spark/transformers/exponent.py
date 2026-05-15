@@ -18,14 +18,15 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
+import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
 from kamae.keras.core.layers import ExponentLayer
+from kamae.params import _UNSET, ParamSpec
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
@@ -35,43 +36,10 @@ from kamae.spark.utils import multi_input_single_output_scalar_transform
 from .base import BaseTransformer
 
 
-class ExponentParams(Params):
-    """
-    Mixin class containing alpha parameter needed for exponent transform layers.
-    """
-
-    jit_compatible = True
-
-    exponent = Param(
-        Params._dummy(),
-        "exponent",
-        "Value to use in exponent transform: x^exponent",
-        typeConverter=TypeConverters.toFloat,
-    )
-
-    def setExponent(self, value: float) -> "ExponentParams":
-        """
-        Sets the exponent parameter.
-
-        :param value: Float value to use in exponent transform: x^exponent.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(exponent=value)
-
-    def getExponent(self) -> float:
-        """
-        Gets the exponent parameter.
-
-        :returns: Float value of exponent used in exponent transform.
-        """
-        return self.getOrDefault(self.exponent)
-
-
 class ExponentTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
     MultiInputSingleOutputParams,
-    ExponentParams,
 ):
     """
     Exponent Spark Transformer for use in Spark pipelines.
@@ -79,39 +47,20 @@ class ExponentTransformer(
     case of two inputs.
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        exponent: Optional[float] = None,
-    ) -> None:
-        """
-        Initializes an ExponentTransformer transformer.
+    jit_compatible = True
 
-        :param inputCol: Input column name. Only used if inputCols is not specified.
-        If specified, we raise this column by the exponent.
-        :param inputCols: Input column names. If provided, we raise the first column by
-        the second column. Must have exactly two columns.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param exponent: Optional exponent/power to raise the input to. If not provided,
-        then two input columns are required.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(exponent=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
+    _compatible_dtypes = [
+        FloatType(),
+        DoubleType(),
+    ]
+    _keras_layer_class = ExponentLayer
+    _params = {
+        "exponent": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=_UNSET,
+            doc="Value to use in exponent transform: x^exponent",
+        ),
+    }
 
     def setInputCols(self, value: List[str]) -> "ExponentTransformer":
         """
@@ -127,19 +76,6 @@ class ExponentTransformer(
                 there must be exactly two input columns."""
             )
         return self._set(inputCols=value)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [
-            FloatType(),
-            DoubleType(),
-        ]
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -172,17 +108,3 @@ class ExponentTransformer(
             func=lambda x: F.pow(x[input_col_names[0]], x[input_col_names[1]]),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the exp value transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs an exp value operation.
-        """
-        return ExponentLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            exponent=self.getExponent(),
-        )

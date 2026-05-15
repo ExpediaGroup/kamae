@@ -16,13 +16,9 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DataType
 
 from kamae.keras.core.layers import IdentityLayer
 from kamae.spark.params import SingleInputSingleOutputParams
@@ -42,41 +38,8 @@ class IdentityTransformer(
 
     jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes an IdentityTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return None
+    _compatible_dtypes = None
+    _keras_layer_class = IdentityLayer
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -87,16 +50,3 @@ class IdentityTransformer(
         :returns: Transformed pyspark dataframe.
         """
         return dataset.withColumn(self.getOutputCol(), F.col(self.getInputCol()))
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the identity transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs an IdentityLayer operation.
-        """
-        return IdentityLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-        )

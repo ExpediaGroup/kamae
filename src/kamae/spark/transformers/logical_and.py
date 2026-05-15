@@ -18,13 +18,11 @@
 # pylint: disable=no-member
 from functools import reduce
 from operator import and_
-from typing import List, Optional
+from typing import List
 
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
 from pyspark.sql import DataFrame
-from pyspark.sql.types import BooleanType, DataType
+from pyspark.sql.types import BooleanType
 
 from kamae.keras.core.layers import LogicalAndLayer
 from kamae.spark.params import MultiInputSingleOutputParams
@@ -44,41 +42,8 @@ class LogicalAndTransformer(
 
     jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes a LogicalAndTransformer transformer.
-
-        :param inputCols: Input column names.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [BooleanType()]
+    _compatible_dtypes = [BooleanType()]
+    _keras_layer_class = LogicalAndLayer
 
     def setInputCols(self, value: List[str]) -> "LogicalAndTransformer":
         """
@@ -113,16 +78,3 @@ class LogicalAndTransformer(
             func=lambda x: reduce(and_, [x[c] for c in input_col_names]),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the logical and transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a logical and operation.
-        """
-        return LogicalAndLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-        )

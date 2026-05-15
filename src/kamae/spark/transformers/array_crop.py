@@ -14,15 +14,15 @@
 
 from typing import List, Optional, Union
 
-import keras
 import pyspark.sql.functions as F
 from pyspark import keyword_only
-from pyspark.ml.param import Param, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import BooleanType, DataType, FloatType, IntegerType, StringType
 
 from kamae.keras.core.layers import ArrayCropLayer
-from kamae.spark.params import PadValueParams, SingleInputSingleOutputParams
+from kamae.params import ParamSpec
+from kamae.spark.params import _UNSET, SingleInputSingleOutputParams
 from kamae.spark.utils import (
     get_array_nesting_level_and_element_dtype,
     single_input_single_output_array_transform,
@@ -31,42 +31,7 @@ from kamae.spark.utils import (
 from .base import BaseTransformer
 
 
-class ArrayCropParams(PadValueParams):
-    """
-    Mixin class containing pad value parameters needed
-    for array crop transformers.
-    """
-
-    jit_compatible = True
-
-    arrayLength = Param(
-        PadValueParams._dummy(),
-        "arrayLength",
-        "The length to crop or pad the arrays to. Defaults to 128.",
-        typeConverter=TypeConverters.toInt,
-    )
-
-    def setArrayLength(self, value: int) -> "ArrayCropParams":
-        """
-        Sets the parameter array length to the given value.
-        :param value: array length.
-        :returns: Instance of class mixed in.
-        """
-        if value < 1:
-            raise ValueError("Array length must be greater than 0.")
-        return self._set(arrayLength=value)
-
-    def getArrayLength(self) -> int:
-        """
-        Gets the array length parameter.
-        :returns: array length.
-        """
-        return self.getOrDefault(self.arrayLength)
-
-
-class ArrayCropTransformer(
-    BaseTransformer, SingleInputSingleOutputParams, ArrayCropParams
-):
+class ArrayCropTransformer(BaseTransformer, SingleInputSingleOutputParams):
     """
     Transformer that reshapes arrays into consistent shapes by
     either cropping or padding.
@@ -75,39 +40,36 @@ class ArrayCropTransformer(
     padded with specified pad value.
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[Union[str, int, float]] = None,
-        outputDtype: Optional[Union[str, int, float]] = None,
-        layerName: Optional[str] = None,
-        arrayLength: Optional[int] = 128,
-        padValue: Optional[Union[str, int, float]] = None,
-    ) -> None:
-        """
-        Initialises the ArrayCropTransformer
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        :param arrayLength: The length to crop or pad the arrays to. Defaults to 128.
-        :param padValue: The value pad the arrays with. Defaults to `None`.
-        :returns: None
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-        self._pad_type_to_valid_element_types = {
-            "int": ["int", "bigint", "smallint"],
-            "float": ["float", "double", "decimal(10,0)"],
-            "string": ["string"],
-            "boolean": ["boolean"],
-        }
+    jit_compatible = True
+
+    _compatible_dtypes = None
+    _keras_layer_class = ArrayCropLayer
+    _params = {
+        "arrayLength": ParamSpec(
+            spark_typeconverter=TypeConverters.toInt,
+            default=128,
+            doc="The length to crop or pad the arrays to. Defaults to 128.",
+            validator=lambda self, value: (
+                value
+                if value >= 1
+                else (_ for _ in ()).throw(
+                    ValueError("Array length must be greater than 0.")
+                )
+            ),
+        ),
+        "padValue": ParamSpec(
+            spark_typeconverter=TypeConverters.identity,
+            default=None,
+            doc="The value pad the arrays with. Defaults to `None`.",
+        ),
+    }
+
+    _pad_type_to_valid_element_types = {
+        "int": ["int", "bigint", "smallint"],
+        "float": ["float", "double", "decimal(10,0)"],
+        "string": ["string"],
+        "boolean": ["boolean"],
+    }
 
     @staticmethod
     def _get_pad_value_type(
@@ -122,16 +84,6 @@ class ArrayCropTransformer(
         if isinstance(pad_value, bool):
             return BooleanType()
         raise TypeError(f"Unsupported pad value type: {type(pad_value)}")
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return None
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -202,18 +154,3 @@ class ArrayCropTransformer(
             ),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer that performs the array cropping and padding.
-
-        :returns: Keras layer with name equal to the layerName parameter
-        that performs the array cropping and padding operation.
-        """
-        return ArrayCropLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            array_length=self.getArrayLength(),
-            pad_value=self.getPadValue(),
-        )

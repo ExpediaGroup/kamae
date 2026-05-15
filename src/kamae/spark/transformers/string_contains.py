@@ -16,21 +16,18 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from typing import List
 
 import pyspark.sql.functions as F
-import tensorflow as tf
-from pyspark import keyword_only
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
-from pyspark.sql.types import DataType, StringType
+from pyspark.sql.types import StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringContainsLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
-    NegationParams,
     SingleInputSingleOutputParams,
-    StringConstantParams,
 )
 from kamae.spark.utils import multi_input_single_output_scalar_transform
 
@@ -41,8 +38,6 @@ class StringContainsTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
     MultiInputSingleOutputParams,
-    NegationParams,
-    StringConstantParams,
 ):
     """
     String contains Spark Transformer for use in Spark pipelines.
@@ -53,52 +48,21 @@ class StringContainsTransformer(
     Used for cases where you want to keep the input the same.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        stringConstant: Optional[str] = None,
-        negation: bool = False,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes an StringContainsTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param inputCols: List of input column names.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param stringConstant: String constant to use in string contains
-        operation.
-        Only used in single input scenario.
-        :param negation: Whether to negate the string contains operation.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(negation=False, stringConstant=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = StringContainsLayer
+    _params = {
+        "stringConstant": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="String constant to use in string contains operation. "
+            "Only used in single input scenario.",
+        ),
+        "negation": ParamSpec(
+            spark_typeconverter=TypeConverters.toBoolean,
+            default=False,
+            doc="Whether to negate the string contains operation.",
+        ),
+    }
 
     def setInputCols(self, value: List[str]) -> "StringContainsTransformer":
         """
@@ -151,18 +115,3 @@ class StringContainsTransformer(
             func=lambda x: string_contains(x, input_col_names, self.getNegation()),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for the StringContainsLayer transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a string contains operation.
-        """
-        return StringContainsLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            negation=self.getNegation(),
-            string_constant=self.getStringConstant(),
-        )

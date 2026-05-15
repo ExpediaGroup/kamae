@@ -18,14 +18,14 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
 from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
-from pyspark.sql.types import DataType, DoubleType, FloatType
+from pyspark.sql.types import DoubleType, FloatType
 
 from kamae.keras.core.layers import NumericalIfStatementLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
@@ -36,126 +36,14 @@ from kamae.utils import get_condition_operator
 from .base import BaseTransformer
 
 
-class NumericalIfStatementParams(Params):
-    """
-    Mixin class containing parameters needed for NumericalIfStatementTransformer
-    transform layers.
-    """
-
-    jit_compatible = True
-
-    conditionOperator = Param(
-        Params._dummy(),
-        "conditionOperator",
-        "Operator to use in condition: eq, neq, lt, gt, leq, geq",
-        typeConverter=TypeConverters.toString,
-    )
-
-    valueToCompare = Param(
-        Params._dummy(),
-        "valueToCompare",
-        "Float value to compare to input column",
-        typeConverter=TypeConverters.toFloat,
-    )
-
-    resultIfTrue = Param(
-        Params._dummy(),
-        "resultIfTrue",
-        "Float value to return if condition is true",
-        typeConverter=TypeConverters.toFloat,
-    )
-
-    resultIfFalse = Param(
-        Params._dummy(),
-        "resultIfFalse",
-        "Float value to return if condition is false",
-        typeConverter=TypeConverters.toFloat,
-    )
-
-    def setConditionOperator(self, value: str) -> "NumericalIfStatementParams":
-        """
-        Sets the conditionOperator parameter.
-
-        :param value: String value describing the operator to use in condition:
-        - eq
-        - neq
-        - lt
-        - gt
-        - leq
-        - geq
-        :returns: Instance of class mixed in.
-        """
-        allowed_operators = ["eq", "neq", "lt", "gt", "leq", "geq"]
-        if value not in allowed_operators:
-            raise ValueError(
-                f"conditionOperator must be one of {allowed_operators}, but got {value}"
-            )
-        return self._set(conditionOperator=value)
-
-    def setResultIfTrue(self, value: float) -> "NumericalIfStatementParams":
-        """
-        Sets the resultIfTrue parameter.
-
-        :param value: Float value to return if condition is true.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(resultIfTrue=value)
-
-    def setResultIfFalse(self, value: float) -> "NumericalIfStatementParams":
-        """
-        Sets the resultIfFalse parameter.
-
-        :param value: Float value to return if condition is false.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(resultIfFalse=value)
-
-    def setValueToCompare(self, value: float) -> "NumericalIfStatementParams":
-        """
-        Sets the valueToCompare parameter.
-
-        :param value: Float value to compare to input column.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(valueToCompare=value)
-
-    def getConditionOperator(self) -> str:
-        """
-        Gets the conditionOperator parameter.
-
-        :returns: String value describing the operator to use in condition:
-        - eq
-        - neq
-        - lt
-        - gt
-        - leq
-        - geq
-        """
-        return self.getOrDefault(self.conditionOperator)
-
-    def getValueToCompare(self) -> float:
-        """
-        Gets the valueToCompare parameter.
-
-        :returns: Float value to compare to input column.
-        """
-        return self.getOrDefault(self.valueToCompare)
-
-    def getResultIfTrue(self) -> float:
-        """
-        Gets the resultIfTrue parameter.
-
-        :returns: Float value to return if condition is true.
-        """
-        return self.getOrDefault(self.resultIfTrue)
-
-    def getResultIfFalse(self) -> float:
-        """
-        Gets the resultIfFalse parameter.
-
-        :returns: Float value to return if condition is false.
-        """
-        return self.getOrDefault(self.resultIfFalse)
+def _validate_condition_operator(value: str) -> str:
+    """Validates conditionOperator parameter."""
+    allowed_operators = ["eq", "neq", "lt", "gt", "leq", "geq"]
+    if value not in allowed_operators:
+        raise ValueError(
+            f"conditionOperator must be one of {allowed_operators}, but got {value}"
+        )
+    return value
 
 
 # TODO: Deprecate this in favor of IfStatementTransformer in next major release.
@@ -163,7 +51,6 @@ class NumericalIfStatementTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
     MultiInputSingleOutputParams,
-    NumericalIfStatementParams,
 ):
     """
     NumericalIfStatement Spark Transformer for use in Spark pipelines.
@@ -171,63 +58,33 @@ class NumericalIfStatementTransformer(
     and columns.
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        conditionOperator: Optional[str] = None,
-        valueToCompare: Optional[float] = None,
-        resultIfTrue: Optional[float] = None,
-        resultIfFalse: Optional[float] = None,
-    ) -> None:
-        """
-        Initializes a NumericalIfStatementTransformer transformer.
+    jit_compatible = True
 
-        :param inputCol: Input column name. Only used if inputCols is not specified.
-        If specified, then all other aspects of the if statement are constant.
-        :param inputCols: Input column names. List of input columns to in the case
-        where the if statement is not constant. Must be specified in the order
-        [valueToCompare, resultIfTrue, resultIfFalse].
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param conditionOperator: Operator to use in condition:
-        eq, neq, lt, gt, leq, geq.
-        :param valueToCompare: Optional float value to compare to input column.
-        If not specified, then assumed to be the first input column.
-        :param resultIfTrue: Optional float value to return if condition is true.
-        If not specified, then assumed to be the second input column.
-        :param resultIfFalse: Optional float value to return if condition is false.
-        If not specified, then assumed to be the third input column.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(
-            valueToCompare=None,
-            resultIfTrue=None,
-            resultIfFalse=None,
-        )
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [FloatType(), DoubleType()]
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    _keras_layer_class = NumericalIfStatementLayer
+    _params = {
+        "conditionOperator": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="Operator to use in condition: eq, neq, lt, gt, leq, geq",
+            validator=_validate_condition_operator,
+        ),
+        "valueToCompare": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=None,
+            doc="Float value to compare to input column",
+        ),
+        "resultIfTrue": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=None,
+            doc="Float value to return if condition is true",
+        ),
+        "resultIfFalse": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=None,
+            doc="Float value to return if condition is false",
+        ),
+    }
 
     def setInputCols(self, value: List[str]) -> "NumericalIfStatementTransformer":
         """
@@ -359,23 +216,3 @@ class NumericalIfStatementTransformer(
         )
 
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the numerical if statement transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs the numerical if statement.
-        """
-        if not self.isDefined("conditionOperator"):
-            raise ValueError("Must specify conditionOperator to use Keras layer.")
-
-        return NumericalIfStatementLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            condition_operator=self.getConditionOperator(),
-            value_to_compare=self.getValueToCompare(),
-            result_if_true=self.getResultIfTrue(),
-            result_if_false=self.getResultIfFalse(),
-        )

@@ -14,14 +14,13 @@
 
 from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
 from kamae.keras.core.layers import ArrayReduceMaxLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
 
@@ -43,37 +42,16 @@ class ArrayReduceMaxTransformer(
 
     jit_compatible = True
 
-    defaultValue = Param(
-        Params._dummy(),
-        "defaultValue",
-        "Value to return when the array is empty or null.",
-        typeConverter=TypeConverters.toFloat,
-    )
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    _keras_layer_class = ArrayReduceMaxLayer
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        defaultValue: float = 0.0,
-    ) -> None:
-        super().__init__()
-        self._setDefault(defaultValue=0.0)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    def setDefaultValue(self, value: float) -> "ArrayReduceMaxTransformer":
-        return self._set(defaultValue=value)
-
-    def getDefaultValue(self) -> float:
-        return self.getOrDefault(self.defaultValue)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        return [FloatType(), DoubleType()]
+    _params = {
+        "defaultValue": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=0.0,
+            doc="Value to return when the array is empty or null",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         input_col = F.col(self.getInputCol())
@@ -87,17 +65,3 @@ class ArrayReduceMaxTransformer(
             func=lambda x: F.coalesce(F.array_max(x), F.lit(default)),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer that reduces an array to its maximum element.
-
-        :returns: Keras layer with name equal to the layerName parameter
-        that performs the array reduce max operation.
-        """
-        return ArrayReduceMaxLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            default_value=self.getDefaultValue(),
-        )

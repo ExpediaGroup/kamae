@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional
-
 import pyspark.sql.functions as F
 import tensorflow as tf
-from pyspark import keyword_only
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame, Window
 from pyspark.sql.types import (
     ByteType,
-    DataType,
     DoubleType,
     FloatType,
     IntegerType,
@@ -28,9 +25,10 @@ from pyspark.sql.types import (
     ShortType,
 )
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import ListRankLayer
-from kamae.spark.params import ListwiseParams, SingleInputSingleOutputParams
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import LISTWISE_PARAMS, _validate_sort_order
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import check_listwise_columns
 
 from .base import BaseTransformer
@@ -39,60 +37,36 @@ from .base import BaseTransformer
 class ListRankTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    ListwiseParams,
 ):
     """
     Calculate the listwise rank across the query id column.
-
-    Example: calculate the rank of items within a query, given the score.
-
-    :param inputCol: Value column, on which to calculate the rank.
-    :param outputCol: Name of output col.
-    :param inputDtype: Data Type of input.
-    :param outputDtype: Data Type of output.
-    :param layerName: The name of the transformer, which typically
-    should be the name of the produced feature.
-    :param queryIdCol: Name of column to aggregate upon. It is required.
-    :param sortOrder: Option of 'asc' or 'desc' which defines order
-    for listwise operation. Default is 'desc'.
     """
 
     jit_compatible = True
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        queryIdCol: Optional[str] = None,
-        sortOrder: str = "desc",
-    ) -> None:
-        super().__init__()
-        self._setDefault(sortOrder="desc")
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [
-            FloatType(),
-            DoubleType(),
-            ByteType(),
-            ShortType(),
-            IntegerType(),
-            LongType(),
-        ]
+    _compatible_dtypes = [
+        FloatType(),
+        DoubleType(),
+        ByteType(),
+        ShortType(),
+        IntegerType(),
+        LongType(),
+    ]
+    _keras_layer_class = ListRankLayer
+    _params = {
+        **LISTWISE_PARAMS,
+        "sortOrder": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default="desc",
+            doc="Either 'asc' for ascending values or 'desc' for descending values.",
+            validator=_validate_sort_order,
+        ),
+        "withSegment": ParamSpec(
+            spark_typeconverter=TypeConverters.toBoolean,
+            default=None,
+            doc="Whether the second input col should be used for segmentation of statistic calculation.",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -131,17 +105,3 @@ class ListRankTransformer(
         dataset = dataset.withColumn(output_col, F.row_number().over(window_spec))
 
         return dataset
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for the listwise-rank transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a ranking operation.
-        """
-        return ListRankLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            sort_order=self.getSortOrder(),
-        )

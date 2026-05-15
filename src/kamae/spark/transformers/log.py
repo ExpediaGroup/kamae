@@ -18,55 +18,21 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
 from kamae.keras.core.layers import LogLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
 
 from .base import BaseTransformer
 
 
-class LogParams(Params):
-    """
-    Mixin class containing alpha parameter needed for log transform layers.
-    """
-
-    jit_compatible = True
-
-    alpha = Param(
-        Params._dummy(),
-        "alpha",
-        "Value to use in log transform: log(alpha + x)",
-        typeConverter=TypeConverters.toFloat,
-    )
-
-    def setAlpha(self, value: float) -> "LogParams":
-        """
-        Sets the alpha parameter.
-
-        :param value: Float value to use in log transform: log(alpha + x).
-        :returns: Instance of class mixed in.
-        """
-        return self._set(alpha=value)
-
-    def getAlpha(self) -> float:
-        """
-        Gets the alpha parameter.
-
-        :returns: Float value of alpha used in log transform.
-        """
-        return self.getOrDefault(self.alpha)
-
-
 class LogTransformer(
     BaseTransformer,
-    LogParams,
     SingleInputSingleOutputParams,
 ):
     """
@@ -74,55 +40,19 @@ class LogTransformer(
     This transformer applies a log(alpha + x) transform to the input column.
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        alpha: float = 0.0,
-    ) -> None:
-        """
-        Instantiates a LogTransformer transformer. Sets the default values of:
+    jit_compatible = True
 
-        - alpha: 0
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param alpha: Value to use in log transform: log(alpha + x). Default is 0.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(alpha=0.0)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [FloatType(), DoubleType()]
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    _keras_layer_class = LogLayer
+    _params = {
+        "alpha": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=0.0,
+            doc="Value to use in log transform: log(alpha + x)",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
-        """
-        Transforms the input dataset. Creates a new column named outputCol with the
-        log transform of the inputCol.
-
-        :param dataset: Pyspark DataFrame to transform.
-        :returns: Transformed pyspark dataFrame.
-        """
         alpha = self.getAlpha()
         input_datatype = self.get_column_datatype(
             dataset=dataset, column_name=self.getInputCol()
@@ -133,17 +63,3 @@ class LogTransformer(
             func=lambda x: F.log(x + F.lit(alpha)),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer that performs the log transform.
-
-        :returns: Keras layer with name equal to the layerName parameter
-        that performs the log(alpha + x) operation.
-        """
-        return LogLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            alpha=self.getAlpha(),
-        )

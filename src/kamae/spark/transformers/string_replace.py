@@ -16,84 +16,28 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from typing import List
 
 import pyspark.sql.functions as F
-import tensorflow as tf
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
-from pyspark.sql.types import DataType, StringType
+from pyspark.sql.types import StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringReplaceLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
-    StringRegexParams,
 )
 from kamae.spark.utils import multi_input_single_output_scalar_transform
 
 from .base import BaseTransformer
 
 
-class StringReplaceParams(StringRegexParams):
-    """
-    Mixin class containing StringMatchConstant, StringReplaceConstant needed for string
-    replace layers.
-    """
-
-    stringMatchConstant = Param(
-        Params._dummy(),
-        "stringMatchConstant",
-        "String match constant to use in string replace",
-        typeConverter=TypeConverters.toString,
-    )
-
-    stringReplaceConstant = Param(
-        Params._dummy(),
-        "stringReplaceConstant",
-        "String replace constant to use in string replace",
-        typeConverter=TypeConverters.toString,
-    )
-
-    def setStringMatchConstant(self, value: str) -> "StringReplaceParams":
-        """
-        Sets the stringConstant parameter.
-
-        :param value: String constant value to use in different string transformers.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(stringMatchConstant=value)
-
-    def getStringMatchConstant(self) -> str:
-        """
-        Gets the stringConstant parameter.
-
-        :returns: String replacement constant value to use in string replace layer.
-        """
-        return self.getOrDefault(self.stringMatchConstant)
-
-    def setStringReplaceConstant(self, value: str) -> "StringReplaceParams":
-        """
-        Sets the stringReplaceConstant parameter.
-        """
-        return self._set(stringReplaceConstant=value)
-
-    def getStringReplaceConstant(self) -> str:
-        """
-        Gets the stringReplaceConstant parameter.
-
-        :returns: String replacement constant value to use in string replace layer.
-        """
-        return self.getOrDefault(self.stringReplaceConstant)
-
-
 class StringReplaceTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
     MultiInputSingleOutputParams,
-    StringReplaceParams,
 ):
     """
     String replace Spark Transformer for use in Spark Pipelines.
@@ -109,55 +53,25 @@ class StringReplaceTransformer(
     This is consistent in both spark and tensorflow components.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        stringMatchConstant: Optional[str] = None,
-        stringReplaceConstant: Optional[str] = None,
-        regex: bool = False,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes an StringReplaceTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param inputCols: List of up to 3 input column names.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param stringMatchConstant: String constant to match for.
-        operation.
-        :param stringReplaceConstant: String constant to replace with.
-        :param regex: Whether to allow regex-matching in the string matching.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(
-            regex=False, stringMatchConstant=None, stringReplaceConstant=None
-        )
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = StringReplaceLayer
+    _params = {
+        "stringMatchConstant": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="String match constant to use in string replace",
+        ),
+        "stringReplaceConstant": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="String replace constant to use in string replace",
+        ),
+        "regex": ParamSpec(
+            spark_typeconverter=TypeConverters.toBoolean,
+            default=False,
+            doc="Whether to allow regex-matching in the string matching.",
+        ),
+    }
 
     def setInputCols(self, value: List[str]) -> "StringReplaceTransformer":
         """
@@ -265,19 +179,3 @@ class StringReplaceTransformer(
             func=lambda x: string_replace(x, input_col_names, regex),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for the StringReplaceLayer transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a string replace operation.
-        """
-        return StringReplaceLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            regex=self.getRegex(),
-            string_match_constant=self.getStringMatchConstant(),
-            string_replace_constant=self.getStringReplaceConstant(),
-        )

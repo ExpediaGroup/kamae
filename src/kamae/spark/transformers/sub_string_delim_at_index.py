@@ -17,105 +17,23 @@
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
 import re
-from typing import List, Optional
 
 import pyspark.sql.functions as F
-import tensorflow as tf
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DataType, StringType
+from pyspark.sql.types import StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import SubStringDelimAtIndexLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
 
 from .base import BaseTransformer
 
 
-class SubStringDelimAtIndexParams(Params):
-    """
-    Mixin class containing delimiter & index parameter needed for sub string transforms.
-    """
-
-    delimiter = Param(
-        Params._dummy(),
-        "delimiter",
-        "Value to use to split the string into substrings.",
-        typeConverter=TypeConverters.toString,
-    )
-
-    index = Param(
-        Params._dummy(),
-        "index",
-        "Once the string is split using delimiter, which index to return.",
-        typeConverter=TypeConverters.toInt,
-    )
-
-    defaultValue = Param(
-        Params._dummy(),
-        "defaultValue",
-        "If the index is out of bounds after string split, what value to return.",
-        typeConverter=TypeConverters.toString,
-    )
-
-    def setDelimiter(self, value: str) -> "SubStringDelimAtIndexParams":
-        """
-        Sets the delimiter parameter.
-
-        :param value: String value to split substring on.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(delimiter=value)
-
-    def getDelimiter(self) -> str:
-        """
-        Gets the delimiter parameter.
-
-        :returns: String value to split substring on.
-        """
-        return self.getOrDefault(self.delimiter)
-
-    def setIndex(self, value: int) -> "SubStringDelimAtIndexParams":
-        """
-        Sets the delimiter parameter.
-
-        :param value: Index of substring to return.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(index=value)
-
-    def getIndex(self) -> int:
-        """
-        Gets the index parameter.
-
-        :returns: Integer value of index of substring to return.
-        """
-        return self.getOrDefault(self.index)
-
-    def setDefaultValue(self, value: str) -> "SubStringDelimAtIndexParams":
-        """
-        Sets the defaultValue parameter.
-
-        :param value: String value use as default if index is out of bounds.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(defaultValue=value)
-
-    def getDefaultValue(self) -> str:
-        """
-        Gets the defaultValue parameter.
-
-        :returns: String value use as default if index is out of bounds.
-        """
-        return self.getOrDefault(self.defaultValue)
-
-
 class SubStringDelimAtIndexTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    SubStringDelimAtIndexParams,
 ):
     """
     Sub string at delimiter Spark Transformer for use in Spark pipelines.
@@ -126,56 +44,26 @@ class SubStringDelimAtIndexTransformer(
     If the index is out of bounds, the default value is returned.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        delimiter: Optional[str] = None,
-        index: Optional[int] = None,
-        defaultValue: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes an SubStringDelimAtIndexTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param delimiter: Value to use to split the string into substrings.
-        Default is "_".
-        :param index: Once the string is split using delimiter, which index to return.
-        If the index is negative, start counting from the end of the string.
-        Default is 0.
-        :param defaultValue: If the index is out of bounds after string split,
-         what value to return. Default is empty string.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(delimiter="_")
-        self._setDefault(defaultValue="")
-        self._setDefault(index=0)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = SubStringDelimAtIndexLayer
+    _params = {
+        "delimiter": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default="_",
+            doc="Value to use to split the string into substrings.",
+        ),
+        "index": ParamSpec(
+            spark_typeconverter=TypeConverters.toInt,
+            default=0,
+            doc="Once the string is split using delimiter, which index to return. "
+            "If the index is negative, start counting from the end of the string.",
+        ),
+        "defaultValue": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default="",
+            doc="If the index is out of bounds after string split, what value to return.",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -206,19 +94,3 @@ class SubStringDelimAtIndexTransformer(
             ),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for SubStringDelimAtIndexTransformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs sub string at delimiter.
-        """
-        return SubStringDelimAtIndexLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            delimiter=self.getDelimiter(),
-            index=self.getIndex(),
-            default_value=self.getDefaultValue(),
-        )

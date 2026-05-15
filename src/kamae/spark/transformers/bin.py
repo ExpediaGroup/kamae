@@ -18,14 +18,11 @@
 # pylint: disable=no-member
 from typing import Any, List, Optional, Union
 
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import (
     ByteType,
-    DataType,
     DoubleType,
     FloatType,
     IntegerType,
@@ -34,6 +31,7 @@ from pyspark.sql.types import (
 )
 
 from kamae.keras.core.layers import BinLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
 from kamae.utils import get_condition_operator
@@ -41,158 +39,73 @@ from kamae.utils import get_condition_operator
 from .base import BaseTransformer
 
 
-class BinParams(Params):
+def _validate_condition_operators(self: Any, value: List[str]) -> List[str]:
     """
-    Mixin class containing parameters needed for Bin transform layers.
+    Validates that all condition operators are allowed values.
     """
+    if value is None:
+        return value
+    allowed_operators = ["eq", "neq", "lt", "gt", "leq", "geq"]
+    if any([v not in allowed_operators for v in value]):
+        raise ValueError(
+            f"""All conditionOperators must be one of {allowed_operators},
+            but got {value}"""
+        )
+    _check_params_size(self, "conditionOperators", value)
+    return value
 
-    jit_compatible = True
 
-    conditionOperators = Param(
-        Params._dummy(),
-        "conditionOperators",
-        "Operators to use in condition: eq, neq, lt, gt, leq, geq",
-        typeConverter=TypeConverters.toListString,
-    )
+def _validate_bin_values(self: Any, value: List[float]) -> List[float]:
+    """
+    Validates that bin values have consistent length with other params.
+    """
+    if value is None:
+        return value
+    _check_params_size(self, "binValues", value)
+    return value
 
-    binValues = Param(
-        Params._dummy(),
-        "binValues",
-        "Float values to compare to input column",
-        typeConverter=TypeConverters.toListFloat,
-    )
 
-    binLabels = Param(
-        Params._dummy(),
-        "binLabels",
-        "Bin labels to use when binning",
-        typeConverter=TypeConverters.toList,
-    )
+def _validate_bin_labels(
+    self: Any, value: List[Union[float, int, str]]
+) -> List[Union[float, int, str]]:
+    """
+    Validates that bin labels have consistent length with other params.
+    """
+    if value is None:
+        return value
+    _check_params_size(self, "binLabels", value)
+    return value
 
-    defaultLabel = Param(
-        Params._dummy(),
-        "defaultLabel",
-        "Default label to use when binning",
-        typeConverter=TypeConverters.identity,
-    )
 
-    def _check_params_size(self, param_name: str, param_value: List[Any]) -> None:
-        """
-        Checks that the length of the given parameter is the same as the length of
-        the other parameters.
+def _check_params_size(self: Any, param_name: str, param_value: List[Any]) -> None:
+    """
+    Checks that the length of the given parameter is the same as the length of
+    the other parameters.
 
-        Used to ensure that the parameters are consistent with each other.
+    Used to ensure that the parameters are consistent with each other.
 
-        :param param_name: Name of the parameter to check.
-        :param param_value: Value of the parameter to check.
-        :returns: None
-        :raises ValueError: If the length of the given parameter is not the same as
-        the length of the other parameters.
-        """
-        names_to_check = ["conditionOperators", "binValues", "binLabels"]
-        names_to_check.remove(param_name)
-        for name in names_to_check:
-            if self.isDefined(name):
-                if len(param_value) != len(self.getOrDefault(name)):
-                    raise ValueError(
-                        f"""{param_name} must have the same length as {name} but got
-                        {len(param_value)} and {len(self.getOrDefault(name))}"""
-                    )
-
-    def setConditionOperators(self, value: List[str]) -> "BinParams":
-        """
-        Sets the conditionOperators parameter.
-
-        :param value: List of string values describing the operator to use in condition:
-        - eq
-        - neq
-        - lt
-        - gt
-        - leq
-        - geq
-        :returns: Instance of class mixed in.
-        """
-        allowed_operators = ["eq", "neq", "lt", "gt", "leq", "geq"]
-        if any([v not in allowed_operators for v in value]):
-            raise ValueError(
-                f"""All conditionOperators must be one of {allowed_operators},
-                but got {value}"""
-            )
-        self._check_params_size("conditionOperators", value)
-        return self._set(conditionOperators=value)
-
-    def setBinValues(self, value: List[float]) -> "BinParams":
-        """
-        Sets the binValues parameter.
-
-        :param value: List of float values to compare to input column
-        :returns: Instance of class mixed in.
-        """
-        self._check_params_size("binValues", value)
-        return self._set(binValues=value)
-
-    def setBinLabels(self, value: List[Union[float, int, str]]) -> "BinParams":
-        """
-        Sets the binLabels parameter.
-
-        :param value: List of string values use when binning.
-        :returns: Instance of class mixed in.
-        """
-        self._check_params_size("binLabels", value)
-        return self._set(binLabels=value)
-
-    def setDefaultLabel(self, value: Union[float, int, str]) -> "BinParams":
-        """
-        Sets the defaultLabel parameter.
-
-        :param value: Default label to use when binning.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(defaultLabel=value)
-
-    def getConditionOperators(self) -> List[str]:
-        """
-        Gets the conditionOperators parameter.
-
-        :returns: List of string values describing the operator to use in condition:
-        - eq
-        - neq
-        - lt
-        - gt
-        - leq
-        - geq
-        """
-        return self.getOrDefault(self.conditionOperators)
-
-    def getBinValues(self) -> List[float]:
-        """
-        Gets the binValues parameter.
-
-        :returns: List of float values to compare to input column
-        """
-        return self.getOrDefault(self.binValues)
-
-    def getBinLabels(self) -> List[Union[float, int, str]]:
-        """
-        Gets the binLabels parameter.
-
-        :returns: List of string values use when binning.
-        """
-        return self.getOrDefault(self.binLabels)
-
-    def getDefaultLabel(self) -> Union[float, int, str]:
-        """
-        Gets the defaultLabel parameter.
-
-        :returns: Default label to use when binning.
-        """
-        return self.getOrDefault(self.defaultLabel)
+    :param self: Transformer instance.
+    :param param_name: Name of the parameter to check.
+    :param param_value: Value of the parameter to check.
+    :returns: None
+    :raises ValueError: If the length of the given parameter is not the same as
+    the length of the other parameters.
+    """
+    names_to_check = ["conditionOperators", "binValues", "binLabels"]
+    names_to_check.remove(param_name)
+    for name in names_to_check:
+        if self.isDefined(name):
+            other_value = self.getOrDefault(name)
+            if other_value is not None and len(param_value) != len(other_value):
+                raise ValueError(
+                    f"""{param_name} must have the same length as {name} but got
+                    {len(param_value)} and {len(other_value)}"""
+                )
 
 
 class BinTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    BinParams,
 ):
     """
     Bin Spark Transformer for use in Spark pipelines.
@@ -205,63 +118,42 @@ class BinTransformer(
     If no conditions evaluate to True, the default label is returned.
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        conditionOperators: Optional[List[str]] = None,
-        binValues: Optional[List[float]] = None,
-        binLabels: Optional[List[Union[float, int, str]]] = None,
-        defaultLabel: Optional[Union[float, int, str]] = None,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes a BinTransformer transformer.
+    jit_compatible = True
 
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param conditionOperators: List of string values describing the operator to
-        use in condition:
-        - eq
-        - neq
-        - lt
-        - gt
-        - leq
-        - geq
-        :param binValues: Float values to compare to input column.
-        :param binLabels: Bin labels to use when binning.
-        :param defaultLabel: Default label to use when binning.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [
-            FloatType(),
-            DoubleType(),
-            ByteType(),
-            ShortType(),
-            IntegerType(),
-            LongType(),
-        ]
+    _compatible_dtypes = [
+        FloatType(),
+        DoubleType(),
+        ByteType(),
+        ShortType(),
+        IntegerType(),
+        LongType(),
+    ]
+    _keras_layer_class = BinLayer
+    _params = {
+        "conditionOperators": ParamSpec(
+            spark_typeconverter=TypeConverters.toListString,
+            default=None,
+            doc="Operators to use in condition: eq, neq, lt, gt, leq, geq",
+            validator=_validate_condition_operators,
+        ),
+        "binValues": ParamSpec(
+            spark_typeconverter=TypeConverters.toListFloat,
+            default=None,
+            doc="Float values to compare to input column",
+            validator=_validate_bin_values,
+        ),
+        "binLabels": ParamSpec(
+            spark_typeconverter=TypeConverters.toList,
+            default=None,
+            doc="Bin labels to use when binning",
+            validator=_validate_bin_labels,
+        ),
+        "defaultLabel": ParamSpec(
+            spark_typeconverter=TypeConverters.identity,
+            default=None,
+            doc="Default label to use when binning",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -306,20 +198,3 @@ class BinTransformer(
             func=lambda x: bin_func(x),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the bin transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs the binning operation.
-        """
-        return BinLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            condition_operators=self.getConditionOperators(),
-            bin_values=self.getBinValues(),
-            bin_labels=self.getBinLabels(),
-            default_label=self.getDefaultLabel(),
-        )

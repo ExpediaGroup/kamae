@@ -17,73 +17,41 @@
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
 from itertools import chain
-from typing import List, Optional
 
 import pyspark.sql.functions as F
-import tensorflow as tf
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
-from pyspark.sql.types import DataType, StringType
+from pyspark.sql.types import StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import DateParseLayer
-from kamae.spark.params import DefaultIntValueParams, SingleInputSingleOutputParams
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import DEFAULT_INT_VALUE_PARAMS
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers.base import BaseTransformer
 from kamae.spark.utils import single_input_single_output_scalar_transform
 
 
-class DateParseParams(DefaultIntValueParams):
-    """
-    Mixin class for a date part.
-    """
-
-    datePart = Param(
-        Params._dummy(),
-        "datePart",
-        "Date part to extract from date",
-        typeConverter=TypeConverters.toString,
-    )
-
-    def getDatePart(self) -> str:
-        """
-        Gets the value of the datePart parameter.
-
-        :returns: Date part to extract from date.
-        """
-        return self.getOrDefault(self.datePart)
-
-    def setDatePart(self, value: str) -> "DateParseParams":
-        """
-        Sets the value of the datePart parameter.
-
-        :param value: Date part to extract from date.
-        :returns: Class instance.
-        """
-
-        allowed_date_parts = {
-            "Year",
-            "DayOfYear",
-            "MonthOfYear",
-            "DayOfMonth",
-            "DayOfWeek",
-            "Hour",
-            "Minute",
-            "Second",
-            "Millisecond",
-        }
-
-        if value not in allowed_date_parts:
-            raise ValueError(
-                f"Invalid date part: {value}. Must be one of {allowed_date_parts}"
-            )
-
-        return self._set(datePart=value)
+def _validate_date_part(value: str) -> str:
+    """Validator for datePart parameter."""
+    allowed_date_parts = {
+        "Year",
+        "DayOfYear",
+        "MonthOfYear",
+        "DayOfMonth",
+        "DayOfWeek",
+        "Hour",
+        "Minute",
+        "Second",
+        "Millisecond",
+    }
+    if value not in allowed_date_parts:
+        raise ValueError(
+            f"Invalid date part: {value}. Must be one of {allowed_date_parts}"
+        )
+    return value
 
 
-class DateParseTransformer(
-    BaseTransformer, SingleInputSingleOutputParams, DateParseParams
-):
+class DateParseTransformer(BaseTransformer, SingleInputSingleOutputParams):
     """
     Date parse transform layer.
     This layer parses a date(time) column into a specified date part.
@@ -104,49 +72,17 @@ class DateParseTransformer(
     fields will be returned as 0.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        datePart: Optional[str] = None,
-        defaultValue: Optional[int] = None,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initialises the date parse transform layer.
-
-        :param datePart: Date part to extract from date.
-        :param defaultValue: Default value to use when the date is the empty string.
-        Empty strings can be used when the date is not available.
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Layer name. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(defaultValue=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = DateParseLayer
+    _params = {
+        **DEFAULT_INT_VALUE_PARAMS,
+        "datePart": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="Date part to extract from date",
+            validator=_validate_date_part,
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -218,22 +154,3 @@ class DateParseTransformer(
             return day_of_week_spark_mapping[formatted_date]
 
         return formatted_date.cast("int")
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer.
-
-        :returns: DateParseLayer Keras layer.
-        """
-
-        if not self.isDefined("datePart"):
-            raise ValueError("Date part must be set.")
-        date_part = self.getDatePart()
-
-        return DateParseLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            date_part=date_part,
-            default_value=self.getDefaultValue(),
-        )

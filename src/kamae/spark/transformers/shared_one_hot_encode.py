@@ -16,15 +16,13 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from typing import List
 
 import pyspark.sql.functions as F
 import tensorflow as tf
-from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
     ArrayType,
-    DataType,
     FloatType,
     IntegerType,
     LongType,
@@ -32,13 +30,9 @@ from pyspark.sql.types import (
     StringType,
 )
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import OneHotEncodeLayer
-from kamae.spark.params import (
-    DropUnseenParams,
-    MultiInputMultiOutputParams,
-    StringIndexParams,
-)
+from kamae.params.shared_specs import DROP_UNSEEN_PARAMS, STRING_INDEX_PARAMS
+from kamae.spark.params import MultiInputMultiOutputParams
 from kamae.spark.utils import (
     one_hot_encoding_udf,
     single_input_single_output_scalar_udf_transform,
@@ -50,8 +44,6 @@ from .base import BaseTransformer
 class SharedOneHotEncodeTransformer(
     BaseTransformer,
     MultiInputMultiOutputParams,
-    StringIndexParams,
-    DropUnseenParams,
 ):
     """
     SharedOneHotEncodeTransformer Spark Transformer for use in Spark pipelines.
@@ -64,62 +56,9 @@ class SharedOneHotEncodeTransformer(
     characters. If you have null characters in your data, you should remove them.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCols: Optional[List[str]] = None,
-        outputCols: Optional[List[str]] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        labelsArray: Optional[List[str]] = None,
-        stringOrderType: str = "frequencyDesc",
-        maskToken: Optional[str] = None,
-        numOOVIndices: int = 1,
-        dropUnseen: bool = False,
-    ) -> None:
-        """
-        Initializes the SharedOneHotEncodeTransformer transformer.
-
-        :param inputCols: List of input column names.
-        :param outputCols: List of output column name.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param labelsArray: List of string labels to use for one-hot encoding.
-        :param stringOrderType: How to order the string indices.
-        Options are 'frequencyAsc', 'frequencyDesc', 'alphabeticalAsc',
-        'alphabeticalDesc'. Defaults to 'frequencyDesc'.
-        :param maskToken: Token to use for masking.
-        If set, the token will be indexed as 0.
-        :param numOOVIndices: Number of out of vocabulary indices to use. The
-        out of vocabulary indices are used to represent unseen labels and are
-        placed at the beginning of the one-hot encoding. Defaults to 1.
-        :param dropUnseen: Whether to drop unseen label indices. If set to True,
-        the transformer will not add an extra dimension for unseen labels in the
-        one-hot encoding. Defaults to False.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(
-            stringOrderType="frequencyDesc",
-            numOOVIndices=1,
-            dropUnseen=False,
-            maskToken=None,
-        )
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [ShortType(), IntegerType(), LongType(), StringType()]
+    _compatible_dtypes = [ShortType(), IntegerType(), LongType(), StringType()]
+    _keras_layer_class = None  # Custom get_keras_layer returns list
+    _params = {**STRING_INDEX_PARAMS, **DROP_UNSEEN_PARAMS}
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """

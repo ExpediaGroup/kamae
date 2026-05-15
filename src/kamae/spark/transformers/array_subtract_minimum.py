@@ -14,8 +14,8 @@
 
 from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
+import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
@@ -31,49 +31,16 @@ from pyspark.sql.types import (
 )
 
 from kamae.keras.core.layers import ArraySubtractMinimumLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
 
 from .base import BaseTransformer
 
 
-class ArraySubtractMinimumParams(Params):
-    """
-    Mixin class containing pad value parameters needed
-    for array subtract min transformers.
-    """
-
-    jit_compatible = True
-
-    padValue = Param(
-        Params._dummy(),
-        "padValue",
-        "The value to be considered as padding. Defaults to `None`.",
-        typeConverter=TypeConverters.toFloat,
-    )
-
-    def setPadValue(self, value: float) -> "ArraySubtractMinimumParams":
-        """
-        Sets the parameter pad value to the given value.
-
-        :param value: pad value.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(padValue=value)
-
-    def getPadValue(self) -> float:
-        """
-        Gets the pad value parameter.
-
-        :returns: float pad value.
-        """
-        return self.getOrDefault(self.padValue)
-
-
 class ArraySubtractMinimumTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    ArraySubtractMinimumParams,
 ):
     """
     ArraySubtractMinimumTransformer that computes the difference within an array from
@@ -83,50 +50,24 @@ class ArraySubtractMinimumTransformer(
     The main use case in mind for this is working with an array of timestamps.
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        padValue: Optional[float] = None,
-    ) -> None:
-        """
-        Initialise the ArraySubtractMinimumTransformer
+    jit_compatible = True
 
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        :param padValue: The value to be considered as padding. Defaults to `None`.
-        :returns: None
-        """
-        super().__init__()
-        self._setDefault(padValue=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [
-            FloatType(),
-            DoubleType(),
-            ByteType(),
-            ShortType(),
-            IntegerType(),
-            LongType(),
-        ]
+    _compatible_dtypes = [
+        FloatType(),
+        DoubleType(),
+        ByteType(),
+        ShortType(),
+        IntegerType(),
+        LongType(),
+    ]
+    _keras_layer_class = ArraySubtractMinimumLayer
+    _params = {
+        "padValue": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=None,
+            doc="The value to be considered as padding. Defaults to `None`.",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -181,17 +122,3 @@ class ArraySubtractMinimumTransformer(
             func=lambda x: array_subtract_min(x, padded_value),
         )
         return dataset.withColumn(self.getOutputCol(), array_subtract)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the sequential difference transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-        performs the sequential difference operation.
-        """
-        return ArraySubtractMinimumLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            pad_value=self.getPadValue(),
-        )

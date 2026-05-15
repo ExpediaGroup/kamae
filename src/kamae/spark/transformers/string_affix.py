@@ -25,72 +25,17 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringAffixLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
 
 from .base import BaseTransformer
 
 
-class StringAffixParams(Params):
-    """
-    Mixin class containing parameters needed for string affixing.
-    transforms.
-    """
-
-    prefix = Param(
-        Params._dummy(),
-        "prefix",
-        "Value to use as a prefix when joining the strings.",
-        typeConverter=TypeConverters.toString,
-    )
-    suffix = Param(
-        Params._dummy(),
-        "suffix",
-        "Value to use as a suffix when joining the strings.",
-        typeConverter=TypeConverters.toString,
-    )
-
-    def setPrefix(self, value: str) -> "StringAffixParams":
-        """
-        Sets the prefix parameter.
-
-        :param value: String value to use as a prefix when joining the strings.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(prefix=value)
-
-    def getPrefix(self) -> str:
-        """
-        Gets the prefix parameter.
-
-        :returns: String value to use as a prefix when joining the strings.
-        """
-        return self.getOrDefault(self.prefix)
-
-    def setSuffix(self, value: str) -> "StringAffixParams":
-        """
-        Sets the suffix parameter.
-
-        :param value: String value to use as a suffix when joining the strings.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(suffix=value)
-
-    def getSuffix(self) -> str:
-        """
-        Gets the suffix parameter.
-
-        :returns: String value to use as a suffix when joining the strings.
-        """
-        return self.getOrDefault(self.suffix)
-
-
 class StringAffixTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    StringAffixParams,
 ):
     """
     String Affix Spark Transformer for use in Spark pipelines.
@@ -98,46 +43,20 @@ class StringAffixTransformer(
     Input columns must be of type string.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        prefix: Optional[str] = None,
-        suffix: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes the string affix transformer.
-        :param inputCol: column to combine with prefix or suffix. Must be type string.
-        :param outputCol: column to output the affixed string to.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param prefix: String to use as a prefix when joining the strings.
-        :param suffix: String to use as a suffix when joining the strings.
-        """
-        super().__init__()
-        self._setDefault(prefix=None, suffix=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = StringAffixLayer
+    _params = {
+        "prefix": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="Value to use as a prefix when joining the strings.",
+        ),
+        "suffix": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="Value to use as a suffix when joining the strings.",
+        ),
+    }
 
     def _validate_params(self) -> None:
         """
@@ -180,18 +99,3 @@ class StringAffixTransformer(
         )
 
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for the string affix transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs prefixing and suffixing.
-        """
-        return StringAffixLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            prefix=self.getPrefix(),
-            suffix=self.getSuffix(),
-        )

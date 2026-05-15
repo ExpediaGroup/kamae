@@ -14,14 +14,13 @@
 
 from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
 from kamae.keras.core.layers import PairwiseCosineSimilarityLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import MultiInputSingleOutputParams
 
 from .base import BaseTransformer
@@ -42,36 +41,16 @@ class PairwiseCosineSimilarityTransformer(
 
     jit_compatible = True
 
-    embeddingDim = Param(
-        Params._dummy(),
-        "embeddingDim",
-        "Dimension of each embedding vector.",
-        typeConverter=TypeConverters.toInt,
-    )
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    _keras_layer_class = PairwiseCosineSimilarityLayer
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        embeddingDim: Optional[int] = None,
-    ) -> None:
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    def setEmbeddingDim(self, value: int) -> "PairwiseCosineSimilarityTransformer":
-        return self._set(embeddingDim=value)
-
-    def getEmbeddingDim(self) -> int:
-        return self.getOrDefault(self.embeddingDim)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        return [FloatType(), DoubleType()]
+    _params = {
+        "embeddingDim": ParamSpec(
+            spark_typeconverter=TypeConverters.toInt,
+            default=32,
+            doc="Dimension of each embedding vector",
+        ),
+    }
 
     def setInputCols(self, value: List[str]) -> "PairwiseCosineSimilarityTransformer":
         if len(value) != 2:
@@ -128,11 +107,3 @@ class PairwiseCosineSimilarityTransformer(
 
         similarities = F.transform(indices, cosine_sim_at_index)
         return dataset.withColumn(self.getOutputCol(), similarities)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        return PairwiseCosineSimilarityLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            embedding_dim=self.getEmbeddingDim(),
-        )

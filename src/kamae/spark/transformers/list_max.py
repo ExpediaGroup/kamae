@@ -15,17 +15,17 @@
 from typing import List, Optional
 
 import pyspark.sql.functions as F
-import tensorflow as tf
-from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import ListMaxLayer
+from kamae.params.shared_specs import (
+    LISTWISE_FILTER_PARAMS,
+    LISTWISE_PARAMS,
+    LISTWISE_SEGMENT_PARAMS,
+)
 from kamae.spark.params import (
-    ListwiseStatisticsParams,
     MultiInputSingleOutputParams,
-    NanFillValueParams,
     SingleInputSingleOutputParams,
 )
 from kamae.spark.utils import check_and_apply_listwise_op
@@ -37,8 +37,6 @@ class ListMaxTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
     MultiInputSingleOutputParams,
-    ListwiseStatisticsParams,
-    NanFillValueParams,
 ):
     """
     Calculate the listwise maximum across the query id column.
@@ -84,48 +82,13 @@ class ListMaxTransformer(
 
     jit_compatible = True
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        queryIdCol: Optional[str] = None,
-        topN: Optional[int] = None,
-        sortOrder: str = "asc",
-        withSegment: bool = False,
-        minFilterValue: Optional[float] = None,
-        nanFillValue: float = 0.0,
-    ) -> None:
-        super().__init__()
-        self._setDefault(
-            topN=None,
-            sortOrder="asc",
-            minFilterValue=None,
-            nanFillValue=0,
-            withSegment=False,
-        )
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [
-            FloatType(),
-            DoubleType(),
-            StringType(),
-        ]
+    _compatible_dtypes = [FloatType(), DoubleType(), StringType()]
+    _keras_layer_class = ListMaxLayer
+    _params = {
+        **LISTWISE_PARAMS,
+        **LISTWISE_SEGMENT_PARAMS,
+        **LISTWISE_FILTER_PARAMS,
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -172,22 +135,3 @@ class ListMaxTransformer(
         dataset = dataset.fillna({self.getOutputCol(): self.getNanFillValue()})
 
         return dataset
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for the listwise-maximum transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs an averaging operation.
-        """
-        return ListMaxLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            top_n=self.getTopN(),
-            sort_order=self.getSortOrder(),
-            with_segment=self.getWithSegment(),
-            min_filter_value=self.getMinFilterValue(),
-            nan_fill_value=self.getNanFillValue(),
-            axis=1,
-        )

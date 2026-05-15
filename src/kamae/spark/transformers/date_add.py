@@ -18,9 +18,7 @@
 from typing import List, Optional
 
 import pyspark.sql.functions as F
-import tensorflow as tf
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
     ByteType,
@@ -31,8 +29,8 @@ from pyspark.sql.types import (
     StringType,
 )
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import DateAddLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
@@ -44,43 +42,16 @@ from kamae.spark.utils import (
 )
 
 
-class DateAdditionParams(Params):
-    """
-    Mixin class for a date addition transformer.
-    """
-
-    numDays = Param(
-        Params._dummy(),
-        "numDays",
-        "Number of days to add/subtract. Negative values subtract.",
-        typeConverter=TypeConverters.toInt,
-    )
-
-    def getNumDays(self) -> int:
-        """
-        Gets the value of the numDays parameter.
-
-        :returns: Number of days to add/subtract.
-        """
-        return self.getOrDefault(self.numDays)
-
-    def setNumDays(self, value: int) -> "DateAdditionParams":
-        """
-        Sets the value of the numDays parameter.
-
-        :param value: Number of days to add/subtract.
-        :returns: Class instance.
-        """
-        if self.isDefined("inputCols"):
-            raise ValueError("Cannot set numDays if using multiple inputCols.")
-        return self._set(numDays=value)
+def _validate_num_days(self, value: int) -> int:
+    if self.isDefined("inputCols"):
+        raise ValueError("Cannot set numDays if using multiple inputCols.")
+    return value
 
 
 class DateAddTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
     MultiInputSingleOutputParams,
-    DateAdditionParams,
 ):
     """
     Transformer to add or subtract a static or dynamic (column) number of days
@@ -89,37 +60,22 @@ class DateAddTransformer(
     WARNING: This transform destroys the time component of the date column.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        numDays: Optional[int] = None,
-    ) -> None:
-        """
-        Initialises the date add transform layer.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Layer name. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param numDays: Number of days to add/subtract. Negative values subtract.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(numDays=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
+    _compatible_dtypes = [
+        StringType(),
+        ByteType(),
+        ShortType(),
+        IntegerType(),
+        LongType(),
+    ]
+    _keras_layer_class = DateAddLayer
+    _params = {
+        "numDays": ParamSpec(
+            spark_typeconverter=TypeConverters.toInt,
+            default=None,
+            doc="Number of days to add/subtract. Negative values subtract.",
+            validator=_validate_num_days,
+        ),
+    }
 
     def setInputCols(self, value: List[str]) -> "DateAddTransformer":
         """
@@ -158,16 +114,6 @@ class DateAddTransformer(
                 DateAddTransformer because the two inputs must be different types."""
             )
         return self._set(inputDtype=value)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType(), ByteType(), ShortType(), IntegerType(), LongType()]
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -214,16 +160,3 @@ class DateAddTransformer(
             ).cast("string"),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer.
-
-        :returns: DateAddLayer Keras layer.
-        """
-        return DateAddLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            num_days=self.getNumDays(),
-        )

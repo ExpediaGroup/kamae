@@ -18,8 +18,8 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
+import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
@@ -42,41 +42,19 @@ class CosineSimilarityTransformer(
 
     jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes a CosineSimilarityTransformer transformer.
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    # Overrides codegen: Keras layer has axis/keepdims params with no Spark equivalent
+    _keras_layer_class = None
 
-        :param inputCols: Input column names. Must be two columns.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [FloatType(), DoubleType()]
+    def get_keras_layer(self) -> CosineSimilarityLayer:
+        # Hardcodes axis=-1, keepdims=True to match Spark transform behaviour
+        return CosineSimilarityLayer(
+            name=self.getLayerName(),
+            axis=-1,
+            keepdims=True,
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
+        )
 
     def setInputCols(self, value: List[str]) -> "CosineSimilarityTransformer":
         """
@@ -142,18 +120,3 @@ class CosineSimilarityTransformer(
             ),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the cosine similarity transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         computes the cosine similarity between two arrays.
-        """
-        return CosineSimilarityLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            axis=-1,
-            keepdims=True,
-        )

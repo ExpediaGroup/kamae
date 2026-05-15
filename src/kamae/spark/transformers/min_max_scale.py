@@ -18,89 +18,33 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
-import keras
 import numpy as np
 import pyspark.sql.functions as F
+import tensorflow as tf
 from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
-from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
+from pyspark.sql.types import ArrayType, DoubleType, FloatType
 
 from kamae.keras.core.layers import MinMaxScaleLayer
-from kamae.spark.params import MaskValueParams, SingleInputSingleOutputParams
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import MASK_VALUE_PARAMS
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
 
 from .base import BaseTransformer
 
 
-class MinMaxScaleParams(MaskValueParams):
-    """
-    Mixin class containing minimum and maximum parameters needed
-    for min/max scaler transformers.
-    """
-
-    jit_compatible = True
-
-    min = Param(
-        Params._dummy(),
-        "min",
-        "Minimum of the feature values.",
-        typeConverter=TypeConverters.toListFloat,
-    )
-
-    max = Param(
-        Params._dummy(),
-        "max",
-        "Maximum of the feature values.",
-        typeConverter=TypeConverters.toListFloat,
-    )
-
-    def setMin(self, value: List[float]) -> "MinMaxScaleParams":
-        """
-        Sets the parameter min to the given list value.
-        Saves the min as a list of floats.
-
-        :param value: List of min values.
-        :returns: Instance of class mixed in.
-        """
-        if None in set(value):
-            ids = [i for i, x in enumerate(value) if x is None]
-            raise ValueError("Got null Min values at positions: ", ids)
-        return self._set(min=value)
-
-    def getMin(self) -> List[float]:
-        """
-        Gets the min parameter.
-
-        :returns: List of float min values.
-        """
-        return self.getOrDefault(self.min)
-
-    def setMax(self, value: List[float]) -> "MinMaxScaleParams":
-        """
-        Sets the parameter max to the given list value.
-        Saves the max as a list of floats.
-
-        :param value: List of max values.
-        :returns: Instance of class mixed in.
-        """
-        if None in set(value):
-            ids = [i for i, x in enumerate(value) if x is None]
-            raise ValueError("Got null Max values at positions: ", ids)
-        return self._set(max=value)
-
-    def getMax(self) -> List[float]:
-        """
-        Gets the max parameter.
-
-        :returns: List of float standard deviation values.
-        """
-        return self.getOrDefault(self.max)
+def _validate_min_max(value: List[float]) -> List[float]:
+    """Validates min/max parameter for null values."""
+    if None in set(value):
+        ids = [i for i, x in enumerate(value) if x is None]
+        raise ValueError("Got null values at positions: ", ids)
+    return value
 
 
 class MinMaxScaleTransformer(
     BaseTransformer,
-    MinMaxScaleParams,
     SingleInputSingleOutputParams,
 ):
     """
@@ -114,49 +58,25 @@ class MinMaxScaleTransformer(
     shape across all rows.
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        min: Optional[List[float]] = None,
-        max: Optional[List[float]] = None,
-        maskValue: Optional[float] = None,
-    ) -> None:
-        """
-        Initializes a MinMaxScaleTransformer transformer.
+    jit_compatible = True
 
-        :param inputCol: Input column name to standardize.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model.
-        :param min: List of minimum values corresponding to the input column.
-        :param max: List of maximum values corresponding to the
-        input column.
-        :param maskValue: Value which should be ignored in the min/max scaling process.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(maskValue=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [FloatType(), DoubleType()]
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    _keras_layer_class = MinMaxScaleLayer
+    _params = {
+        **MASK_VALUE_PARAMS,
+        "min": ParamSpec(
+            spark_typeconverter=TypeConverters.toListFloat,
+            default=None,
+            doc="Minimum of the feature values.",
+            validator=_validate_min_max,
+        ),
+        "max": ParamSpec(
+            spark_typeconverter=TypeConverters.toListFloat,
+            default=None,
+            doc="Maximum of the feature values.",
+            validator=_validate_min_max,
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -199,7 +119,7 @@ class MinMaxScaleTransformer(
 
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_keras_layer(self) -> keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the min max transformation.
 

@@ -16,17 +16,14 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
 
 import pyspark.sql.functions as F
-import tensorflow as tf
-from pyspark import keyword_only
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DataType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringArrayConstantLayer
-from kamae.spark.params import ConstantStringArrayParams, SingleInputSingleOutputParams
+from kamae.params import ParamSpec
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
 
 from .base import BaseTransformer
@@ -35,52 +32,21 @@ from .base import BaseTransformer
 class StringArrayConstantTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
-    ConstantStringArrayParams,
 ):
     """
     String Array Constant Spark Transformer for use in Spark pipelines.
     This transformer populates a column with a constant string array.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        constantStringArray: Optional[List[str]] = None,
-    ) -> None:
-        """
-        Initializes the String Array Constant Transformer.
-
-        :param inputCol: Input column used to copy shape from. Ignored for Spark, used
-        for Keras.
-        :param outputCol: column to fill with the constant.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param constantStringArray: List of strings to use as a constant string array.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return None
+    _compatible_dtypes = None
+    _keras_layer_class = StringArrayConstantLayer
+    _params = {
+        "constantStringArray": ParamSpec(
+            spark_typeconverter=TypeConverters.toListString,
+            default=None,
+            doc="List of strings to use as a constant string array.",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -99,17 +65,3 @@ class StringArrayConstantTransformer(
             func=lambda x: F.lit(self.getConstantStringArray()).cast("array<string>"),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for generating the keras model that outputs
-        the constant string array.
-
-        :returns: Keras layer with name equal to the layerName parameter
-        """
-        return StringArrayConstantLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            constant_string_array=self.getConstantStringArray(),
-        )

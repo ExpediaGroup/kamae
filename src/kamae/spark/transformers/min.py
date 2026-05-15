@@ -11,20 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import keras
 
 # pylint: disable=unused-argument
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
-
-import keras
 import pyspark.sql.functions as F
-from pyspark import keyword_only
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
     ByteType,
-    DataType,
     DoubleType,
     FloatType,
     IntegerType,
@@ -33,8 +30,8 @@ from pyspark.sql.types import (
 )
 
 from kamae.keras.core.layers import MinLayer
+from kamae.params import _UNSET, ParamSpec
 from kamae.spark.params import (
-    MathFloatConstantParams,
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
 )
@@ -47,7 +44,6 @@ class MinTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
     MultiInputSingleOutputParams,
-    MathFloatConstantParams,
 ):
     """
     MinLayer Spark Transformer for use in Spark pipelines.
@@ -56,55 +52,22 @@ class MinTransformer(
 
     jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        mathFloatConstant: Optional[float] = None,
-    ) -> None:
-        """
-        Initializes an MinTransformer transformer.
-
-        :param inputCol: Input column name. Only used if inputCols is not specified.
-        If specified, we min this column by the mathFloatConstant.
-        :param inputCols: Input column names.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param mathFloatConstant: Optional constant to use for min op. If not provided,
-        then two input columns are required.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(mathFloatConstant=None)
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [
-            FloatType(),
-            DoubleType(),
-            ByteType(),
-            ShortType(),
-            IntegerType(),
-            LongType(),
-        ]
+    _compatible_dtypes = [
+        FloatType(),
+        DoubleType(),
+        ByteType(),
+        ShortType(),
+        IntegerType(),
+        LongType(),
+    ]
+    _keras_layer_class = None
+    _params = {
+        "mathFloatConstant": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=_UNSET,
+            doc="Float constant for min comparison.",
+        ),
+    }
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """

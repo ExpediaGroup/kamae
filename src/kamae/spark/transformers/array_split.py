@@ -18,8 +18,8 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
-import keras
 import pyspark.sql.functions as F
+import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType
@@ -42,41 +42,8 @@ class ArraySplitTransformer(
 
     jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCols: Optional[List[str]] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-    ) -> None:
-        """
-        Initialize a ArraySplitTransformer transformer.
-
-        :param inputCol: Input column name.
-        :param outputCols: Output column names.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column(s) to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return None
+    _compatible_dtypes = None
+    _keras_layer_class = ArraySplitLayer
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -100,18 +67,3 @@ class ArraySplitTransformer(
         original_columns = [F.col(c) for c in dataset.columns]
         select_cols = original_columns + output_cols
         return dataset.select(select_cols)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for that unstacks the input tensor and reshapes
-        to the original shape.
-
-        :returns: Keras layer with name equal to the layerName parameter
-        that slices the input tensors.
-        """
-        return ArraySplitLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            axis=-1,
-        )

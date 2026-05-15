@@ -19,14 +19,13 @@
 from typing import List, Optional
 
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
-from pyspark.sql.types import DataType, StringType
+from pyspark.sql.types import StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import StringEqualsIfStatementLayer
+from kamae.params import ParamSpec
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
@@ -36,91 +35,11 @@ from kamae.spark.utils import multi_input_single_output_scalar_transform
 from .base import BaseTransformer
 
 
-class StringEqualsIfStatementParams(Params):
-    """
-    Mixin class containing parameters needed for StringEqualsIfStatementTransformer
-    transform layers.
-    """
-
-    valueToCompare = Param(
-        Params._dummy(),
-        "valueToCompare",
-        "Float value to compare to input column",
-        typeConverter=TypeConverters.toString,
-    )
-
-    resultIfTrue = Param(
-        Params._dummy(),
-        "resultIfTrue",
-        "Float value to return if condition is true",
-        typeConverter=TypeConverters.toString,
-    )
-
-    resultIfFalse = Param(
-        Params._dummy(),
-        "resultIfFalse",
-        "Float value to return if condition is false",
-        typeConverter=TypeConverters.toString,
-    )
-
-    def setResultIfTrue(self, value: str) -> "StringEqualsIfStatementParams":
-        """
-        Sets the resultIfTrue parameter.
-
-        :param value: Float value to return if condition is true.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(resultIfTrue=value)
-
-    def setResultIfFalse(self, value: str) -> "StringEqualsIfStatementParams":
-        """
-        Sets the resultIfFalse parameter.
-
-        :param value: Float value to return if condition is false.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(resultIfFalse=value)
-
-    def setValueToCompare(self, value: str) -> "StringEqualsIfStatementParams":
-        """
-        Sets the valueToCompare parameter.
-
-        :param value: Float value to compare to input column.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(valueToCompare=value)
-
-    def getValueToCompare(self) -> str:
-        """
-        Gets the valueToCompare parameter.
-
-        :returns: Float value to compare to input column.
-        """
-        return self.getOrDefault(self.valueToCompare)
-
-    def getResultIfTrue(self) -> str:
-        """
-        Gets the resultIfTrue parameter.
-
-        :returns: Float value to return if condition is true.
-        """
-        return self.getOrDefault(self.resultIfTrue)
-
-    def getResultIfFalse(self) -> str:
-        """
-        Gets the resultIfFalse parameter.
-
-        :returns: Float value to return if condition is false.
-        """
-        return self.getOrDefault(self.resultIfFalse)
-
-
 # TODO: Deprecate this in favor of IfStatementTransformer in next major release.
 class StringEqualsIfStatementTransformer(
     BaseTransformer,
     SingleInputSingleOutputParams,
     MultiInputSingleOutputParams,
-    StringEqualsIfStatementParams,
 ):
     """
     StringEqualIfStatement Spark Transformer for use in Spark pipelines.
@@ -128,62 +47,25 @@ class StringEqualsIfStatementTransformer(
     and columns.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        inputCols: Optional[List[str]] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        valueToCompare: Optional[str] = None,
-        resultIfTrue: Optional[str] = None,
-        resultIfFalse: Optional[str] = None,
-    ) -> None:
-        """
-        Initializes a StringEqualsIfStatementTransformer transformer.
-
-        :param inputCol: Input column name. Only used if inputCols is not specified.
-        If specified, then all other aspects of the if statement are constant.
-        :param inputCols: Input column names. List of input columns to in the case
-        where the if statement is not constant. Must be specified in the order
-        [valueToCompare, resultIfTrue, resultIfFalse].
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param valueToCompare: Optional str value to compare to input column.
-        If not specified, then assumed to be the first input column.
-        :param resultIfTrue: Optional str value to return if condition is true.
-        If not specified, then assumed to be the second input column.
-        :param resultIfFalse: Optional str value to return if condition is false.
-        If not specified, then assumed to be the third input column.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(
-            valueToCompare=None,
-            resultIfTrue=None,
-            resultIfFalse=None,
-        )
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    _keras_layer_class = StringEqualsIfStatementLayer
+    _params = {
+        "valueToCompare": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="String value to compare to input column",
+        ),
+        "resultIfTrue": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="String value to return if condition is true",
+        ),
+        "resultIfFalse": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="String value to return if condition is false",
+        ),
+    }
 
     def setInputCols(self, value: List[str]) -> "StringEqualsIfStatementTransformer":
         """
@@ -313,19 +195,3 @@ class StringEqualsIfStatementTransformer(
         )
 
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
-        """
-        Gets the Keras layer for the string if equal statement transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs the string if equals statement.
-        """
-        return StringEqualsIfStatementLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            value_to_compare=self.getValueToCompare(),
-            result_if_true=self.getResultIfTrue(),
-            result_if_false=self.getResultIfFalse(),
-        )
