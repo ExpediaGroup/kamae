@@ -16,19 +16,12 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
-
 import pyspark.sql.functions as F
-from pyspark import keyword_only
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DataType, IntegerType, LongType, ShortType, StringType
+from pyspark.sql.types import IntegerType, LongType, ShortType, StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
-from kamae.spark.params import (
-    DropUnseenParams,
-    SingleInputSingleOutputParams,
-    StringIndexParams,
-)
+from kamae.params.shared_specs import DROP_UNSEEN_PARAMS, STRING_INDEX_PARAMS
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers import OneHotEncodeTransformer
 from kamae.spark.utils import collect_labels_array
 
@@ -37,9 +30,7 @@ from .base import BaseEstimator
 
 class OneHotEncodeEstimator(
     BaseEstimator,
-    DropUnseenParams,
     SingleInputSingleOutputParams,
-    StringIndexParams,
 ):
     """
     One-hot encoder Spark Estimator for use in Spark pipelines.
@@ -49,69 +40,8 @@ class OneHotEncodeEstimator(
     same string labels.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        stringOrderType: str = "frequencyDesc",
-        maskToken: Optional[str] = None,
-        numOOVIndices: int = 1,
-        dropUnseen: bool = False,
-        maxNumLabels: Optional[int] = None,
-    ) -> None:
-        """
-        Initializes the OneHotEncoder estimator.
-        Sets all parameters to given inputs.
-
-        :param inputCol: Input column name.
-        :param outputCol: Output column name.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param inputDtype: Input data type to cast input column(s) to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column(s) to after
-        transforming.
-        :param stringOrderType: How to order the string indices.
-        Options are 'frequencyAsc', 'frequencyDesc', 'alphabeticalAsc',
-        'alphabeticalDesc'. Defaults to 'frequencyDesc'.
-        :param maskToken: Token to use for masking.
-        If set, the token will be indexed as 0.
-        :param numOOVIndices: Number of out of vocabulary indices to use. The
-        out of vocabulary indices are used to represent unseen labels and are
-        placed at the beginning of the one-hot encoding. Defaults to 1.
-        :param dropUnseen: Whether to drop unseen label indices. If set to True,
-        the transformer will not add an extra dimension for unseen labels in the
-        one-hot encoding. Defaults to False.
-        :param maxNumLabels: Optional value to limit the size of the vocabulary.
-        Defaults to None to consider the full list.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(
-            stringOrderType="frequencyDesc",
-            numOOVIndices=1,
-            dropUnseen=False,
-            maskToken=None,
-            maxNumLabels=None,
-        )
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [ShortType(), IntegerType(), LongType(), StringType()]
+    _compatible_dtypes = [ShortType(), IntegerType(), LongType(), StringType()]
+    _params = {**STRING_INDEX_PARAMS, **DROP_UNSEEN_PARAMS}
 
     def _fit(self, dataset: DataFrame) -> "OneHotEncodeTransformer":
         """

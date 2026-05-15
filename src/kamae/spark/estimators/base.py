@@ -16,15 +16,40 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from pyspark.ml import Estimator
 from pyspark.sql import DataFrame
+from pyspark.sql.types import DataType
 
 from kamae.spark.common import SparkOperation
-from kamae.spark.transformers import BaseTransformer
+from kamae.spark.common.init_builder import build_init, collect_io_params
+from kamae.spark.params.param_spec import install_param_specs
 
 if TYPE_CHECKING:
     from pyspark.ml._typing import ParamMap
 
+    from kamae.spark.transformers import BaseTransformer
+
 
 class BaseEstimator(Estimator, SparkOperation):
+    _compatible_dtypes: Optional[List[DataType]] = None
+
+    @property
+    def compatible_dtypes(self) -> Optional[List[DataType]]:
+        return self._compatible_dtypes
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+
+        if cls is BaseEstimator:
+            return
+
+        custom_specs = cls.__dict__.get("_params", {})
+
+        if custom_specs:
+            install_param_specs(cls, custom_specs)
+
+        if "__init__" not in cls.__dict__:
+            io_names = collect_io_params(cls)
+            cls.__init__ = build_init(io_names, custom_specs, cls)
+
     def __init__(self) -> None:
         """
         Initializes the estimator.
@@ -35,7 +60,7 @@ class BaseEstimator(Estimator, SparkOperation):
         self,
         dataset: DataFrame,
         params: Optional[Union["ParamMap", List["ParamMap"], Tuple["ParamMap"]]] = None,
-    ) -> BaseTransformer:
+    ) -> "BaseTransformer":
         """
         Overrides the fit method of the parent class to add casting of input columns
         to the preferred data type.

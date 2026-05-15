@@ -16,31 +16,37 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import pyspark.sql.functions as F
 from pyspark import keyword_only
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import DataFrame
-from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
+from pyspark.sql.types import ArrayType, DoubleType, FloatType
 
-from kamae.spark.params import (
-    ImputeMethodParams,
-    MaskValueParams,
-    SampleFractionParams,
-    SingleInputSingleOutputParams,
-)
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import SAMPLE_FRACTION_PARAMS
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers import ImputeTransformer
 from kamae.spark.utils import flatten_nested_arrays
 
 from .base import BaseEstimator
 
 
+def _validate_impute_method(value):
+    valid = ["mean", "median"]
+    if value not in valid:
+        raise ValueError(
+            "Imputation method should be one of: [{}], but received {}".format(
+                ",".join(valid), value
+            )
+        )
+    return value
+
+
 class ImputeEstimator(
     BaseEstimator,
-    SampleFractionParams,
     SingleInputSingleOutputParams,
-    MaskValueParams,
-    ImputeMethodParams,
 ):
     """
     Imputation estimator for use in Spark pipelines.
@@ -53,57 +59,23 @@ class ImputeEstimator(
 
     jit_compatible = True
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        maskValue: Optional[Union[float, int, str]] = None,
-        imputeMethod: Optional[str] = None,
-        sampleFraction: Optional[float] = None,
-    ) -> None:
-        """
-        Initializes a ImputeEstimator estimator.
-        Sets all parameters to given inputs.
+    _compatible_dtypes = [FloatType(), DoubleType()]
 
-        :param inputCol: Input column name to standardize.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
-         in the keras model. If not set, we use the uid of the Spark transformer.
-        :param maskValue: Value which to ignore, in addition to nulls, when
-        computing imputation statistic.
-        This is also the value that is imputed over in TF at inference.
-        :param imputeMethod: Method by which to compute the value to be imputed.
-        Valid values are "mean" or "median".
-        :param sampleFraction: Fraction of data to sample for statistics
-         estimation (exclusive 0.0-1.0). Default None (no sampling).
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(
-            imputeMethod="mean",
-            sampleFraction=None,
-        )
-        self.valid_impute_methods = ["mean", "median"]
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [FloatType(), DoubleType()]
+    _params = {
+        "imputeMethod": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default="mean",
+            doc="Method with which to compute the value that is imputed over "
+            "the mask value. Valid values are 'mean' or 'median'.",
+            validator=_validate_impute_method,
+        ),
+        "maskValue": ParamSpec(
+            spark_typeconverter=TypeConverters.identity,
+            default=None,
+            doc="Value to be used as a mask by the transformer.",
+        ),
+        **SAMPLE_FRACTION_PARAMS,
+    }
 
     def _fit(self, dataset: DataFrame) -> "ImputeTransformer":
         """

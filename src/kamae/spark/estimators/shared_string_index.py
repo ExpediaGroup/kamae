@@ -16,15 +16,12 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
-
 import pyspark.sql.functions as F
-from pyspark import keyword_only
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DataType, StringType
+from pyspark.sql.types import StringType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
-from kamae.spark.params import MultiInputMultiOutputParams, StringIndexParams
+from kamae.params.shared_specs import STRING_INDEX_PARAMS
+from kamae.spark.params import MultiInputMultiOutputParams
 from kamae.spark.transformers import SharedStringIndexTransformer
 from kamae.spark.utils import collect_labels_array_from_multiple_columns
 
@@ -34,7 +31,6 @@ from .base import BaseEstimator
 class SharedStringIndexEstimator(
     BaseEstimator,
     MultiInputMultiOutputParams,
-    StringIndexParams,
 ):
     """
     Shared vocab String indexer Spark Estimator for use in Spark pipelines.
@@ -44,62 +40,8 @@ class SharedStringIndexEstimator(
     to index additional feature columns using the same string labels.
     """
 
-    supported_backends = TENSORFLOW_ONLY
-
-    @keyword_only
-    def __init__(
-        self,
-        inputCols: Optional[List[str]] = None,
-        outputCols: Optional[List[str]] = None,
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        layerName: Optional[str] = None,
-        stringOrderType: str = "frequencyDesc",
-        maskToken: Optional[str] = None,
-        numOOVIndices: int = 1,
-        maxNumLabels: Optional[int] = None,
-    ) -> None:
-        """
-        Initializes the SharedStringIndexEstimator estimator.
-        Sets all parameters to given inputs.
-
-        :param inputCols: Input column names.
-        :param outputCols: Output column names.
-        :param inputDtype: Input data type to cast input columns to before
-        transforming.
-        :param outputDtype: Output data type to cast the output columns to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param stringOrderType: How to order the string indices.
-        Options are 'frequencyAsc', 'frequencyDesc', 'alphabeticalAsc',
-        'alphabeticalDesc'.
-        :param maskToken: Token to use for masking.
-        If set, the token will be indexed as 0.
-        :param numOOVIndices: Number of out of vocabulary indices to use.
-        :param maxNumLabels: Optional value to limit the size of the vocabulary.
-        Default is 1.
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(
-            stringOrderType="frequencyDesc",
-            numOOVIndices=1,
-            maskToken=None,
-            maxNumLabels=None,
-        )
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        List of compatible data types for the layer.
-        If the computation can be performed on any data type, return None.
-
-        :returns: List of compatible data types for the layer.
-        """
-        return [StringType()]
+    _compatible_dtypes = [StringType()]
+    _params = {**STRING_INDEX_PARAMS}
 
     def _fit(self, dataset: DataFrame) -> "SharedStringIndexTransformer":
         """

@@ -21,17 +21,13 @@ from typing import List, Optional
 import numpy as np
 import pyspark.sql.functions as F
 from numpy.typing import NDArray
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
+from pyspark.ml.param import TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
-from kamae.spark.params import (
-    NanFillValueParams,
-    SampleFractionParams,
-    SingleInputSingleOutputParams,
-    StandardScaleSkipZerosParams,
-)
+from kamae.params import _UNSET, ParamSpec
+from kamae.params.shared_specs import SAMPLE_FRACTION_PARAMS
+from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers import ConditionalStandardScaleTransformer
 from kamae.spark.utils import construct_nested_elements_for_scaling
 from kamae.utils import get_condition_operator
@@ -39,185 +35,32 @@ from kamae.utils import get_condition_operator
 from .base import BaseEstimator
 
 
-class ConditionalStandardScaleEstimatorParams(Params):
-    """
-    Mixin class containing conditional standard scale parameters,
-    needed for single feature array scaler layers.
-    """
+def _validate_scaling_function(value):
+    if value.lower() in ("standard", "binary"):
+        return value.lower()
+    raise ValueError(f"Unknown scaling function: {value}.")
 
-    jit_compatible = True
 
-    scalingFunction = Param(
-        Params._dummy(),
-        "scalingFunction",
-        """
-        The name of the scaling function to use during spark fit function,
-        to estimate the mean and standard deviation. Defaults to 'standard'.
-        """,
-        typeConverter=TypeConverters.toString,
-    )
+def _validate_nan_fill_value(value):
+    if value is None:
+        raise ValueError("nanFillValue cannot be None")
+    return value
 
-    maskCols = Param(
-        Params._dummy(),
-        "maskCols",
-        """
-        Columns on which to apply the mask condition and the mask value
-        during moments calculation. Defaults to None.
-        """,
-        typeConverter=TypeConverters.toListString,
-    )
 
-    maskOperators = Param(
-        Params._dummy(),
-        "maskOperators",
-        "Operators to use in masking conditions: eq, neq, lt, gt, leq, geq",
-        typeConverter=TypeConverters.toListString,
-    )
-
-    maskValues = Param(
-        Params._dummy(),
-        "maskValues",
-        """
-        Values applied to the respective maskCol with the respective maskOperator
-        to make the value ignored during moments calculation.
-        """,
-        typeConverter=TypeConverters.toListFloat,
-    )
-
-    relevanceCol = Param(
-        Params._dummy(),
-        "relevanceCol",
-        """
-        The name of the relevance column to use during the calculation of the moments.
-        """,
-        typeConverter=TypeConverters.toString,
-    )
-
-    def setScalingFunction(
-        self,
-        value: str,
-    ) -> "ConditionalStandardScaleEstimatorParams":
-        """
-        Sets the scalingFunction parameter.
-
-        :param value: String value to indicate which scaling function to use.
-        :returns: Instance of class mixed in.
-        """
-        if value.lower() == "standard":
-            return self._set(scalingFunction=value.lower())
-        elif value.lower() == "binary":
-            return self._set(scalingFunction=value.lower())
-        else:
-            raise ValueError(f"Unknown scaling function: {value}.")
-
-    def getScalingFunction(self) -> str:
-        """
-        Gets the scalingFunction parameter.
-
-        :returns: Boolean value of the scalingFunction value.
-        """
-        return self.getOrDefault(self.scalingFunction)
-
-    def setMaskCols(
-        self, value: List[str]
-    ) -> "ConditionalStandardScaleEstimatorParams":
-        """
-        Sets the maskCols parameter.
-
-        :param value: Columns to use as the mask columns.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(maskCols=value)
-
-    def getMaskCols(self) -> List[str]:
-        """
-        Gets the maskCols parameter.
-        :returns: List of string values of the mask column.
-        """
-        return self.getOrDefault(self.maskCols)
-
-    def setMaskOperators(
-        self, value: List[str]
-    ) -> "ConditionalStandardScaleEstimatorParams":
-        """
-        Sets the maskOperators parameter.
-
-        :param value: String value describing the operator to use in condition:
-        - eq
-        - neq
-        - lt
-        - gt
-        - leq
-        - geq
-        :returns: Instance of class mixed in.
-        """
-        allowed_operators = ["eq", "neq", "lt", "gt", "leq", "geq"]
-        for v in value:
-            if v not in allowed_operators:
-                raise ValueError(
-                    f"conditionOperator must be one of {allowed_operators}, "
-                    f"but got {value}"
-                )
-        return self._set(maskOperators=value)
-
-    def getMaskOperators(self) -> List[str]:
-        """
-        Gets the maskOperators parameter.
-
-        :returns: List of string values describing the operators to use in conditions:
-        - eq
-        - neq
-        - lt
-        - gt
-        - leq
-        - geq
-        """
-        return self.getOrDefault(self.maskOperators)
-
-    def setMaskValues(
-        self, value: List[float]
-    ) -> "ConditionalStandardScaleEstimatorParams":
-        """
-        Sets the maskValues parameter.
-
-        :param value: List of float values to use as the mask value.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(maskValues=value)
-
-    def getMaskValues(self) -> List[float]:
-        """
-        Gets the maskValues parameter.
-
-        :returns: List of float values of the mask values.
-        """
-        return self.getOrDefault(self.maskValues)
-
-    def setRelevanceCol(self, value: str) -> "ConditionalStandardScaleEstimatorParams":
-        """
-        Sets the relevanceCol parameter.
-
-        :param value: String value to use as the relevance column.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(relevanceCol=value)
-
-    def getRelevanceCol(self) -> str:
-        """
-        Gets the relevanceCol parameter.
-
-        :returns: String value of the relevance column.
-        """
-        return self.getOrDefault(self.relevanceCol)
+def _validate_mask_operators(value):
+    allowed_operators = ["eq", "neq", "lt", "gt", "leq", "geq"]
+    for v in value:
+        if v not in allowed_operators:
+            raise ValueError(
+                f"conditionOperator must be one of {allowed_operators}, "
+                f"but got {value}"
+            )
+    return value
 
 
 class ConditionalStandardScaleEstimator(
     BaseEstimator,
-    SampleFractionParams,
     SingleInputSingleOutputParams,
-    ConditionalStandardScaleEstimatorParams,
-    StandardScaleSkipZerosParams,
-    NanFillValueParams,
 ):
     """
     Conditional standard scaler estimator for use in Spark pipelines.
@@ -239,76 +82,59 @@ class ConditionalStandardScaleEstimator(
     shape across all rows.
     """
 
-    @keyword_only
-    def __init__(
-        self,
-        inputCol: Optional[str] = None,
-        outputCol: Optional[str] = None,
-        layerName: Optional[str] = None,
-        scalingFunction: str = "standard",
-        inputDtype: Optional[str] = None,
-        outputDtype: Optional[str] = None,
-        maskCols: Optional[List[str]] = None,
-        maskOperators: Optional[List[str]] = None,
-        maskValues: Optional[List[float]] = None,
-        relevanceCol: Optional[str] = None,
-        skipZeros: bool = False,
-        epsilon: float = 0,
-        nanFillValue: Optional[float] = None,
-        sampleFraction: Optional[float] = None,
-    ) -> None:
-        """
-        Initializes a ConditionalStandardScaleEstimator estimator.
-        Sets all parameters to given inputs.
+    jit_compatible = True
 
-        :param inputCol: Input column name to standardize.
-        :param outputCol: Output column name.
-        :param inputDtype: Input data type to cast input column to before
-        transforming.
-        :param outputDtype: Output data type to cast the output column to after
-        transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
-        in the keras model. If not set, we use the uid of the Spark transformer.
-        :param scalingFunction: The scaling function to use: 'standard', 'binary'.
-        :param maskCols: Columns on which to apply the mask values. Defaults to None.
-        :param maskOperators: Operators to use in each masking condition:
-        eq, neq, lt, gt, leq, geq. Defaults to 'neq'.
-        :param maskValues: Values applied to the maskCols which makes the value
-        ignored in the calculation of the moments. Defaults to None.
-        :param relevanceCol: The name of the relevance column to use during spark
-        fit function.
-        :param skipZeros: If True, during spark transform and keras inference,
-        do not apply the scaling when the values to scale are equal to zero.
-        :param epsilon: Small value to add to conditional check of zeros. Valid only
-        when skipZeros is True. Defaults to 0.
-        :param nanFillValue: Value to fill NaNs with after scaling. It is important
-        to use it if epsilon filters out all the values. Defaults to None.
-        :param sampleFraction: Fraction of data to sample for statistics
-        estimation (exclusive 0.0-1.0). Default None (no sampling).
-        :returns: None - class instantiated.
-        """
-        super().__init__()
-        self._setDefault(
-            scalingFunction="standard",
-            maskCols=None,
-            maskOperators=None,
-            maskValues=None,
-            relevanceCol=None,
-            skipZeros=False,
-            epsilon=0,
-            nanFillValue=None,
-            sampleFraction=None,
-        )
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        """
-        Returns the compatible data types for transformer.
-        :returns: List of compatible data types.
-        """
-        return [DoubleType(), FloatType()]
+    _compatible_dtypes = [DoubleType(), FloatType()]
+    _params = {
+        "skipZeros": ParamSpec(
+            spark_typeconverter=TypeConverters.toBoolean,
+            default=False,
+            doc="If True, do not apply scaling when values equal zero.",
+        ),
+        "epsilon": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=0,
+            doc="Epsilon value for skipZeros condition.",
+        ),
+        "nanFillValue": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=_UNSET,
+            doc="The value to fill NaN with.",
+            validator=_validate_nan_fill_value,
+        ),
+        "scalingFunction": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default="standard",
+            doc="The name of the scaling function to use during spark fit function, "
+            "to estimate the mean and standard deviation. Defaults to 'standard'.",
+            validator=_validate_scaling_function,
+        ),
+        "maskCols": ParamSpec(
+            spark_typeconverter=TypeConverters.toListString,
+            default=None,
+            doc="Columns on which to apply the mask condition and the mask value "
+            "during moments calculation. Defaults to None.",
+        ),
+        "maskOperators": ParamSpec(
+            spark_typeconverter=TypeConverters.toListString,
+            default=None,
+            doc="Operators to use in masking conditions: eq, neq, lt, gt, leq, geq.",
+            validator=_validate_mask_operators,
+        ),
+        "maskValues": ParamSpec(
+            spark_typeconverter=TypeConverters.toListFloat,
+            default=None,
+            doc="Values applied to the respective maskCol with the respective "
+            "maskOperator to make the value ignored during moments calculation.",
+        ),
+        "relevanceCol": ParamSpec(
+            spark_typeconverter=TypeConverters.toString,
+            default=None,
+            doc="The name of the relevance column to use during the calculation "
+            "of the moments.",
+        ),
+        **SAMPLE_FRACTION_PARAMS,
+    }
 
     def _get_binary_moments(self, f: NDArray, n: NDArray) -> (NDArray, NDArray):
         """
