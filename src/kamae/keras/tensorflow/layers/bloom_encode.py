@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import tensorflow as tf
 from tensorflow.keras.layers import Hashing
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import MASK_VALUE_PARAMS
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class BloomEncodeLayer(BaseLayer):
     """
     Performs a bloom encoding on the input tensor. Uses multiple hash functions to
@@ -39,74 +39,45 @@ class BloomEncodeLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        num_hash_fns: int = 3,
-        num_bins: Optional[int] = None,
-        mask_value: Union[int, str] = None,
-        feature_cardinality: Optional[int] = None,
-        use_heuristic_num_bins: bool = False,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Intialises the BloomEncodeLayer layer.
+    _compatible_dtypes = ["string"]
+    _params = {
+        "num_hash_fns": ParamSpec(
+            default=3,
+            doc="Number of hash functions to use. Defaults to 3. The paper suggests a range of 2-4 hash functions for optimal performance.",
+        ),
+        "num_bins": ParamSpec(
+            default=None,
+            doc="Number of hash bins. Note that this includes the `mask_value` bin, so the effective number of bins is `(num_bins - 1)` if `mask_value` is set. If `use_heuristic_num_bins` is set to True, then this parameter is ignored and the number of bins is automatically set.",
+        ),
+        **MASK_VALUE_PARAMS,
+        "feature_cardinality": ParamSpec(
+            default=None,
+            doc="The cardinality of the input tensor. Needed to use the heuristic to set the number of bins. Defaults to None, meaning the number of bins will not be set using the heuristic and must be set manually.",
+        ),
+        "use_heuristic_num_bins": ParamSpec(
+            default=False,
+            doc="If set to True, the number of bins is automatically set by fixing the ratio of the feature dimensionality to the number of bins to be b/f = 0.2. This ratio was found to be optimal in the paper for a wide variety of usecases. Therefore, num_bins = feature_cardinality * 0.2. This reduces the cardinality of the input tensor by 5x. Requires the `feature_cardinality` parameter to be set. Defaults to False.",
+        ),
+    }
 
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param num_hash_fns: Number of hash functions to use. Defaults to 3.
-        The paper suggests a range of 2-4 hash functions for optimal performance.
-        :param num_bins: Number of hash bins. Note that this includes the `mask_value`
-        bin, so the effective number of bins is `(num_bins - 1)` if `mask_value`
-        is set. If `use_heuristic_num_bins` is set to True, then this parameter is
-        ignored and the number of bins is automatically set. See the description of this
-        parameter below for how the heuristic is built.
-        :param mask_value: A value that represents masked inputs, which are mapped to
-        index 0. Defaults to None, meaning no mask term will be added and the
-        hashing will start at index 0.
-        :param feature_cardinality: The cardinality of the input tensor. Needed to use
-        the heuristic to set the number of bins. Defaults to None, meaning the number of
-        bins will not be set using the heuristic and must be set manually.
-        :param use_heuristic_num_bins: If set to True, the number of bins is
-        automatically set by fixing the ratio of the feature dimensionality to the
-        number of bins to be b/f = 0.2. This ratio was found to be optimal in the paper
-        for a wide variety of usecases. Therefore, num_bins = feature_cardinality * 0.2.
-        This reduces the cardinality of the input tensor by 5x.
-        Requires the `feature_cardinality` parameter to be set. Defaults to False.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        if num_hash_fns < 2:
+    @staticmethod
+    def _post_init(self):
+        if self.num_hash_fns < 2:
             raise ValueError("The number of hash functions must be at least 2.")
-        self.num_hash_fns = num_hash_fns
-        self.mask_value = mask_value
-        self.feature_cardinality = feature_cardinality
-        self.use_heuristic_num_bins = use_heuristic_num_bins
-
-        if use_heuristic_num_bins and feature_cardinality is None:
+        if self.use_heuristic_num_bins and self.feature_cardinality is None:
             raise ValueError(
                 """If use_heuristic_num_bins is set to True, then the
                 feature_cardinality parameter must be set."""
             )
-        if num_bins is None and not use_heuristic_num_bins:
+        if self.num_bins is None and not self.use_heuristic_num_bins:
             raise ValueError(
                 """If use_heuristic_num_bins is set to False, then the
                 num_bins parameter must be set."""
             )
-        self.num_bins = (
-            num_bins
-            if not use_heuristic_num_bins
-            else max(round(feature_cardinality * 0.2), 2)
-        )
-        # We need to create multiple hashing layers if we have a mask_value, as the
-        # mask_value needs salting in the same manner as the input tensor. Hence it is
-        # not constant across the hash functions. If the mask_value is None, then we
-        # can use the same hash function for all the hash functions.
-        if mask_value is None:
+        if self.use_heuristic_num_bins:
+            self.num_bins = max(round(self.feature_cardinality * 0.2), 2)
+
+        if self.mask_value is None:
             hash_fn = Hashing(num_bins=self.num_bins - 1)
             self.hash_fns = {f"{i}": hash_fn for i in range(self.num_hash_fns)}
         else:
@@ -118,23 +89,11 @@ class BloomEncodeLayer(BaseLayer):
                 for i in range(self.num_hash_fns)
             }
 
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
-
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the bloom encoding on the input tensor.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that the input
-        is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input tensor to be encoded.
         :returns: Encoded tensor.
@@ -165,21 +124,3 @@ class BloomEncodeLayer(BaseLayer):
         if self.mask_value is None:
             result = result + 1
         return result
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Returns the configuration of the BloomEncode layer.
-
-        :returns: Configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "num_hash_fns": self.num_hash_fns,
-                "num_bins": self.num_bins,
-                "mask_value": self.mask_value,
-                "feature_cardinality": self.feature_cardinality,
-                "use_heuristic_num_bins": self.use_heuristic_num_bins,
-            }
-        )
-        return config

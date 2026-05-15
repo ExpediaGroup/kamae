@@ -12,20 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterable, List
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 from kamae.keras.tensorflow.utils.list_utils import get_top_n, segmented_operation
 from kamae.keras.tensorflow.utils.transform_utils import map_fn_w_axis
+from kamae.params.shared_specs import (
+    LISTWISE_FILTER_PARAMS,
+    LISTWISE_PARAMS,
+    LISTWISE_SEGMENT_PARAMS,
+)
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class ListMeanLayer(BaseLayer):
     """
     Calculate the mean across the axis dimension.
@@ -50,62 +53,18 @@ class ListMeanLayer(BaseLayer):
     supported_backends = TENSORFLOW_ONLY
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        top_n: Optional[int] = None,
-        sort_order: str = "asc",
-        with_segment: bool = False,
-        min_filter_value: Optional[float] = None,
-        nan_fill_value: float = 0.0,
-        axis: int = 1,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the Listwise Mean layer.
-
-        WARNING: The code is fully tested for axis=1 only. Further testing is needed.
-
-        WARNING: The code can be affected by the value of the padding items. Always
-        make sure to filter out the padding items value with min_filter_value.
-
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param top_n: The number of top items to consider when calculating the mean.
-        :param sort_order: The order to sort the second tensor by. Defaults to `asc`.
-        :param with_segment: Whether the second tensor should be used for segmentation (True)
-        or sorting (False). Defaults to False.
-        :param min_filter_value: The minimum filter value to ignore values during
-        calculation. Defaults to None (no filter).
-        :param nan_fill_value: The value to fill NaNs results with. Defaults to 0.
-        :param axis: The axis to calculate the statistics across. Defaults to 1.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.top_n = top_n
-        self.sort_order = sort_order
-        self.min_filter_value = min_filter_value
-        self.nan_fill_value = nan_fill_value
-        self.axis = axis
-        self.with_segment = with_segment
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-        ]
+    _compatible_dtypes = [
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+        "string",
+    ]
+    _params = {
+        **{k: v for k, v in LISTWISE_PARAMS.items() if k != "queryIdCol"},
+        **LISTWISE_FILTER_PARAMS,
+        **LISTWISE_SEGMENT_PARAMS,
+    }
 
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
@@ -214,23 +173,3 @@ class ListMeanLayer(BaseLayer):
         )
 
         return listwise_mean
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the layer.
-        Used for saving and loading from a model.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "top_n": self.top_n,
-                "sort_order": self.sort_order,
-                "min_filter_value": self.min_filter_value,
-                "nan_fill_value": self.nan_fill_value,
-                "axis": self.axis,
-                "with_segment": self.with_segment,
-            }
-        )
-        return config

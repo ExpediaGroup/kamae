@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringAffixLayer(BaseLayer):
     """
     Performs a prefixing and suffing on the input tensor.
@@ -31,35 +30,20 @@ class StringAffixLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        prefix: Optional[str] = None,
-        suffix: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the String Affix layer.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param prefix: The prefix to apply to tensor.
-        :param suffix: The suffix to apply to tensor.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.prefix = prefix
-        self.suffix = suffix
-        self.validate_params()
+    _compatible_dtypes = ["string"]
+    _params = {
+        "prefix": ParamSpec(
+            default=None,
+            doc="The prefix to apply to tensor.",
+        ),
+        "suffix": ParamSpec(
+            default=None,
+            doc="The suffix to apply to tensor.",
+        ),
+    }
 
-    def validate_params(self) -> None:
-        """
-        Validates the parameters of the layer.
-        :raises ValueError: If both prefix and suffix are not set.
-        """
+    @staticmethod
+    def _post_init(self):
         if (self.prefix is None or self.prefix == "") and (
             self.suffix is None or self.suffix == ""
         ):
@@ -67,23 +51,11 @@ class StringAffixLayer(BaseLayer):
                 "Either prefix or suffix must be set. Otherwise nothing to affix."
             )
 
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
-
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Prefixes and suffixes a given input tensor.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that the input
-        is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input tensor to affix. Must be string tensors.
         :returns: A tensor with affixed values - same shape as input.
@@ -94,16 +66,3 @@ class StringAffixLayer(BaseLayer):
         if self.suffix:
             x = tf.strings.join([x, self.suffix])
         return x
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the StringAffix layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `prefix` and `suffix` values to the configuration.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"prefix": self.prefix, "suffix": self.suffix})
-        return config

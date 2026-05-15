@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringArrayConstantLayer(BaseLayer):
     """
     Tensorflow keras layer that outputs a constant string array.
@@ -31,43 +30,19 @@ class StringArrayConstantLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        constant_string_array: Optional[List[str]] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the String Array Constant layer.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param constant_string_array: The constant string array to output.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.constant_string_array = constant_string_array
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return None
+    _compatible_dtypes = None
+    _params = {
+        "constant_string_array": ParamSpec(
+            default=None,
+            doc="The constant string array to output",
+        ),
+    }
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Returns the constant string array with the same shape as the input tensor.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that the input
-        is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Tensor to replicate shape of for constant string array.
         :returns: A tensor with the constant string array
@@ -79,16 +54,3 @@ class StringArrayConstantLayer(BaseLayer):
         )
         broadcasted_strings = tf.broadcast_to(string_tensor, broadcast_shape)
         return broadcasted_strings
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the StringArrayConstant layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `constant_string_array` to the config.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"constant_string_array": self.constant_string_array})
-        return config

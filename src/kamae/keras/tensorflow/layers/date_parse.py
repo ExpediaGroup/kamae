@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
@@ -32,9 +31,9 @@ from kamae.keras.tensorflow.utils.date_utils import (
     datetime_weekday,
     datetime_year,
 )
+from kamae.params import _REQUIRED, ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class DateParseLayer(BaseLayer):
     """
     Parses a date(time) string from yyyy-MM-dd (HH:mm:ss.SSS) format
@@ -64,62 +63,41 @@ class DateParseLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        date_part: str,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        default_value: Optional[int] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises an instance of the DateParseLayer layer.
+    _compatible_dtypes = ["string"]
+    _params = {
+        "date_part": ParamSpec(
+            default=_REQUIRED,
+            doc="Date part to extract from date",
+        ),
+        "default_value": ParamSpec(
+            default=None,
+            doc="Default value to use when the date is the empty string",
+        ),
+    }
 
-        :param date_part: Date part to extract from date.
-        :param name: Name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param default_value: Default value to use when the date is the empty string.
-        Empty strings can be used when the date is not available.
-        :returns: None - class instantiated.
-        """
-        self.allowed_date_parts = {
-            "DayOfWeek",
-            "DayOfMonth",
-            "DayOfYear",
-            "MonthOfYear",
-            "Year",
-            "Hour",
-            "Minute",
-            "Second",
-            "Millisecond",
-        }
-        if date_part not in self.allowed_date_parts:
-            raise ValueError(f"date_part must be one of {self.allowed_date_parts}")
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.date_part = date_part
-        self.default_value = default_value
+    _allowed_date_parts = {
+        "DayOfWeek",
+        "DayOfMonth",
+        "DayOfYear",
+        "MonthOfYear",
+        "Year",
+        "Hour",
+        "Minute",
+        "Second",
+        "Millisecond",
+    }
 
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    @staticmethod
+    def _post_init(self):
+        if self.date_part not in DateParseLayer._allowed_date_parts:
+            raise ValueError(
+                f"date_part must be one of {DateParseLayer._allowed_date_parts}"
+            )
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Extracts date part from date(time) string.
-
-        Decorated with `@enforce_single_tensor_input` to ensure that only a single
-        tensor is passed in. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Tensor of date(time) strings in the yyyy-MM-dd (HH:mm:ss.SSS)
         format.
@@ -171,18 +149,3 @@ class DateParseLayer(BaseLayer):
             raise ValueError(
                 f"""date_part must be one of {list(date_part_functions.keys())}"""
             )
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the DateParse layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `date_part` to the config dictionary.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {"date_part": self.date_part, "default_value": self.default_value}
-        )
-        return config

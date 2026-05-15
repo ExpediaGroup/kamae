@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Iterable, List, Optional, Union
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import _REQUIRED, ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class LambdaFunctionLayer(BaseLayer, tf.keras.layers.Lambda):
     """
     Performs the lambda function operation on a given input tensor
@@ -37,6 +36,14 @@ class LambdaFunctionLayer(BaseLayer, tf.keras.layers.Lambda):
     """
 
     supported_backends = TENSORFLOW_ONLY
+
+    _compatible_dtypes = None
+    _params = {
+        "function": ParamSpec(
+            default=_REQUIRED,
+            doc="The lambda function to apply to the input tensor(s)",
+        ),
+    }
 
     def __init__(
         self,
@@ -62,15 +69,6 @@ class LambdaFunctionLayer(BaseLayer, tf.keras.layers.Lambda):
             **kwargs,
         )
 
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return None
-
     @allow_single_or_multiple_tensor_input
     def _call(
         self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any
@@ -78,9 +76,6 @@ class LambdaFunctionLayer(BaseLayer, tf.keras.layers.Lambda):
         """
         Transforms the input tensor(s) by applying the lambda function.
 
-        Decorated with `@allow_single_or_multiple_tensor_input` to ensure that the input
-        is either a single tensor or an iterable of tensors. Returns this result as a
-        list of tensors for easier use here.
 
         :param inputs: Tensor(s) to apply the lambda function to.
         :returns: The transformed tensor(s).
@@ -88,15 +83,3 @@ class LambdaFunctionLayer(BaseLayer, tf.keras.layers.Lambda):
         if len(inputs) == 1:
             return tf.keras.layers.Lambda.call(self, inputs[0], **kwargs)
         return tf.keras.layers.Lambda.call(self, inputs, **kwargs)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the LambdaFunction layer.
-        Used for saving and loading from a model.
-        Calls the parent class's get_config method which deals with serialising the
-        function.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        return config

@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import _REQUIRED, ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringMapLayer(BaseLayer):
     """
     StringMapLayer layer for TensorFlow.
@@ -31,43 +30,21 @@ class StringMapLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        string_match_values: List[str],
-        string_replace_values: List[str],
-        default_replace_value: Optional[str] = None,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the StringMapLayer layer.
-
-        :param string_match_values: The list of strings to match against.
-        :param string_replace_values: The list of strings to replace the matched
-        strings with.
-        :param default_replace_value: The default value to replace the unmatched
-        strings with. If None, the original string is kept unchanged.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.string_match_values = string_match_values
-        self.string_replace_values = string_replace_values
-        self.default_replace_value = default_replace_value
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    _compatible_dtypes = ["string"]
+    _params = {
+        "string_match_values": ParamSpec(
+            default=_REQUIRED,
+            doc="The list of strings to match against.",
+        ),
+        "string_replace_values": ParamSpec(
+            default=_REQUIRED,
+            doc="The list of strings to replace the matched strings with.",
+        ),
+        "default_replace_value": ParamSpec(
+            default=None,
+            doc="The default value to replace the unmatched strings with. If None, the original string is kept unchanged.",
+        ),
+    }
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -79,9 +56,6 @@ class StringMapLayer(BaseLayer):
         with the default_replace_value. If default_replace_value is None, the
         original string is kept unchanged.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that the input
-        is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input string tensor.
         :returns: A string tensor with the matched strings replaced.
@@ -112,23 +86,3 @@ class StringMapLayer(BaseLayer):
             output_tensor = tf.where(unmatched_condition, default_val, output_tensor)
 
         return output_tensor
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the StringMapLayer layer.
-        Used for saving and loading the layer from disk.
-
-        Specifically, `string_match_values` and `string_replace_values`
-        are added to the config.
-
-        :returns: Dictionary configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "string_match_values": self.string_match_values,
-                "string_replace_values": self.string_replace_values,
-                "default_replace_value": self.default_replace_value,
-            }
-        )
-        return config

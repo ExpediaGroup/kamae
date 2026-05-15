@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
@@ -24,7 +23,6 @@ from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.tensorflow.utils.date_utils import unix_timestamp_to_datetime
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class CurrentDateLayer(BaseLayer):
     """
     Returns the current UTC date in yyyy-MM-dd format.
@@ -32,33 +30,7 @@ class CurrentDateLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises an instance of the CurrentDateLayer layer.
-
-        :param name: Name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer. Returns `None` as the layer
-        only returns the current date as a string. It does not transform any input.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return None
+    _compatible_dtypes = None
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -66,9 +38,6 @@ class CurrentDateLayer(BaseLayer):
         Returns the current timestamp in yyyy-MM-dd format.
         Uses the input tensor to determine the shape of the output tensor.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that
-        the input is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input tensor to determine the shape of the output tensor.
         :returns: The current timestamp tensor in yyyy-MM-dd format.
@@ -76,13 +45,3 @@ class CurrentDateLayer(BaseLayer):
         current_timestamp = tf.fill(tf.shape(inputs), tf.timestamp())
         outputs = unix_timestamp_to_datetime(current_timestamp, False)
         return outputs
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the CurrentDate layer.
-        Used for saving and loading from a model.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        return config

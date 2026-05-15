@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterable
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import LISTWISE_FILTER_PARAMS, LISTWISE_PARAMS
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class ListRankLayer(BaseLayer):
     """
     Calculate the rank across the axis dimension.
@@ -34,49 +34,26 @@ class ListRankLayer(BaseLayer):
     supported_backends = TENSORFLOW_ONLY
     jit_compatible = True
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        sort_order: str = "desc",
-        axis: int = 1,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the Listwise Rank layer.
-
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param sort_order: The order to sort the input tensor by. Defaults to 'desc'
-        :param axis: The axis to calculate the rank across. Defaults to 1.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.sort_order = sort_order
-        self.axis = axis
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "bfloat16",
-            "float16",
-            "float32",
-            "float64",
-            "uint8",
-            "int8",
-            "uint16",
-            "int16",
-            "int32",
-            "int64",
-        ]
+    _compatible_dtypes = [
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+        "uint8",
+        "int8",
+        "uint16",
+        "int16",
+        "int32",
+        "int64",
+    ]
+    _params = {
+        **{k: v for k, v in LISTWISE_PARAMS.items() if k != "queryIdCol"},
+        **LISTWISE_FILTER_PARAMS,
+        "sort_order": ParamSpec(
+            default="desc",
+            doc="The order to sort the input tensor by. Defaults to 'desc'.",
+        ),
+    }
 
     @enforce_single_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
@@ -99,19 +76,3 @@ class ListRankLayer(BaseLayer):
             ),
             1,
         )
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the layer.
-        Used for saving and loading from a model.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "axis": self.axis,
-                "sort_order": self.sort_order,
-            }
-        )
-        return config

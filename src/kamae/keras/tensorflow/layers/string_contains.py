@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, List, Union
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringContainsLayer(BaseLayer):
     """
     Performs a string contains operation on the input tensor,
@@ -40,37 +39,17 @@ class StringContainsLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        string_constant: Optional[str] = None,
-        negation: bool = False,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the StringContainsLayer layer.
-        :param string_constant: The string to match against. Defaults to `None`.
-        :param negation: Whether to negate the output. Defaults to `False`.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.negation = negation
-        self.string_constant = string_constant
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    _compatible_dtypes = ["string"]
+    _params = {
+        "string_constant": ParamSpec(
+            default=None,
+            doc="The string to match against.",
+        ),
+        "negation": ParamSpec(
+            default=False,
+            doc="Whether to negate the output.",
+        ),
+    }
 
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
@@ -83,9 +62,6 @@ class StringContainsLayer(BaseLayer):
         If you know where in the string the match is, you will be much
         better off slicing the string and checking for equality.
 
-        Decorated with `@allow_single_or_multiple_tensor_input` to ensure that the input
-        is either a single tensor or an iterable of tensors. Returns this result as a
-        list of tensors for easier use here.
 
         :param inputs: A string tensor or iterable of up to two string tensors.
             In the case two tensors are passed, require that the first tensor is the
@@ -188,19 +164,3 @@ class StringContainsLayer(BaseLayer):
                     escaped_string, "\\" + char, "\\" + char
                 )
         return escaped_string
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the StringContains layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the string_constant and negation parameters to the config
-        dictionary.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {"string_constant": self.string_constant, "negation": self.negation}
-        )
-        return config

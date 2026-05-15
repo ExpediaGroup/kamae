@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterable
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringConcatenateLayer(BaseLayer):
     """
     Performs a concatenation of the input tensors.
@@ -31,34 +30,13 @@ class StringConcatenateLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        separator: str = "_",
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the Concat layer.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param separator: The separator to use when joining the input tensors.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.separator = separator
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    _compatible_dtypes = ["string"]
+    _params = {
+        "separator": ParamSpec(
+            default="_",
+            doc="The separator to use when joining the input tensors.",
+        ),
+    }
 
     @enforce_multiple_tensor_input
     def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
@@ -74,16 +52,3 @@ class StringConcatenateLayer(BaseLayer):
         the input tensors.
         """
         return tf.strings.join(inputs, separator=self.separator)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the StringConcatenate layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `separator` to the config.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"separator": self.separator})
-        return config

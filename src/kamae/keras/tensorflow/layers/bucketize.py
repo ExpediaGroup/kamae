@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import _REQUIRED, ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class BucketizeLayer(BaseLayer):
     """
     Performs a bucketing operation on the input tensor.
@@ -38,46 +37,24 @@ class BucketizeLayer(BaseLayer):
     supported_backends = TENSORFLOW_ONLY
     jit_compatible = True
 
-    def __init__(
-        self,
-        splits: List[float],
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the BucketizeLayer layer.
+    _compatible_dtypes = ["int32", "int64", "float32", "float64"]
+    _params = {
+        "splits": ParamSpec(
+            default=_REQUIRED,
+            doc="The splits to use for bucketing",
+        ),
+    }
 
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param splits: The splits to use for bucketing.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        if splits != sorted(splits):
+    @staticmethod
+    def _post_init(self):
+        if self.splits != sorted(self.splits):
             raise ValueError("`splits` argument must be a sorted list!")
-        self.splits = splits
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["int32", "int64", "float32", "float64"]
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the bucketing operation on the input tensor.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that
-        the input is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input tensor to bucket.
         :returns: Bucketed tensor.
@@ -86,16 +63,3 @@ class BucketizeLayer(BaseLayer):
         # 0 index as a padding value.
         bucketed_outputs = tf.raw_ops.Bucketize(input=inputs, boundaries=self.splits)
         return self._cast(tf.math.add(bucketed_outputs, 1), "int64")
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the Bucketizer layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `splits` argument to the base config.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"splits": self.splits})
-        return config

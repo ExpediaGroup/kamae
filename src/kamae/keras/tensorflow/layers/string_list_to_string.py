@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringListToStringLayer(BaseLayer):
     """
     A layer that converts a list of strings to a single string along the specified
@@ -33,43 +32,21 @@ class StringListToStringLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        axis: int = -1,
-        separator: str = "",
-        keepdims: bool = False,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the StringListToStringLayer layer.
-
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param axis: The axis along which to join the strings. Defaults to `-1`.
-        :param separator: The separator to use when joining the strings.
-        Defaults to `""`.
-        :param keepdims: Whether to keep the shape of the input tensor. Defaults to
-        `False`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.axis = axis
-        self.separator = separator
-        self.keepdims = keepdims
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    _compatible_dtypes = ["string"]
+    _params = {
+        "axis": ParamSpec(
+            default=-1,
+            doc="The axis along which to join the strings.",
+        ),
+        "separator": ParamSpec(
+            default="",
+            doc="The separator to use when joining the strings.",
+        ),
+        "keepdims": ParamSpec(
+            default=False,
+            doc="Whether to keep the shape of the input tensor.",
+        ),
+    }
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -78,33 +55,9 @@ class StringListToStringLayer(BaseLayer):
         If `keepdims` is `True`, the shape is retained. Otherwise the shape is
         reduced along the specified axis.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that the input
-        is a single tensor. Raises an error if an iterable of tensors is passed
-        in.
-
         :param inputs: Input tensor.
         :returns: Tensor with strings joined along the specified axis.
         """
         return tf.strings.reduce_join(
             inputs, axis=self.axis, separator=self.separator, keepdims=self.keepdims
         )
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the StringListToString layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `axis`, `separator` and `keepdims` to the config
-        dictionary.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "axis": self.axis,
-                "separator": self.separator,
-                "keepdims": self.keepdims,
-            }
-        )
-        return config

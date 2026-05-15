@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.tensorflow.utils.date_utils import unix_timestamp_to_datetime
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import UNIX_TIMESTAMP_PARAMS
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class UnixTimestampToDateTimeLayer(BaseLayer):
     """
     Returns the date in yyyy-MM-dd HH:mm:ss.SSS format from a Unix timestamp.
@@ -33,52 +33,25 @@ class UnixTimestampToDateTimeLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        unit: str = "s",
-        include_time: bool = True,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises an instance of the UnixTimestampToDateTime layer.
+    _compatible_dtypes = ["float64", "int64"]
+    _params = {
+        **UNIX_TIMESTAMP_PARAMS,
+        "include_time": ParamSpec(
+            default=True,
+            doc="Whether to include the time in the output",
+        ),
+    }
 
-        :param name: Name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param unit: Unit of the timestamp. Can be `milliseconds` (or `ms`)
-        or `seconds` (or `s`). Defaults to `s`.
-        :param include_time: Whether to include the time in the output.
-        Defaults to `True`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        if unit not in ["milliseconds", "seconds", "ms", "s"]:
+    @staticmethod
+    def _post_init(self):
+        if self.unit not in ["milliseconds", "seconds", "ms", "s"]:
             raise ValueError(
                 """Unit must be one of ["milliseconds", "seconds", "ms", "s"]"""
             )
-        if unit == "milliseconds":
-            unit = "ms"
-        if unit == "seconds":
-            unit = "s"
-        self.unit = unit
-        self.include_time = include_time
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer. Returns `None` as the layer
-        only returns the current date as a string. It does not transform any input.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return [
-            "float64",
-            "int64",
-        ]
+        if self.unit == "milliseconds":
+            self.unit = "ms"
+        elif self.unit == "seconds":
+            self.unit = "s"
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -86,9 +59,6 @@ class UnixTimestampToDateTimeLayer(BaseLayer):
         Returns the datetime in yyyy-MM-dd HH:mm:ss.SSS format if `include_time` is
         set to `True`. Otherwise, returns the date in yyyy-MM-dd format.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that
-        the input is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input tensor to determine the shape of the output tensor.
         :returns: Datetime in either yyyy-MM-dd HH:mm:ss.SSS or yyyy-MM-dd format.
@@ -103,21 +73,3 @@ class UnixTimestampToDateTimeLayer(BaseLayer):
             timestamp_in_seconds, include_time=self.include_time
         )
         return outputs
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the UnixTimestampToDateTime layer.
-        Used for saving and loading from a model.
-
-        Specifically sets the `unit` and `include_time` parameters in the config.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "unit": self.unit,
-                "include_time": self.include_time,
-            }
-        )
-        return config

@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import _REQUIRED, ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringIsInListLayer(BaseLayer):
     """
     Performs a string isin operation on the input tensor over entries in
@@ -32,46 +31,23 @@ class StringIsInListLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        string_constant_list: List[str],
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        negation: bool = False,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the StringIsInListLayer layer.
-        :param string_constant_list: The string to match against.
-        :param negation: Whether to negate the output. Defaults to `False`.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.negation = negation
-        self.string_constant_list = string_constant_list
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    _compatible_dtypes = ["string"]
+    _params = {
+        "string_constant_list": ParamSpec(
+            default=_REQUIRED,
+            doc="The list of strings to match against.",
+        ),
+        "negation": ParamSpec(
+            default=False,
+            doc="Whether to negate the output.",
+        ),
+    }
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
-        Checks if the input tensor is matching any string in the string_constant_list.
+        Checks if the input tensor is matching any string in the constant_string_array.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that the input
-        is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input string tensor.
         :returns: A boolean tensor indicating whether any of the string is matched.
@@ -87,22 +63,3 @@ class StringIsInListLayer(BaseLayer):
             tf.math.logical_not(matched_tensor) if self.negation else matched_tensor
         )
         return output_tensor
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the StringIsInListLayer layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the string_constant_list and negation parameters to the
-        config dictionary.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "string_constant_list": self.string_constant_list,
-                "negation": self.negation,
-            }
-        )
-        return config

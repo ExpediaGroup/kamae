@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, List, Union
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringEqualsIfStatementLayer(BaseLayer):
     """
     Performs a string if equals statement on the input tensor,
@@ -43,44 +42,21 @@ class StringEqualsIfStatementLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        value_to_compare: Optional[str] = None,
-        result_if_true: Optional[str] = None,
-        result_if_false: Optional[str] = None,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the StringIfEqualStatement layer.
-
-        :param value_to_compare: String value to compare the input tensor to.
-        If None, we assume it is passed in as an input to the layer.
-        :param result_if_true: String value to return if the condition is true.
-        If None, we assume it is passed in as an input to the layer.
-        :param result_if_false: String value to return if the condition is false.
-        If None, we assume it is passed in as an input to the layer.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.value_to_compare = value_to_compare
-        self.result_if_true = result_if_true
-        self.result_if_false = result_if_false
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    _compatible_dtypes = ["string"]
+    _params = {
+        "value_to_compare": ParamSpec(
+            default=None,
+            doc="String value to compare the input tensor to. If None, passed in as an input to the layer.",
+        ),
+        "result_if_true": ParamSpec(
+            default=None,
+            doc="String value to return if the condition is true. If None, passed in as an input to the layer.",
+        ),
+        "result_if_false": ParamSpec(
+            default=None,
+            doc="String value to return if the condition is false. If None, passed in as an input to the layer.",
+        ),
+    }
 
     def _construct_input_tensors(self, inputs: List[Tensor]) -> List[Tensor]:
         """
@@ -127,9 +103,6 @@ class StringEqualsIfStatementLayer(BaseLayer):
         result_if_false are provided. If the inputs are not a tensor, we assume any
         not provided are provided as inputs to the layer.
 
-        Decorated with `@allow_single_or_multiple_tensor_input` to ensure that the input
-        is either a single tensor or an iterable of tensors. Returns this result as a
-        list of tensors for easier use here.
 
         :param inputs: Tensor or iterable of tensors.
         :returns: Tensor after computing the string if equal statement.
@@ -175,25 +148,3 @@ class StringEqualsIfStatementLayer(BaseLayer):
                 input_tensors[3],
             )
             return cond
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the StringEqualsIfStatement layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the following to the config dictionary:
-        - value_to_compare
-        - result_if_true
-        - result_if_false
-
-        :returns: Dictionary configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "value_to_compare": self.value_to_compare,
-                "result_if_true": self.result_if_true,
-                "result_if_false": self.result_if_false,
-            }
-        )
-        return config

@@ -12,20 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import keras
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 from kamae.keras.tensorflow.utils.date_utils import datetime_add_days
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class DateAddLayer(BaseLayer):
     """
     Adds or subtracts a number of days from a date(time) string.
@@ -35,45 +33,26 @@ class DateAddLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        num_days: Optional[int] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises an instance of the DateAddLayer.
+    _compatible_dtypes = ["string", "int8", "int16", "int32", "int64"]
+    _params = {
+        "num_days": ParamSpec(
+            default=None,
+            doc="Number of days to add or subtract",
+        ),
+    }
 
-        :param num_days: Number of days to add or subtract.
-        :param name: Name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        if num_days is not None and not isinstance(num_days, int):
+    @staticmethod
+    def _post_init(self):
+        if self.num_days is not None and not isinstance(self.num_days, int):
             raise ValueError(
-                f"Expected `num_days` to be an integer, but got {num_days}."
+                f"Expected `num_days` to be an integer, but got {self.num_days}."
             )
-        if num_days is None and input_dtype is not None:
+        if self.num_days is None and self._input_dtype is not None:
             raise ValueError(
                 """When `num_days` is not set, the layer expects two inputs of different
                 dtypes. Therefore input auto-casting via `input_dtype` is not supported.
                 """
             )
-        self.num_days = num_days
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string", "int8", "int16", "int32", "int64"]
 
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -99,7 +78,7 @@ class DateAddLayer(BaseLayer):
                 raise ValueError(
                     "When `num_days` is not set, the input should be two tensors."
                 )
-            if "int" not in keras.backend.standardize_dtype(inputs[1].dtype):
+            if not inputs[1].dtype.is_integer:
                 raise ValueError(
                     f"""Expected second input dtype to be integer, but got
                     {inputs[1].dtype}."""
@@ -113,16 +92,3 @@ class DateAddLayer(BaseLayer):
                 self._cast(inputs[1], cast_dtype="float64"),
                 include_time=False,
             )
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the DateAdd layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `num_days` to the config dictionary.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"num_days": self.num_days})
-        return config

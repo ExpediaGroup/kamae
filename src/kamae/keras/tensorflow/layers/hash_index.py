@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import tensorflow as tf
 from tensorflow.keras.layers import Hashing
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import _REQUIRED, ParamSpec
+from kamae.params.shared_specs import MASK_VALUE_PARAMS
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class HashIndexLayer(BaseLayer):
     """
     Wrapper around the Keras Hashing layer which hashes and bins categorical features.
@@ -42,50 +42,23 @@ class HashIndexLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        num_bins: int,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        mask_value: Optional[Union[int, str]] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Intialise the HashIndexLayer layer.
+    _compatible_dtypes = ["string"]
+    _params = {
+        "num_bins": ParamSpec(
+            default=_REQUIRED,
+            doc="Number of hash bins. Note that this includes the `mask_value` bin, so the effective number of bins is `(num_bins - 1)` if `mask_value` is set.",
+        ),
+        **MASK_VALUE_PARAMS,
+    }
 
-        :param num_bins: Number of hash bins. Note that this includes the `mask_value`
-        bin, so the effective number of bins is `(num_bins - 1)` if `mask_value`
-        is set.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param mask_value: A value that represents masked inputs, which are mapped to
-        index 0. Defaults to None, meaning no mask term will be added and the
-        hashing will start at index 0.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.num_bins = num_bins
-        self.mask_value = mask_value
-        if self.num_bins <= 1:
-            raise ValueError("num_bins must be > 1")
-        if mask_value is not None:
+    @staticmethod
+    def _post_init(self):
+        if self.mask_value is not None:
             self.hash_indexer = Hashing(
-                name=name, num_bins=num_bins, mask_value=mask_value
+                name=self.name, num_bins=self.num_bins, mask_value=self.mask_value
             )
         else:
-            self.hash_indexer = Hashing(name=name, num_bins=num_bins - 1)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+            self.hash_indexer = Hashing(name=self.name, num_bins=self.num_bins - 1)
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -93,9 +66,6 @@ class HashIndexLayer(BaseLayer):
         Performs the hash indexing on the input tensor by calling the underlying
         Hashing layer.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that the input
-        is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input tensor to be hashed.
         :returns: Hashed and bucketed tensor.
@@ -104,13 +74,3 @@ class HashIndexLayer(BaseLayer):
         if self.mask_value is None:
             result = result + 1
         return result
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Returns the configuration of the HashIndexLayer layer.
-
-        :returns: Configuration of the HashIndexLayer layer.
-        """
-        config = super().get_config()
-        config.update({"num_bins": self.num_bins, "mask_value": self.mask_value})
-        return config

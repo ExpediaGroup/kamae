@@ -13,18 +13,18 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import _REQUIRED, ParamSpec
+from kamae.params.shared_specs import DROP_UNSEEN_PARAMS, STRING_INDEX_PARAMS
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class OneHotEncodeLayer(BaseLayer):
     """
     Performs a one-hot encoding of a string input tensor.
@@ -38,48 +38,26 @@ class OneHotEncodeLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        vocabulary: Union[str, List[str]],
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        mask_token: Optional[str] = None,
-        num_oov_indices: int = 1,
-        drop_unseen: bool = False,
-        encoding: str = "utf-8",
-        **kwargs: Any,
-    ) -> None:
-        """
-        Intialises the OneHotLayer layer.
+    _compatible_dtypes = ["int16", "int32", "int64", "string"]
+    _params = {
+        **{
+            k: v
+            for k, v in STRING_INDEX_PARAMS.items()
+            if k in ("maskToken", "numOOVIndices")
+        },
+        "encoding": ParamSpec(
+            default="utf-8",
+            doc="The text encoding to use to interpret the input strings.",
+        ),
+        "vocabulary": ParamSpec(
+            default=_REQUIRED,
+            doc="Either an array of strings or a string path to a text file containing the vocabulary.",
+        ),
+        **DROP_UNSEEN_PARAMS,
+    }
 
-        :param vocabulary: Either an array of strings or a string path to a
-        text file. If passing an array, can pass a tuple, list, 1D numpy array,
-        or 1D tensor containing the string vocbulary terms. If passing a file
-        path, the file should contain one line per term in the vocabulary.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param mask_token: A token that represents masked inputs. The token is included
-        in vocabulary and mapped to index 0. If set to None, no mask term will be added.
-        Defaults to `None`.
-        :param num_oov_indices: The number of out-of-vocabulary indices to use. The
-        out-of-vocabulary indices are used to represent unseen labels and are placed at
-        the beginning of the one-hot encoding. Defaults to 1.
-        :param drop_unseen: Whether to drop unseen label indices. If set to True, the
-        layer will not add an extra dimension for unseen labels in the one-hot
-        encoding. Defaults to False.
-        :param encoding: The text encoding to use to interpret the input strings.
-        Defaults to `"utf-8"`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.num_oov_indices = num_oov_indices
-        self.vocabulary = vocabulary
-        self.drop_unseen = drop_unseen
-        self.mask_token = mask_token
-        self.encoding = encoding
+    @staticmethod
+    def _post_init(self):
         self.lookup_layer = tf.keras.layers.StringLookup(
             vocabulary=self.vocabulary,
             output_mode="int",
@@ -88,23 +66,11 @@ class OneHotEncodeLayer(BaseLayer):
             encoding=self.encoding,
         )
 
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["int16", "int32", "int64", "string"]
-
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the one-hot encoding on the input tensor.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that the input
-        is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input tensor to one-hot encode.
         :returns: One-hot encoded input tensor.
@@ -134,32 +100,9 @@ class OneHotEncodeLayer(BaseLayer):
 
         return encoded_inputs
 
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the OneHot layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `vocabulary`, `num_oov_indices`, `mask_token`, and
-        `encoding` to the config.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "vocabulary": self.vocabulary,
-                "num_oov_indices": self.num_oov_indices,
-                "drop_unseen": self.drop_unseen,
-                "mask_token": self.mask_token,
-                "encoding": self.encoding,
-            }
-        )
-        return config
-
 
 # TODO: Remove this alias in next breaking change,
 #  it is maintained for backwards compatibility
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class OneHotLayer(OneHotEncodeLayer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         warnings.warn(

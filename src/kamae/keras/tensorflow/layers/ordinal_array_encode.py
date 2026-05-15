@@ -12,19 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.tensorflow.utils.transform_utils import map_fn_w_axis
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class OrdinalArrayEncodeLayer(BaseLayer):
     """
     Transformer that encodes an array of strings into an array of integers.
@@ -36,38 +35,17 @@ class OrdinalArrayEncodeLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        pad_value: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        axis: int = -1,
-        name: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the OrdinalArrayEncodeLayer layer
-
-        :param name: Name of the layer, defaults to `None`.
-        :param pad_value: The value which pad the array and as a result should be
-        ignored in the encoding process.
-
-        :returns: None
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.pad_value = pad_value
-        self.axis = axis
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    _compatible_dtypes = ["string"]
+    _params = {
+        "pad_value": ParamSpec(
+            default=None,
+            doc="The value which pad the array and as a result should be ignored in the encoding process.",
+        ),
+        "axis": ParamSpec(
+            default=-1,
+            doc="The axis along which to encode the array. Defaults to -1.",
+        ),
+    }
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -126,16 +104,3 @@ class OrdinalArrayEncodeLayer(BaseLayer):
         )
 
         return output
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the OrdinalArrayEncoder layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `pad_value` value to the configuration.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"pad_value": self.pad_value, "axis": self.axis})
-        return config

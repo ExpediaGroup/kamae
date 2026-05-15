@@ -12,19 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 from kamae.keras.tensorflow.utils.date_utils import datetime_total_days
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class DateDiffLayer(BaseLayer):
     """A preprocessing layer that returns the difference between two dates in days.
 
@@ -35,34 +34,13 @@ class DateDiffLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        default_value: Optional[int] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initializes the DateDiffLayer layer.
-
-        :param name: Name of the layer, defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.default_value = default_value
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    _compatible_dtypes = ["string"]
+    _params = {
+        "default_value": ParamSpec(
+            default=None,
+            doc="Default value to use when the date is the empty string",
+        ),
+    }
 
     @enforce_multiple_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -110,14 +88,3 @@ class DateDiffLayer(BaseLayer):
         :returns: Tensor of date difference in days.
         """
         return datetime_total_days(end_date) - datetime_total_days(start_date)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the DateDiff layer.
-        Used for saving and loading from a model.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"default_value": self.default_value})
-        return config

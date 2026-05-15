@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringCaseLayer(BaseLayer):
     """
     Performs a string case transform on the input tensor.
@@ -32,44 +31,18 @@ class StringCaseLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        string_case_type: str = "lower",
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the StringCaseLayer layer.
-
-        :param string_case_type: The type of string case transform to perform.
-        Supported types are 'upper' and 'lower'. Defaults to 'lower'.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.string_case_type = string_case_type
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    _compatible_dtypes = ["string"]
+    _params = {
+        "string_case_type": ParamSpec(
+            default="lower",
+            doc="The type of string case transform to perform. Supported types are 'upper' and 'lower'.",
+        ),
+    }
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the string case transform on the input tensor.
-
-        Decorated with `@enforce_single_tensor_input` to ensure that the input is a
-        single tensor. Raises an error if multiple tensors are passed in as an iterable.
 
         :param inputs: Input tensor to perform the string case transform on.
         :returns: The input tensor with the string case transform applied.
@@ -83,16 +56,3 @@ class StringCaseLayer(BaseLayer):
                 f"""stringCaseType must be one of 'upper' or 'lower'.
                 Got {self.string_case_type}"""
             )
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the StringCase layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `string_case_type` value to the configuration.
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update({"string_case_type": self.string_case_type})
-        return config

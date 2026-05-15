@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 from tensorflow.keras.layers import Hashing
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import ParamSpec
+from kamae.params.shared_specs import MASK_VALUE_PARAMS
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class MinHashIndexLayer(BaseLayer):
     """
     Performs min hashing of the input tensor as described here:
@@ -45,60 +45,28 @@ class MinHashIndexLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        num_permutations: int = 128,
-        mask_value: Optional[str] = None,
-        axis: int = -1,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the MinHashIndexLayer layer.
+    _compatible_dtypes = ["string"]
+    _params = {
+        "num_permutations": ParamSpec(
+            default=128,
+            doc="Number of permutations to use for the min hashing. Defaults to 128.",
+        ),
+        **MASK_VALUE_PARAMS,
+        "axis": ParamSpec(
+            default=-1,
+            doc="The axis along which to compute the min hash. Defaults to -1 (last axis).",
+        ),
+    }
 
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param num_permutations: Number of permutations to use for the min hashing.
-            Defaults to 128.
-        :param mask_value: A value that represents masked inputs, which are ignored when
-        computing the min hash. Defaults to None, meaning no mask term will be added.
-        :param axis: The axis along which to compute the min hash.
-        Defaults to -1 (last axis).
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.num_permutations = num_permutations
-        self.axis = axis
-        self.mask_value = mask_value
-        self.hash_fn = Hashing(
-            # Set the number of bins to (max - 1). We just want to hash the input
-            # without binning it, so we use a large value. We subtract 1 and add 1
-            # to the result to reserve index 0 for null values.
-            num_bins=tf.int32.max
-            - 1
-        )
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    @staticmethod
+    def _post_init(self):
+        self.hash_fn = Hashing(num_bins=tf.int32.max - 1)
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
         """
         Performs the min hash indexing on the input tensor.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that the input
-        is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
 
         :param inputs: Input tensor to be encoded.
         :returns: Encoded tensor.
@@ -126,19 +94,3 @@ class MinHashIndexLayer(BaseLayer):
 
         # Concatenate the min hash values to form the final signature.
         return tf.concat(min_hash_signature, axis=self.axis)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Returns the configuration of the MinHashIndex layer.
-
-        :returns: Configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "num_permutations": self.num_permutations,
-                "mask_value": self.mask_value,
-                "axis": self.axis,
-            }
-        )
-        return config

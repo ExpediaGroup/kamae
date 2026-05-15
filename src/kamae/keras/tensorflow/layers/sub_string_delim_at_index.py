@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class SubStringDelimAtIndexLayer(BaseLayer):
     """
     Layer which splits a string tensor by a delimiter and
@@ -35,44 +34,21 @@ class SubStringDelimAtIndexLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        delimiter: str = "_",
-        index: int = 0,
-        default_value: str = "",
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialise the SubStringDelimAtIndexLayer layer.
-
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param delimiter: String to split on. Defaults to `"_"`.
-        :param index: Index of the substring to return. Defaults to `0`.
-        If the index is negative, start counting from the end of the string.
-        :param default_value: Value to return if index is out of bounds.
-        Defaults to `""`.
-        Defaults to `""`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.delimiter = delimiter
-        self.index = index
-        self.default_value = default_value
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    _compatible_dtypes = ["string"]
+    _params = {
+        "delimiter": ParamSpec(
+            default="_",
+            doc="String to split on",
+        ),
+        "index": ParamSpec(
+            default=0,
+            doc="Index of the substring to return. If negative, start counting from the end",
+        ),
+        "default_value": ParamSpec(
+            default="",
+            doc="Value to return if index is out of bounds",
+        ),
+    }
 
     @staticmethod
     def resolve_negative_indices(
@@ -98,10 +74,6 @@ class SubStringDelimAtIndexLayer(BaseLayer):
         Splits the input string tensor by the delimiter and returns the substring
         at the specified index. If the index is out of bounds, the default value
         is returned.
-
-        Decorated with `@enforce_single_tensor_input` to ensure that the input
-        is a single tensor. Raises an error if an iterable of tensors is passed
-        in.
 
         :param inputs: Input tensor.
         :returns: Tensor with the substring at the specified index.
@@ -167,22 +139,3 @@ class SubStringDelimAtIndexLayer(BaseLayer):
             )
             # Squeeze out the extra dimension
             return tf.squeeze(gathered_tensor, axis=-1)
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Returns the config of the SubStringDelimAtIndex layer.
-        Used for saving and loading from a model.
-
-        Specifically adds the `delimiter`, `index` and `default_value` to the config.
-
-        :returns: Dictionary of the config of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "delimiter": self.delimiter,
-                "index": self.index,
-                "default_value": self.default_value,
-            }
-        )
-        return config

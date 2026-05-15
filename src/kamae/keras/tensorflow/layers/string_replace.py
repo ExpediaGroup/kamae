@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, List, Union
 
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import ParamSpec
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class StringReplaceLayer(BaseLayer):
     """
     StringReplaceLayer layer for TensorFlow.
@@ -31,55 +30,21 @@ class StringReplaceLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        string_match_constant: Optional[str] = None,
-        string_replace_constant: Optional[str] = None,
-        regex: bool = False,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the StringReplaceLayer layer.
-
-        WARNING: While it works, the use of tensors in matching/replacement
-        is not recommended due to the complexity of the regex matching which requires
-        use of a map_fn. This will be comparatively VERY slow and may not be suitable
-        for inference use-cases.
-        If you know where in the string the match is, you will be much
-        better off slicing the string and checking for equality.
-
-        :param string_match_constant: The string to match against and replace.
-            Defaults to `None`.
-        :param string_replace_constant: The string to replace the matched string with.
-            Defaults to `None`.
-        :param regex: Whether to treat the string match as a regular expression.
-            Defaults to `False`. In the case regex is enabled, the string_match_constant
-            or second input tensor elements are treated as a regex pattern. Please be
-            aware that while testing has tried to catch corner cases, this is not
-            guaranteed to be bug-free due to slight differences in the regex
-            implementations between Spark and TensorFlow.
-        :param name: The name of the layer. Defaults to `None`.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.string_match_constant = string_match_constant
-        self.string_replace_constant = string_replace_constant
-        self.regex = regex
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return ["string"]
+    _compatible_dtypes = ["string"]
+    _params = {
+        "string_match_constant": ParamSpec(
+            default=None,
+            doc="The string to match against and replace.",
+        ),
+        "string_replace_constant": ParamSpec(
+            default=None,
+            doc="The string to replace the matched string with.",
+        ),
+        "regex": ParamSpec(
+            default=False,
+            doc="Whether to treat the string match as a regular expression.",
+        ),
+    }
 
     @allow_single_or_multiple_tensor_input
     def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
@@ -98,9 +63,6 @@ class StringReplaceLayer(BaseLayer):
         If you know where in the string the match is, you will be much
         better off slicing the string and checking for equality.
 
-        Decorated with `@allow_single_or_multiple_tensor_input` to ensure that the input
-        is either a single tensor or an iterable of tensors. Returns this result as a
-        list of tensors for easier use here.
 
         :param inputs: A string tensor or iterable of up to three string
             tensors.
@@ -223,23 +185,3 @@ class StringReplaceLayer(BaseLayer):
                     string_to_escape, "\\" + char, "\\\\" + char
                 )
         return string_to_escape
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the StringReplace layer.
-        Used for saving and loading the layer from disk.
-
-        Specifically, `regex`, `string_match_constant` and `string_replace_constant`
-        are added to the config.
-
-        :returns: Dictionary configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "regex": self.regex,
-                "string_match_constant": self.string_match_constant,
-                "string_replace_constant": self.string_replace_constant,
-            }
-        )
-        return config

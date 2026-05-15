@@ -12,20 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from numbers import Number
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, Union
 
-import keras
 import tensorflow as tf
 
-import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.params import _REQUIRED, ParamSpec
 from kamae.utils import get_condition_operator
 
 
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class IfStatementLayer(BaseLayer):
     """
     Performs an if statement on the input tensor.
@@ -53,43 +51,28 @@ class IfStatementLayer(BaseLayer):
 
     supported_backends = TENSORFLOW_ONLY
 
-    def __init__(
-        self,
-        condition_operator: str,
-        value_to_compare: Union[float, int, str, bool] = None,
-        result_if_true: Union[float, int, str, bool] = None,
-        result_if_false: Union[float, int, str, bool] = None,
-        name: Optional[str] = None,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialises the IfStatementLayer layer.
+    _compatible_dtypes = None
+    _params = {
+        "condition_operator": ParamSpec(
+            default=_REQUIRED,
+            doc="Operator to use in the if statement (eq, neq, lt, leq, gt, geq)",
+        ),
+        "value_to_compare": ParamSpec(
+            default=None,
+            doc="Value to compare the input tensor to",
+        ),
+        "result_if_true": ParamSpec(
+            default=None,
+            doc="Value to return if the condition is true",
+        ),
+        "result_if_false": ParamSpec(
+            default=None,
+            doc="Value to return if the condition is false",
+        ),
+    }
 
-        :param condition_operator: Operator to use in the if statement. Can be one of:
-            - "eq": Equal to
-            - "neq": Not equal to
-            - "lt": Less than
-            - "leq": Less than or equal to
-            - "gt": Greater than
-            - "geq": Greater than or equal to
-        :param value_to_compare: Value to compare the input tensor to. If None, we
-        assume it is passed in as an input to the layer.
-        :param result_if_true: Value to return if the condition is true. If None,
-        we assume it is passed in as an input to the layer.
-        :param result_if_false: Value to return if the condition is false. If
-        None, we assume it is passed in as an input to the layer.
-        :param name: The name of the layer. Defaults to `None`.
-        """
-        super().__init__(
-            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
-        )
-        self.condition_operator = condition_operator
-        self.value_to_compare = value_to_compare
-        self.result_if_true = result_if_true
-        self.result_if_false = result_if_false
-
+    @staticmethod
+    def _post_init(self):
         if (
             self.value_to_compare is not None
             and not isinstance(self.value_to_compare, Number)
@@ -106,15 +89,6 @@ class IfStatementLayer(BaseLayer):
                     """If provided, result_if_true and result_if_false must be of the
                     same type."""
                 )
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        """
-        Returns the compatible dtypes of the layer.
-
-        :returns: The compatible dtypes of the layer.
-        """
-        return None
 
     def _construct_input_tensors(
         self, inputs: Iterable[tf.Tensor]
@@ -180,9 +154,6 @@ class IfStatementLayer(BaseLayer):
         provided. If the inputs are not a tensor, we assume any not provided are
         provided as inputs to the layer.
 
-        Decorated with `@allow_single_or_multiple_tensor_input` to ensure that the input
-        is either a single tensor or an iterable of tensors. Returns this result as a
-        list of tensors for easier use here.
 
         :param inputs: Tensor or list of tensors.
         :returns: Tensor after computing the numerical if statement.
@@ -264,26 +235,3 @@ class IfStatementLayer(BaseLayer):
                 result_if_false,
             )
             return cond
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the IfStatement layer.
-
-        Specifically adds the following to the base configuration:
-        - condition_operator
-        - value_to_compare
-        - result_if_true
-        - result_if_false
-
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "condition_operator": self.condition_operator,
-                "value_to_compare": self.value_to_compare,
-                "result_if_true": self.result_if_true,
-                "result_if_false": self.result_if_false,
-            }
-        )
-        return config
