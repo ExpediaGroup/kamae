@@ -60,9 +60,9 @@ class MaxTransformer(
         IntegerType(),
         LongType(),
     ]
-    _keras_layer_class = None
+    _keras_layer_class = MaxLayer
     _params = {
-        "mathFloatConstant": ParamSpec(
+        "maxConstant": ParamSpec(
             spark_typeconverter=TypeConverters.toFloat,
             default=_UNSET,
             doc="Float constant for max comparison.",
@@ -73,14 +73,12 @@ class MaxTransformer(
         """
         Transforms the input dataset. Creates a new column with name `outputCol`,
         which is the maximum of either the `inputCols` if specified, or the `inputCol`
-        and the `mathFloatConstant`
+        and the `maxConstant`
 
         :param dataset: Pyspark dataframe to transform.
         :returns: Transformed pyspark dataframe.
         """
-        input_cols = self.get_multiple_input_cols(
-            constant_param_name="mathFloatConstant"
-        )
+        input_cols = self.get_multiple_input_cols(constant_param_name="maxConstant")
         # input_cols can contain either actual columns or lit(constants). In order to
         # determine the datatype of the input columns, we select them from the dataset
         # first.
@@ -97,17 +95,3 @@ class MaxTransformer(
             func=lambda x: F.greatest(*[x[c] for c in input_col_names]),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the max transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a max operation.
-        """
-        return MaxLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            max_constant=self.getMathFloatConstant(),
-        )

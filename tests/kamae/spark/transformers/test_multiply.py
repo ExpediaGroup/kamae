@@ -226,7 +226,7 @@ class TestMultiply:
             MultiplyTransformer(
                 inputCol=input_col,
                 outputCol=output_col,
-                mathFloatConstant=float_constant,
+                multiplier=float_constant,
             )
             if input_col is not None
             else MultiplyTransformer(
@@ -278,7 +278,7 @@ class TestMultiply:
             outputCol="output",
             inputDtype=input_dtype,
             outputDtype=output_dtype,
-            mathFloatConstant=float_constant,
+            multiplier=float_constant,
         )
         # when
         spark_df = spark_session.createDataFrame(

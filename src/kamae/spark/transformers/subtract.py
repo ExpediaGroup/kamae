@@ -62,9 +62,9 @@ class SubtractTransformer(
         IntegerType(),
         LongType(),
     ]
-    _keras_layer_class = None
+    _keras_layer_class = SubtractLayer
     _params = {
-        "mathFloatConstant": ParamSpec(
+        "subtrahend": ParamSpec(
             spark_typeconverter=TypeConverters.toFloat,
             default=_UNSET,
             doc="Float constant to subtract.",
@@ -80,7 +80,7 @@ class SubtractTransformer(
         :returns: Transformed pyspark dataframe.
         """
         input_cols = self.get_multiple_input_cols(
-            constant_param_name="mathFloatConstant",
+            constant_param_name="subtrahend",
         )
         # input_cols can contain either actual columns or lit(constants). In order to
         # determine the datatype of the input columns, we select them from the dataset
@@ -98,17 +98,3 @@ class SubtractTransformer(
         )
 
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the divide transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a divide operation.
-        """
-        return SubtractLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            subtrahend=self.getMathFloatConstant(),
-        )

@@ -62,9 +62,9 @@ class MeanTransformer(
         IntegerType(),
         LongType(),
     ]
-    _keras_layer_class = None
+    _keras_layer_class = MeanLayer
     _params = {
-        "mathFloatConstant": ParamSpec(
+        "meanConstant": ParamSpec(
             spark_typeconverter=TypeConverters.toFloat,
             default=_UNSET,
             doc="Float constant for mean calculation.",
@@ -75,14 +75,12 @@ class MeanTransformer(
         """
         Transforms the input dataset. Creates a new column with name `outputCol`,
         which is the mean of either the `inputCols` if specified, or the `inputCol`
-        and the `mathFloatConstant`
+        and the `meanConstant`
 
         :param dataset: Pyspark dataframe to transform.
         :returns: Transformed pyspark dataframe.
         """
-        input_cols = self.get_multiple_input_cols(
-            constant_param_name="mathFloatConstant"
-        )
+        input_cols = self.get_multiple_input_cols(constant_param_name="meanConstant")
         # input_cols can contain either actual columns or lit(constants). In order to
         # determine the datatype of the input columns, we select them from the dataset
         # first.
@@ -101,17 +99,3 @@ class MeanTransformer(
             ),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the mean transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a min operation.
-        """
-        return MeanLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            mean_constant=self.getMathFloatConstant(),
-        )

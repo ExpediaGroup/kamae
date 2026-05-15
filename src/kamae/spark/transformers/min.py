@@ -60,9 +60,9 @@ class MinTransformer(
         IntegerType(),
         LongType(),
     ]
-    _keras_layer_class = None
+    _keras_layer_class = MinLayer
     _params = {
-        "mathFloatConstant": ParamSpec(
+        "minConstant": ParamSpec(
             spark_typeconverter=TypeConverters.toFloat,
             default=_UNSET,
             doc="Float constant for min comparison.",
@@ -73,14 +73,12 @@ class MinTransformer(
         """
         Transforms the input dataset. Creates a new column with name `outputCol`,
         which is the minimum of either the `inputCols` if specified, or the `inputCol`
-        and the `mathFloatConstant`
+        and the `minConstant`
 
         :param dataset: Pyspark dataframe to transform.
         :returns: Transformed pyspark dataframe.
         """
-        input_cols = self.get_multiple_input_cols(
-            constant_param_name="mathFloatConstant"
-        )
+        input_cols = self.get_multiple_input_cols(constant_param_name="minConstant")
         # input_cols can contain either actual columns or lit(constants). In order to
         # determine the datatype of the input columns, we select them from the dataset
         # first.
@@ -97,17 +95,3 @@ class MinTransformer(
             func=lambda x: F.least(*[x[c] for c in input_col_names]),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the min transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a min operation.
-        """
-        return MinLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            min_constant=self.getMathFloatConstant(),
-        )

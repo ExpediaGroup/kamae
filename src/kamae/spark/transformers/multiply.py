@@ -62,9 +62,9 @@ class MultiplyTransformer(
         IntegerType(),
         LongType(),
     ]
-    _keras_layer_class = None
+    _keras_layer_class = MultiplyLayer
     _params = {
-        "mathFloatConstant": ParamSpec(
+        "multiplier": ParamSpec(
             spark_typeconverter=TypeConverters.toFloat,
             default=_UNSET,
             doc="Float constant to multiply by.",
@@ -79,9 +79,7 @@ class MultiplyTransformer(
         :param dataset: Pyspark dataframe to transform.
         :returns: Transformed pyspark dataframe.
         """
-        input_cols = self.get_multiple_input_cols(
-            constant_param_name="mathFloatConstant"
-        )
+        input_cols = self.get_multiple_input_cols(constant_param_name="multiplier")
         # input_cols can contain either actual columns or lit(constants). In order to
         # determine the datatype of the input columns, we select them from the dataset
         # first.
@@ -98,17 +96,3 @@ class MultiplyTransformer(
             func=lambda x: reduce(mul, [x[c] for c in input_col_names]),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the multiply transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a multiply operation.
-        """
-        return MultiplyLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            multiplier=self.getMathFloatConstant(),
-        )

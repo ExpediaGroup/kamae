@@ -50,22 +50,14 @@ class DivideTransformer(
         FloatType(),
         DoubleType(),
     ]
-    _keras_layer_class = None
+    _keras_layer_class = DivideLayer
     _params = {
-        "mathFloatConstant": ParamSpec(
+        "divisor": ParamSpec(
             spark_typeconverter=TypeConverters.toFloat,
             default=_UNSET,
             doc="Float constant to divide by.",
         ),
     }
-
-    def get_keras_layer(self):
-        return DivideLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            divisor=self.getMathFloatConstant(),
-        )
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -76,7 +68,7 @@ class DivideTransformer(
         :returns: Transformed pyspark dataframe.
         """
         input_cols = self.get_multiple_input_cols(
-            constant_param_name="mathFloatConstant",
+            constant_param_name="divisor",
         )
         input_col_names = dataset.select(input_cols).columns
         input_col_datatypes = [

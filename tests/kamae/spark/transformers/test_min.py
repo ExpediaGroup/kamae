@@ -217,7 +217,7 @@ class TestMin:
             MinTransformer(
                 inputCol=input_col,
                 outputCol=output_col,
-                mathFloatConstant=float_constant,
+                minConstant=float_constant,
             )
             if input_col is not None
             else MinTransformer(
@@ -267,7 +267,7 @@ class TestMin:
             outputCol="output",
             inputDtype=input_dtype,
             outputDtype=output_dtype,
-            mathFloatConstant=float_constant,
+            minConstant=float_constant,
         )
         # when
         spark_df = spark_session.createDataFrame(

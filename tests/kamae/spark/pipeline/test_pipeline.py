@@ -431,7 +431,7 @@ class TestPipeline:
             SubtractTransformer(
                 inputCol="col1",
                 outputCol="col1_subtracted",
-                mathFloatConstant=1.0,
+                subtrahend=1.0,
             ),
         ]
 

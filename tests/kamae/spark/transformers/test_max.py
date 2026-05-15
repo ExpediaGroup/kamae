@@ -217,7 +217,7 @@ class TestMax:
             MaxTransformer(
                 inputCol=input_col,
                 outputCol=output_col,
-                mathFloatConstant=float_constant,
+                maxConstant=float_constant,
             )
             if input_col is not None
             else MaxTransformer(
@@ -267,7 +267,7 @@ class TestMax:
             outputCol="output",
             inputDtype=input_dtype,
             outputDtype=output_dtype,
-            mathFloatConstant=float_constant,
+            maxConstant=float_constant,
         )
         # when
         spark_df = spark_session.createDataFrame(

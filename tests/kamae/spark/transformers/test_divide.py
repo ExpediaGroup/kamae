@@ -150,7 +150,7 @@ class TestDivide:
             DivideTransformer(
                 inputCol=input_col,
                 outputCol=output_col,
-                mathFloatConstant=float_constant,
+                divisor=float_constant,
             )
             if input_col is not None
             else DivideTransformer(
@@ -198,7 +198,7 @@ class TestDivide:
         transformer = DivideTransformer(
             inputCol="input",
             outputCol="output",
-            mathFloatConstant=float_constant,
+            divisor=float_constant,
             inputDtype=input_dtype,
             outputDtype=output_dtype,
         )

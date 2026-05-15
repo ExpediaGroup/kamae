@@ -62,9 +62,9 @@ class SumTransformer(
         IntegerType(),
         LongType(),
     ]
-    _keras_layer_class = None
+    _keras_layer_class = SumLayer
     _params = {
-        "mathFloatConstant": ParamSpec(
+        "addend": ParamSpec(
             spark_typeconverter=TypeConverters.toFloat,
             default=_UNSET,
             doc="Float constant to add.",
@@ -80,7 +80,7 @@ class SumTransformer(
         :returns: Transformed pyspark dataframe.
         """
         input_cols = self.get_multiple_input_cols(
-            constant_param_name="mathFloatConstant",
+            constant_param_name="addend",
         )
         # input_cols can contain either actual columns or lit(constants). In order to
         # determine the datatype of the input columns, we select them from the dataset
@@ -98,17 +98,3 @@ class SumTransformer(
         )
 
         return dataset.withColumn(self.getOutputCol(), output_col)
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        """
-        Gets the Keras layer for the sum transformer.
-
-        :returns: Keras layer with name equal to the layerName parameter that
-         performs a sum operation.
-        """
-        return SumLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
-            addend=self.getMathFloatConstant(),
-        )
