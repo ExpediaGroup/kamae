@@ -6,6 +6,8 @@ Follow this guide to contribute a new transformer to the project.
 In order to contribute a new transformer, you will need to implement a Spark Transformer, a corresponding Keras layer, and a Spark Estimator if your transformer needs a fit method.
 We also require unit tests for all new classes, in particular parity tests ensuring your Spark Transformer and Keras layer produce the same output.
 
+For full details on the declarative codegen system, see [codegen.md](codegen.md).
+
 ## Naming
 In order to avoid name clashes and to keep consistency, we have a naming convention for all new classes.
 
@@ -14,89 +16,82 @@ If an operation is called `<X>` then:
 - `<X>Estimator` = Spark estimator (if applicable)
 - `<X>Transformer` = Spark transformer
 - `<X>Layer` = Keras layer
-- `<X>Params` = Spark params class
 
 We just keep the verb stem. E.g string indexing is StringIndexTransformer, not StringIndexerTransformer.
 
 The name of the file should then be `<X>.py`. E.g. `src/kamae/spark/transformers/string_index.py` and `src/kamae/keras/core/layers/string_index.py` (for multi-backend layers) or `src/kamae/keras/tensorflow/layers/string_index.py` (for TensorFlow-only layers).
 
-Finally, if you need to create an estimator, then the estimator and its corresponding transformer should be in different files. E.g. `src/kame/spark/transformers/string_index.py` and `src/kame/spark/estimators/string_index.py`.
+Finally, if you need to create an estimator, then the estimator and its corresponding transformer should be in different files. E.g. `src/kamae/spark/transformers/string_index.py` and `src/kamae/spark/estimators/string_index.py`.
 
 ## Keras layer
-Your Keras layer should extend [BaseLayer](../src/kamae/keras/core/base.py) and implement the `_call` method. Furthermore, you will need to define the `compatible_dtypes` property which should return a list of compatible dtype strings (or `None` if the layer is compatible with all dtypes).
-You should ensure your layer is serializable by implementing the `get_config` method. 
-You also need to add the decorator `@keras.saving.register_keras_serializable(package=kamae.__name__)` to the class.
+Your Keras layer should extend [BaseLayer](../src/kamae/keras/core/base.py) and implement the `_call` method.
+
+Use `_params` to declare parameters and `_compatible_dtypes` for dtype restrictions. The base class auto-generates `__init__`, `get_config`, `compatible_dtypes`, and Keras serialization registration.
+
+If you need post-construction logic (validation, derived attributes, or creating internal TF layer objects), define a `_post_init` method instead of writing a manual `__init__`.
+
+For params shared across multiple layers (e.g. `mask_value`, `unit`), spread shared dicts from `kamae.params.shared_specs` into `_params`. See [codegen.md](codegen.md) for details.
 
 **Note:** Multi-backend layers should be placed in `src/kamae/keras/core/layers/` and use only Keras 3 operations. TensorFlow-only layers (those requiring TensorFlow-specific operations) should be placed in `src/kamae/keras/tensorflow/layers/` and can import TensorFlow for backend-specific functionality.
 
 ### Example
 
 ```python
-from typing import List, Optional
-
-import keras
-import kamae
-
 from kamae.keras.core.base import BaseLayer
+from kamae.params import ParamSpec, _REQUIRED
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class MyLayer(BaseLayer):
-    def __init__(self, name, input_dtype, output_dtype, my_param, **kwargs):
-        # Ensure that the name, input_dtype, and output_dtype are passed to the super constructor
-        super().__init__(name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs)
-        self.my_param = my_param
-    
-    @property
-    def compatible_dtypes(self) -> Optional[List[str]]:
-        return ["float32", "float64"]
+    _compatible_dtypes = ["float32", "float64"]
+    _params = {
+        "my_param": ParamSpec(default=_REQUIRED, doc="A required parameter"),
+        "threshold": ParamSpec(default=0.5, doc="Optional threshold"),
+    }
 
-    def _call(self, inputs):
-        # do something with inputs
+    def _post_init(self):
+        if self.threshold < 0:
+            raise ValueError("threshold must be non-negative")
+
+    def _call(self, inputs, **kwargs):
+        # self.my_param and self.threshold are set by codegen
         return outputs
-
-    def get_config(self):
-        config = super().get_config()
-        config.update({'my_param': self.my_param})
-        return config
 ```
+
+### When to write manual `__init__`
+
+Almost never. The codegen system handles `__init__` generation for all standard cases including:
+- Layers with `_post_init` for validation/derived attributes
+- Layers inheriting from intermediate parents (e.g. `NormalizeLayer`)
+- Layers with required params, optional params, shared params
+
+The only case requiring manual `__init__` is inheriting from a non-codegen parent that has a non-standard `__init__` signature (e.g. `tf.keras.layers.Lambda`).
 
 ### Checklist
 
 - [ ] I have implemented a Keras layer that extends [BaseLayer](../src/kamae/keras/core/base.py)
-- [ ] I have implemented the `_call` method of my Keras layer.
-- [ ] I have defined the `compatible_dtypes` property of my Keras layer, returning a list of dtype strings (e.g., `["float32", "float64"]`) or `None`.
-- [ ] I have added the decorator `@keras.saving.register_keras_serializable(package=kamae.__name__)` to my Keras layer.
-- [ ] I have ensured that my layer takes a `name`, `input_dtype`, and `output_dtype` as arguments to the constructor and that this is passed to the super constructor.
-- [ ] My Keras layer is serializable. I have implemented the `get_config` method and added the decorator seen above to the class.
-- [ ] I have unit tests of my implementation. 
-- [ ] I have a specific test of layer serialisation added [here](../../tests/kamae/keras/test_layer_serialisation.py).
+- [ ] I have defined `_params` with `ParamSpec` entries (from `kamae.params`) for each parameter
+- [ ] I have defined `_compatible_dtypes` (list of dtype strings, or `None` for any type)
+- [ ] I have implemented the `_call` method
+- [ ] I have added `_post_init` if post-construction logic is needed
+- [ ] I have unit tests of my implementation
+- [ ] I have a specific test of layer serialisation added [here](../tests/kamae/keras/test_layer_serialisation.py)
 
 ## Spark Transformer/Estimator
-Your Spark Transformer should extend [BaseTransformer](../src/kamae/spark/transformers/base.py). 
-In this it should implement the `get_keras_layer` method, which should return an instance of your Keras layer.
-If your transformer needs a fit method, you should also implement a Spark Estimator (which extends [BaseEstimator](../src/kamae/spark/estimators/base.py)) whose fit method returns an instance of your transformer.
+Your Spark Transformer should extend [BaseTransformer](../src/kamae/spark/transformers/base.py) and implement the `_transform` method.
 
-Spark has a peculiar way of building constructors, in that the `__init__` calls a `setParams` method, which sets the parameters of the transformer.
-See the example below for how this works. All estimators and transformers follow this boilerplate code.
-The `setParams` method is implemented in the base transformer and estimator classes, so you do not need to implement it yourself.
-However, you do need to call it from your `__init__` method, as shown below. You also need to ensure that all custom parameters have a setter method,
-which is in the form `set<ParamName>`, as the `setParams` method will look for this method.
+Use `_params` to declare custom parameters with `ParamSpec`. The base class auto-generates `__init__`, `setParams`, getters, setters, and `compatible_dtypes`.
 
-Your transformer should use one (or more) of the input/output mixin classes from [base.py](../src/kamae/spark/params/base.py)
+Set `_keras_layer_class` to your Keras layer class to auto-generate `get_keras_layer`.
+
+Your transformer should use one (or more) of the input/output mixin classes from [base.py](../src/kamae/spark/params/base.py):
 - `SingleInputSingleOutputParams`
 - `SingleInputMultiOutputParams`
 - `MultiInputSingleOutputParams`
 - `MultiInputMultiOutputParams`
 
 Only use more than one if you want to support two usages of your transformer, e.g. `MyTransformer(inputCol="a", outputCol="b")` and `MyTransformer(inputCols=["a", "b"], outputCols=["c", "d"])`.
-See for example the [SumTransformer](../src/kamae/spark/transformers/sum.py), which supports single input with a constant to add, or multiple inputs to sum.
 
-These mixins provide the `inputCol(s)` and `outputCol(s)` parameters, which are used to specify the input and output columns of your transformer.
-
-If your transformer requires more parameters that would need to be serialised to the Spark ML pipeline, you should add create a parameter class by extending the `Params` class [here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.param.Params.html).
-
-Lastly, we have provided utils for transformers & estimators to natively transform nested Spark array columns. 
-You can use one of the following functions from [here](../src/kamae/spark/utils/transform_utils.py) according to your usecase if you need to add support for nested columns:
+We have provided utils for transformers & estimators to natively transform nested Spark array columns.
+You can use one of the following functions from [here](../src/kamae/spark/utils/transform_utils.py):
 
 - `single_input_single_output_scalar_transform`
 - `single_input_single_output_array_transform`
@@ -110,120 +105,72 @@ You can use one of the following functions from [here](../src/kamae/spark/utils/
 Note that the methods are named `_fit` and `_transform`. `fit` and `transform` wrap these internal methods and should not be overridden.
 
 ```python
-from typing import List, Optional
-
-import keras
-from pyspark import keyword_only
-from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DataType, StringType, BinaryType
+from pyspark.sql.types import FloatType, DoubleType
 
 from kamae.spark.params import SingleInputSingleOutputParams
-from kamae.spark.transformers import BaseTransformer
-from kamae.spark.estimators import BaseEstimator
+from kamae.params import ParamSpec, _UNSET
+from kamae.spark.transformers.base import BaseTransformer
+from kamae.keras.core.layers import MyLayer
 
 
-class MyCustomParams(Params):
-    myParam = Param(
-        Params._dummy(),
-        "myParam",
-        "Description of myParam",
-        typeConverter=TypeConverters.toFloat,
-    )
+class MyTransformer(BaseTransformer, SingleInputSingleOutputParams):
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    _keras_layer_class = MyLayer
+    _params = {
+        "myParam": ParamSpec(
+            spark_typeconverter=TypeConverters.toFloat,
+            default=0.5,
+            doc="A custom parameter",
+        ),
+    }
 
-    # Setter method must be in the form set<ParamName> otherwise 
-    # the setParams method will not find the set method. 
-    def setMyParam(self, value: float) -> "MyCustomParams":
-        return self._set(myParam=value)
+    def _transform(self, dataset: DataFrame) -> DataFrame:
+        my_param = self.getMyParam()  # auto-generated getter
+        # Do some transformation...
+        return dataset.withColumn(self.getOutputCol(), output_of_transform)
+```
 
-    def getMyParam(self) -> float:
-        return self.getOrDefault(self.myParam)
+For estimators:
 
+```python
+from kamae.spark.estimators.base import BaseEstimator
+from kamae.spark.params import SingleInputSingleOutputParams
+from kamae.params import ParamSpec
 
-class MyEstimator(
-    BaseEstimator,
-    SingleInputSingleOutputParams,
-    MyCustomParams
-):
+class MyEstimator(BaseEstimator, SingleInputSingleOutputParams):
+    _compatible_dtypes = [FloatType(), DoubleType()]
+    _params = {
+        "myParam": ParamSpec(spark_typeconverter=TypeConverters.toFloat, default=0.5, doc="A custom parameter"),
+    }
 
-    @keyword_only
-    def __init__(
-            self,
-            inputCol: Optional[str] = None,
-            outputCol: Optional[str] = None,
-            layerName: Optional[str] = None,
-            inputDtype: Optional[str] = None,
-            outputDtype: Optional[str] = None,
-            myParam: Optional[float] = None,
-    ) -> None:
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        return [StringType(), BinaryType()]
-
-    def _fit(self, dataset: DataFrame) -> "MyTransformer":
-        # Do some fitting...
+    def _fit(self, dataset):
+        fitted_value = compute_something(dataset)
         return MyTransformer(
             inputCol=self.getInputCol(),
             outputCol=self.getOutputCol(),
             layerName=self.getLayerName(),
             inputDtype=self.getInputDtype(),
             outputDtype=self.getOutputDtype(),
-            myParam=self.getMyParam(),
-        )
-
-
-class MyTransformer(
-    BaseTransformer,
-    SingleInputSingleOutputParams,
-    MyCustomParams
-):
-
-    @keyword_only
-    def __init__(
-            self,
-            inputCol: Optional[str] = None,
-            outputCol: Optional[str] = None,
-            layerName: Optional[str] = None,
-            inputDtype: Optional[str] = None,
-            outputDtype: Optional[str] = None,
-            myParam: Optional[float] = None,
-    ) -> None:
-        super().__init__()
-        kwargs = self._input_kwargs
-        self.setParams(**kwargs)
-
-    @property
-    def compatible_dtypes(self) -> Optional[List[DataType]]:
-        return [StringType(), BinaryType()]
-
-    def get_keras_layer(self) -> keras.layers.Layer:
-        # Ensure that the layer has the layer name, input dtype, and output dtype
-        # as arguments `name`, `input_dtype`, and `output_dtype` respectively.
-        return MyLayer(
-            name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            out_dtype=self.getOutputKerasDtype(),
-            my_param=self.getMyParam(),
-        )
-
-    def _transform(self, dataset: DataFrame) -> DataFrame:
-        # Do some transformation...
-        return dataset.withColumn(
-            self.getOutputCol(),
-            output_of_transform,
+            myParam=fitted_value,
         )
 ```
 
+### When to write manual `get_keras_layer`
+
+Set `_keras_layer_class = None` and implement `get_keras_layer` when:
+- **Param names don't align** — Spark camelCase→snake_case doesn't match the Keras param name (e.g. `constantStringArray` → `string_constant_list`)
+- **Hardcoded values** — Keras layer has params with no Spark equivalent (e.g. `axis=-1, keepdims=True`)
+- **Multiple layers returned** — transformer produces a list of layers
+
+Otherwise, set `_keras_layer_class` and let codegen handle it. See [codegen.md](codegen.md) for details.
+
 ### Checklist
-- [ ] I have implemented a Spark Transformer that extends [BaseTransformer](../src/kamae/spark/transformers/base.py).
-- [ ] If my transformer needs a fit method, I have implemented a Spark Estimator that extends [BaseEstimator](../src/kamae/spark/estimators/base.py).
-- [ ] I have followed the instructions for the `__init__` and `setParams` methods.
-- [ ] I have used one (or more) of the input/output mixin classes from [base.py](../src/kamae/spark/params/base.py).
-- [ ] If my transformer requires more parameters that would need to be serialised to the Spark ML pipeline, I have added a parameter class by extending the `Params` class [here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.param.Params.html).
-- [ ] I have defined the `compatible_dtypes` property to specify the input/output data types that my transformer/estimator supports.
-- [ ] I used a Keras subclassed layer for my `get_keras_layer` method.
-- [ ] I have unit tests of my implementation. In particular, I have parity tests between the Spark and Keras implementations.
+- [ ] I have implemented a Spark Transformer that extends [BaseTransformer](../src/kamae/spark/transformers/base.py)
+- [ ] If my transformer needs a fit method, I have implemented a Spark Estimator that extends [BaseEstimator](../src/kamae/spark/estimators/base.py)
+- [ ] I have defined `_params` with `ParamSpec` entries for each custom parameter
+- [ ] I have defined `_compatible_dtypes` as a list of PySpark `DataType` instances
+- [ ] I have set `_keras_layer_class` to my Keras layer class (or written manual `get_keras_layer` if needed)
+- [ ] I have used one (or more) of the input/output mixin classes from [base.py](../src/kamae/spark/params/base.py)
+- [ ] I have implemented the `_transform` method
+- [ ] I have unit tests of my implementation, including Spark/Keras parity tests
