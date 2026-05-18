@@ -89,7 +89,7 @@ torch_transformers = kamae.get_compatible_transformers('torch')
 - **[Shape parity](docs/achieving_shape_parity.md)**: Ensuring consistent shapes between Spark and Keras
 - **[Testing inference](docs/testing_inference.md)**: Validate model outputs with TensorFlow Serving
 - **[Adding transformers](docs/adding_transformer.md)**: Contributing new transformations
-- **[Keras 3 Migration](docs/keras3_migration.md)**: Migrating to Keras 3 multi-backend (Kamae >3.0.0)
+- **[Migration Guide (v3)](docs/migration-v3.md)**: All breaking changes in v3.0.0 (Keras 3, param renames, codegen)
 
 ## Supported Preprocessing Layers
 
