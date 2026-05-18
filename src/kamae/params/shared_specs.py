@@ -70,7 +70,7 @@ def _validate_sample_fraction(value):
 def _validate_mean_stddev(value):
     if None in set(value):
         ids = [i for i, x in enumerate(value) if x is None]
-        raise ValueError("Got null values at positions: ", ids)
+        raise ValueError(f"Got null values at positions: {ids}")
     return value
 
 
