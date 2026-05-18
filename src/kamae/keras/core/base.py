@@ -86,9 +86,16 @@ class BaseLayer(keras.layers.Layer, ABC):
         if cls is BaseLayer:
             return
         raw_params = cls.__dict__.get("_params", {})
-        layer_params = {_camel_to_snake(k): v for k, v in raw_params.items()}
-        cls._params = layer_params
-        install_params(cls, layer_params)
+        own_params = {_camel_to_snake(k): v for k, v in raw_params.items()}
+
+        # Merge params from parent classes (already snake_cased by their __init_subclass__)
+        cls._params = {}
+        for base in cls.__bases__:
+            if hasattr(base, "_params"):
+                cls._params.update(base._params)
+        cls._params.update(own_params)
+
+        install_params(cls, own_params)  # Only generate init/config for own params
 
         # Auto-register all subclasses for Keras serialization
         keras.saving.register_keras_serializable(package=kamae.__name__)(cls)

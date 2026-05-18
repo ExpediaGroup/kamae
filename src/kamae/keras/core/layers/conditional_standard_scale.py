@@ -12,20 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import keras
-import numpy as np
 from keras import ops
 
-import kamae
 from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.core.utils.normalize_layer import NormalizeLayer
 from kamae.keras.core.utils.ops_utils import divide_no_nan
+from kamae.params import ParamSpec
 
 
-@keras.saving.register_keras_serializable(package=kamae.__name__)
 class ConditionalStandardScaleLayer(NormalizeLayer):
     """
     Performs the standard scaling of the input with a masking condition.
@@ -42,58 +40,16 @@ class ConditionalStandardScaleLayer(NormalizeLayer):
 
     jit_compatible = True
 
-    def __init__(
-        self,
-        mean: Union[List[float], np.array],
-        variance: Union[List[float], np.array],
-        name: Optional[str] = None,
-        axis: Optional[Union[int, tuple[int]]] = -1,
-        input_dtype: Optional[str] = None,
-        output_dtype: Optional[str] = None,
-        skip_zeros: bool = False,
-        epsilon: float = 0,
-        **kwargs: Any,
-    ) -> None:
-        """
-        Initialise the ConditionalStandardScaleLayer layer.
-
-        :param mean: The mean value(s) to use during normalization. The passed value(s)
-        will be broadcast to the shape of the kept axes above; if the value(s)
-        cannot be broadcast, an error will be raised when this layer's
-        `build()` method is called.
-        :param variance: The variance value(s) to use during normalization. The passed
-        value(s) will be broadcast to the shape of the kept axes above; if the
-        value(s) cannot be broadcast, an error will be raised when this
-        layer's `build()` method is called.
-        :param name: The name of the layer. Defaults to `None`.
-        :param axis: Integer, tuple of integers, or None. The axis or axes that should
-        have a separate mean and variance for each index in the shape. For
-        example, if shape is `(None, 5)` and `axis=1`, the layer will track 5
-        separate mean and variance values for the last axis. If `axis` is set
-        to `None`, the layer will normalize all elements in the input by a
-        scalar mean and variance. Defaults to -1, where the last axis of the
-        input is assumed to be a feature dimension and is normalized per
-        index. Note that in the specific case of batched scalar inputs where
-        the only axis is the batch axis, the default will normalize each index
-        in the batch separately. In this case, consider passing `axis=None`.
-        :param skip_zeros: If True, in addition to the masking operation,
-        do not apply the scaling when the values to scale are equal to zero.
-        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
-        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
-        :param epsilon: Small value to add to conditional check of zeros. Valid only
-        when skipZeros is True. Defaults to 0.
-        """
-        super().__init__(
-            name=name,
-            input_dtype=input_dtype,
-            output_dtype=output_dtype,
-            mean=mean,
-            variance=variance,
-            axis=axis,
-            **kwargs,
-        )
-        self.skip_zeros = skip_zeros
-        self.epsilon = epsilon
+    _params = {
+        "skip_zeros": ParamSpec(
+            default=False,
+            doc="If True, do not apply the scaling when the values to scale are equal to zero",
+        ),
+        "epsilon": ParamSpec(
+            default=0,
+            doc="Small value to add to conditional check of zeros. Valid only when skipZeros is True",
+        ),
+    }
 
     @enforce_single_tensor_input
     def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
@@ -103,26 +59,19 @@ class ConditionalStandardScaleLayer(NormalizeLayer):
         It applies the scaling only to values matching the mask condition, if set.
         It applies the scaling only to values not equal to zero, if skip_zeros is set.
 
-        Decorated with `@enforce_single_tensor_input` to ensure that
-        the input is a single tensor. Raises an error if multiple tensors are passed
-        in as an iterable.
-
         :param inputs: Input tensor to perform the normalization on.
         :returns: The input tensor with the normalization applied.
         """
-        # Ensure mean and variance match input dtype.
         input_dtype_str = keras.backend.standardize_dtype(inputs.dtype)
         mean = self._cast(self.mean, input_dtype_str)
         variance = self._cast(self.variance, input_dtype_str)
 
-        # Compute (input - mean) / sqrt(variance) using safe division
         numerator = ops.subtract(inputs, mean)
         denominator = ops.maximum(
             ops.sqrt(variance), ops.convert_to_tensor(self.epsilon, dtype=inputs.dtype)
         )
         normalized_outputs = divide_no_nan(numerator, denominator)
 
-        # Output is 0 if variance is 0
         normalized_outputs = ops.where(
             ops.equal(variance, 0),
             ops.zeros_like(normalized_outputs),
@@ -132,24 +81,8 @@ class ConditionalStandardScaleLayer(NormalizeLayer):
         if self.skip_zeros:
             eps = ops.convert_to_tensor(self.epsilon, dtype=inputs.dtype)
             normalized_outputs = ops.where(
-                ops.less_equal(ops.abs(inputs), eps),  # x = (0 +- eps)
+                ops.less_equal(ops.abs(inputs), eps),
                 ops.zeros_like(normalized_outputs),
                 normalized_outputs,
             )
         return normalized_outputs
-
-    def get_config(self) -> Dict[str, Any]:
-        """
-        Gets the configuration of the ConditionalStandardScaleLayer layer.
-        Used for saving and loading from a model.
-        Specifically adds additional parameters to the base configuration.
-        :returns: Dictionary of the configuration of the layer.
-        """
-        config = super().get_config()
-        config.update(
-            {
-                "skip_zeros": self.skip_zeros,
-                "epsilon": self.epsilon,
-            }
-        )
-        return config
