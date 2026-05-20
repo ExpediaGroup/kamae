@@ -14,16 +14,14 @@
 
 """Tests for JIT compatibility attributes on Spark estimators and transformers."""
 
-import inspect
-
 from pyspark.ml import Estimator, Transformer
 
 import kamae.spark.estimators as estimators_mod
 import kamae.spark.transformers as transformers_mod
 
 
-def test_all_spark_operations_have_jit_compatible_attribute():
-    """Test that all Spark transformers and estimators have jit_compatible attribute."""
+def test_all_spark_operations_define_jit_compatible_and_supported_backends():
+    """Test that all Spark transformers and estimators define jit_compatible and supported_backends directly."""
     # Get all transformer classes
     transformers = [
         obj
@@ -47,9 +45,15 @@ def test_all_spark_operations_have_jit_compatible_attribute():
     all_operations = transformers + estimators
 
     for op_cls in all_operations:
-        assert hasattr(
-            op_cls, "jit_compatible"
-        ), f"{op_cls.__name__} missing jit_compatible attribute"
+        assert (
+            "jit_compatible" in op_cls.__dict__
+        ), f"{op_cls.__name__} must define 'jit_compatible' directly (not inherit it)"
         assert isinstance(
             op_cls.jit_compatible, bool
         ), f"{op_cls.__name__}.jit_compatible must be bool, got {type(op_cls.jit_compatible)}"
+        assert (
+            "supported_backends" in op_cls.__dict__
+        ), f"{op_cls.__name__} must define 'supported_backends' directly (not inherit it)"
+        assert isinstance(
+            op_cls.supported_backends, frozenset
+        ), f"{op_cls.__name__}.supported_backends must be frozenset"

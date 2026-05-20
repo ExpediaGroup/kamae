@@ -32,6 +32,7 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import AbsoluteValueLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
@@ -48,6 +49,7 @@ class AbsoluteValueTransformer(
     This transformer applies abs(x) operation to the input.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

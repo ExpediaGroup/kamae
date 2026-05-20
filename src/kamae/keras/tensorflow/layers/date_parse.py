@@ -14,12 +14,13 @@
 
 from typing import Any, Dict, List, Optional
 
+import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.tensorflow.utils.date_utils import (
     datetime_day,
@@ -63,6 +64,7 @@ class DateParseLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
@@ -113,7 +115,7 @@ class DateParseLayer(BaseLayer):
         return ["string"]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
+    def _call(self, inputs: KerasTensor, **kwargs: Any) -> KerasTensor:
         """
         Extracts date part from date(time) string.
 
@@ -144,7 +146,7 @@ class DateParseLayer(BaseLayer):
         return outputs
 
     @staticmethod
-    def _parse_date(date_tensor: Tensor, date_part: str) -> Tensor:
+    def _parse_date(date_tensor: KerasTensor, date_part: str) -> KerasTensor:
         """
         Parse date(time) string into a dictionary of date part tensors.
 

@@ -21,6 +21,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import PairwiseCosineSimilarityLayer
 from kamae.spark.params import MultiInputSingleOutputParams
 
@@ -40,6 +41,7 @@ class PairwiseCosineSimilarityTransformer(
     Output:  Array[Float] of size N containing cosine similarities.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     embeddingDim = Param(

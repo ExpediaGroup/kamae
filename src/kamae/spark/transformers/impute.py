@@ -25,6 +25,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import ImputeLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
@@ -36,8 +37,6 @@ class ImputeParams(Params):
     """
     Mixin class used to provide imputation and mask value needed for imputation.
     """
-
-    jit_compatible = True
 
     imputeValue = Param(
         Params._dummy(),
@@ -98,6 +97,9 @@ class ImputeTransformer(BaseTransformer, ImputeParams, SingleInputSingleOutputPa
     This is used to impute the mean or median value when
     value is null or equalling a mask
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

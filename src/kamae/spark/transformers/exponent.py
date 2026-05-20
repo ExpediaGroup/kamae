@@ -25,6 +25,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import ExponentLayer
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
@@ -39,8 +40,6 @@ class ExponentParams(Params):
     """
     Mixin class containing alpha parameter needed for exponent transform layers.
     """
-
-    jit_compatible = True
 
     exponent = Param(
         Params._dummy(),
@@ -78,6 +77,9 @@ class ExponentTransformer(
     This transformer applies x^exponent in the case of single input and or x^y in the
     case of two inputs.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

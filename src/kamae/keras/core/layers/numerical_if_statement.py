@@ -15,11 +15,11 @@
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import keras
-from keras import ops
+from keras import KerasTensor, ops
 
 import kamae
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 from kamae.utils import get_condition_operator
 
@@ -49,6 +49,7 @@ class NumericalIfStatementLayer(BaseLayer):
     not None, then inputs is expected to be a tensor.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     def __init__(
@@ -97,7 +98,9 @@ class NumericalIfStatementLayer(BaseLayer):
         """
         return ["bfloat16", "float16", "float32", "float64"]
 
-    def _construct_input_tensors(self, inputs: Iterable[Tensor]) -> Iterable[Tensor]:
+    def _construct_input_tensors(
+        self, inputs: Iterable[KerasTensor]
+    ) -> Iterable[KerasTensor]:
         """
         Constructs the input tensors for the layer in the case where all the optional
         parameters are not specified. We need to run through the provided inputs and
@@ -137,7 +140,9 @@ class NumericalIfStatementLayer(BaseLayer):
         return multiple_inputs
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
+    def _call(
+        self, inputs: Union[KerasTensor, Iterable[KerasTensor]], **kwargs: Any
+    ) -> KerasTensor:
         """
         Performs the numerical if statement on the inputs. If the inputs are a tensor,
         we assume that the value_to_compare, result_if_true, and result_if_false are

@@ -14,12 +14,13 @@
 
 from typing import Any, Dict, List, Optional
 
+import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 from kamae.keras.tensorflow.utils.date_utils import datetime_total_days
 
@@ -34,6 +35,7 @@ class DateDiffLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
@@ -65,7 +67,7 @@ class DateDiffLayer(BaseLayer):
         return ["string"]
 
     @enforce_multiple_tensor_input
-    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
+    def _call(self, inputs: KerasTensor, **kwargs: Any) -> KerasTensor:
         """
         Performs the date difference operation on two input tensors.
 
@@ -101,7 +103,9 @@ class DateDiffLayer(BaseLayer):
             outputs = self.date_difference(end_date, start_date)
         return outputs
 
-    def date_difference(self, end_date: Tensor, start_date: Tensor) -> Tensor:
+    def date_difference(
+        self, end_date: KerasTensor, start_date: KerasTensor
+    ) -> KerasTensor:
         """
         Calculates the difference between two dates.
 

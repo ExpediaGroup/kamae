@@ -15,11 +15,11 @@
 from typing import Any, Dict, Iterable, List, Optional
 
 import keras
-from keras import ops
+from keras import KerasTensor, ops
 
 import kamae
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 from kamae.keras.core.utils.shape_utils import reshape_to_equal_rank
 
@@ -30,6 +30,7 @@ class ArrayConcatenateLayer(BaseLayer):
     Performs a concatenation of the input tensors.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     def __init__(
@@ -70,7 +71,7 @@ class ArrayConcatenateLayer(BaseLayer):
         return None
 
     @enforce_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
+    def _call(self, inputs: Iterable[KerasTensor], **kwargs: Any) -> KerasTensor:
         """
         Concatenates the input tensors along the specified axis.
         If auto_broadcast is set to True, the tensors are broadcasted to the

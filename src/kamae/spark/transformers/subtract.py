@@ -33,6 +33,7 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import SubtractLayer
 from kamae.spark.params import (
     MathFloatConstantParams,
@@ -55,6 +56,7 @@ class SubtractTransformer(
     This transformer subtracts a column by a constant or another column.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

@@ -37,10 +37,14 @@ from typing import List, Optional
 import keras
 import kamae
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.base import BaseLayer
 
 @keras.saving.register_keras_serializable(package=kamae.__name__)
 class MyLayer(BaseLayer):
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
+
     def __init__(self, name, input_dtype, output_dtype, my_param, **kwargs):
         # Ensure that the name, input_dtype, and output_dtype are passed to the super constructor
         super().__init__(name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs)
@@ -63,6 +67,7 @@ class MyLayer(BaseLayer):
 ### Checklist
 
 - [ ] I have implemented a Keras layer that extends [BaseLayer](../src/kamae/keras/core/base.py)
+- [ ] I have defined `supported_backends` and `jit_compatible` class attributes on my layer.
 - [ ] I have implemented the `_call` method of my Keras layer.
 - [ ] I have defined the `compatible_dtypes` property of my Keras layer, returning a list of dtype strings (e.g., `["float32", "float64"]`) or `None`.
 - [ ] I have added the decorator `@keras.saving.register_keras_serializable(package=kamae.__name__)` to my Keras layer.
@@ -118,6 +123,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, StringType, BinaryType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers import BaseTransformer
 from kamae.spark.estimators import BaseEstimator
@@ -145,6 +151,8 @@ class MyEstimator(
     SingleInputSingleOutputParams,
     MyCustomParams
 ):
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(
@@ -181,6 +189,8 @@ class MyTransformer(
     SingleInputSingleOutputParams,
     MyCustomParams
 ):
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(
@@ -221,6 +231,7 @@ class MyTransformer(
 ### Checklist
 - [ ] I have implemented a Spark Transformer that extends [BaseTransformer](../src/kamae/spark/transformers/base.py).
 - [ ] If my transformer needs a fit method, I have implemented a Spark Estimator that extends [BaseEstimator](../src/kamae/spark/estimators/base.py).
+- [ ] I have defined `supported_backends` and `jit_compatible` class attributes on my transformer/estimator (not in the Params class).
 - [ ] I have followed the instructions for the `__init__` and `setParams` methods.
 - [ ] I have used one (or more) of the input/output mixin classes from [base.py](../src/kamae/spark/params/base.py).
 - [ ] If my transformer requires more parameters that would need to be serialised to the Spark ML pipeline, I have added a parameter class by extending the `Params` class [here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.param.Params.html).

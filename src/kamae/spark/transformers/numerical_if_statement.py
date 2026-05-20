@@ -25,6 +25,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import NumericalIfStatementLayer
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
@@ -41,8 +42,6 @@ class NumericalIfStatementParams(Params):
     Mixin class containing parameters needed for NumericalIfStatementTransformer
     transform layers.
     """
-
-    jit_compatible = True
 
     conditionOperator = Param(
         Params._dummy(),
@@ -170,6 +169,9 @@ class NumericalIfStatementTransformer(
     This transformer computes an if statement between a set of numerical constants
     and columns.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

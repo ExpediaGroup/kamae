@@ -14,12 +14,13 @@
 
 from typing import Any, Dict, Iterable, List, Optional
 
+import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 
 
@@ -30,6 +31,7 @@ class StringConcatenateLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
@@ -61,7 +63,7 @@ class StringConcatenateLayer(BaseLayer):
         return ["string"]
 
     @enforce_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
+    def _call(self, inputs: Iterable[KerasTensor], **kwargs: Any) -> KerasTensor:
         """
         Concatenates the input tensors.
 

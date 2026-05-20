@@ -33,6 +33,7 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import BinLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
@@ -45,8 +46,6 @@ class BinParams(Params):
     """
     Mixin class containing parameters needed for Bin transform layers.
     """
-
-    jit_compatible = True
 
     conditionOperators = Param(
         Params._dummy(),
@@ -204,6 +203,9 @@ class BinTransformer(
 
     If no conditions evaluate to True, the default label is returned.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

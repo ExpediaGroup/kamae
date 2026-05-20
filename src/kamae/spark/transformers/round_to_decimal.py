@@ -25,6 +25,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, IntegerType, LongType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import RoundToDecimalLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
@@ -36,8 +37,6 @@ class RoundToDecimalParams(Params):
     """
     Mixin class containing decimals parameter needed for rounding transform layers.
     """
-
-    jit_compatible = True
 
     decimals = Param(
         Params._dummy(),
@@ -76,6 +75,9 @@ class RoundToDecimalTransformer(
     This transformer rounds the input column to the nearest decimal using the
     specified number of decimals.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

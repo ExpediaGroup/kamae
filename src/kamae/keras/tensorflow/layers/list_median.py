@@ -16,11 +16,11 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 from kamae.keras.tensorflow.utils.list_utils import get_top_n
 
@@ -101,7 +101,7 @@ class ListMedianLayer(BaseLayer):
             "float64",
         ]
 
-    def sort_with_nans_last(self, tensor: Tensor) -> Tensor:
+    def sort_with_nans_last(self, tensor: KerasTensor) -> KerasTensor:
         """
         Sorts a tensor while placing NaN values at the end along the specified axis.
 
@@ -124,7 +124,7 @@ class ListMedianLayer(BaseLayer):
         return sorted_masked_tensor
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
+    def _call(self, inputs: Iterable[KerasTensor], **kwargs: Any) -> KerasTensor:
         """
         Calculate the listwise median, optionally sorting and
         filtering based on the second input tensor.

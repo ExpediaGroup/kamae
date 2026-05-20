@@ -21,6 +21,7 @@ import pytest
 import tensorflow as tf
 from keras import ops
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 
@@ -28,6 +29,9 @@ from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 @keras.saving.register_keras_serializable(package="kamae_test")
 class MockLayer(BaseLayer):
     """Mock layer for testing BaseLayer"""
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = False
 
     @property
     def compatible_dtypes(self) -> Optional[List[str]]:
@@ -41,6 +45,9 @@ class MockLayer(BaseLayer):
 @keras.saving.register_keras_serializable(package="kamae_test")
 class MockLayerWithCompatibleDtypes(BaseLayer):
     """Mock layer with specific compatible dtypes"""
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = False
 
     @property
     def compatible_dtypes(self) -> Optional[List[str]]:

@@ -20,6 +20,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.spark.params import (
     MaskValueParams,
     SampleFractionParams,
@@ -47,6 +48,7 @@ class SingleFeatureArrayStandardScaleEstimator(
     and standard deviation are calculated across all elements in all the arrays.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

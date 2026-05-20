@@ -32,6 +32,7 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import MinLayer
 from kamae.spark.params import (
     MathFloatConstantParams,
@@ -54,6 +55,7 @@ class MinTransformer(
     This transformer gets the min of a column and a constant or another column.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

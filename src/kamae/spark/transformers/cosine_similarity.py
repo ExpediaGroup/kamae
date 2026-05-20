@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import CosineSimilarityLayer
 from kamae.spark.params import MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_array_transform
@@ -40,6 +41,7 @@ class CosineSimilarityTransformer(
     This transformer computes the cosine similarity between two array columns.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

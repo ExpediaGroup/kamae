@@ -26,6 +26,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import BooleanType, DataType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import LogicalAndLayer
 from kamae.spark.params import MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_scalar_transform
@@ -42,6 +43,7 @@ class LogicalAndTransformer(
     This transformer performs an element-wise logical and operation on multiple columns.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

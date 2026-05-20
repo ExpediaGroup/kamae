@@ -26,6 +26,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import HaversineDistanceLayer
 from kamae.spark.params import LatLonConstantParams, MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_scalar_transform
@@ -37,8 +38,6 @@ class HaversineDistanceParams(LatLonConstantParams, MultiInputSingleOutputParams
     """
     Mixin class containing unit parameters.
     """
-
-    jit_compatible = True
 
     unit = Param(
         Params._dummy(),
@@ -100,6 +99,9 @@ class HaversineDistanceTransformer(
     The transformer will return null distance if any of the lat/lon values
     are out of bounds. For lat, this is [-90, 90] and for lon, this is [-180, 180].
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

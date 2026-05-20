@@ -65,6 +65,7 @@ class OneHotEncodeTransformer(
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     @keyword_only
     def __init__(

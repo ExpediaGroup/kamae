@@ -25,6 +25,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import StandardScaleLayer
 from kamae.spark.params import SingleInputSingleOutputParams, StandardScaleParams
 from kamae.spark.utils import single_input_single_output_array_transform
@@ -46,6 +47,7 @@ class StandardScaleTransformer(
     shape across all rows.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

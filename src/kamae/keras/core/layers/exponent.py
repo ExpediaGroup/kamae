@@ -14,11 +14,11 @@
 from typing import Any, Dict, List, Optional
 
 import keras
-from keras import ops
+from keras import KerasTensor, ops
 
 import kamae
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 
 
@@ -28,6 +28,7 @@ class ExponentLayer(BaseLayer):
     Performs the x^exponent operation on a given input tensor.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     def __init__(
@@ -67,7 +68,7 @@ class ExponentLayer(BaseLayer):
         ]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
+    def _call(self, inputs: KerasTensor, **kwargs: Any) -> KerasTensor:
         """
         :param inputs: Single tensor or iterable of tensors to perform the x^pow
             operation on.

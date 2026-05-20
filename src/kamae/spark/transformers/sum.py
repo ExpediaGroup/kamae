@@ -33,6 +33,7 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import SumLayer
 from kamae.spark.params import (
     MathFloatConstantParams,
@@ -55,6 +56,7 @@ class SumTransformer(
     This transformer sums a column with a constant or another column.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

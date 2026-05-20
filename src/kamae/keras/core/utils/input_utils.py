@@ -17,9 +17,7 @@
 from typing import Any, Callable, Iterable, List, Union
 
 import keras
-from keras import ops
-
-from kamae.keras.core.typing import Tensor
+from keras import KerasTensor, ops
 
 
 def is_tensor(x: Any) -> bool:
@@ -62,9 +60,9 @@ def enforce_single_tensor_input(layer_call_method: Callable) -> Callable:
 
     def _enforce_single_tensor_input(
         self: Any,
-        inputs: Union[Tensor, Iterable[Tensor]],
+        inputs: Union[KerasTensor, Iterable[KerasTensor]],
         **kwargs: Any,
-    ) -> Tensor:
+    ) -> KerasTensor:
         if is_tensor(inputs):
             # If the inputs are a tensor, then we return the tensor.
             processed_inputs = inputs
@@ -99,9 +97,9 @@ def enforce_multiple_tensor_input(layer_call_method: Callable) -> Callable:
 
     def _enforce_multiple_tensor_input(
         self: Any,
-        inputs: Union[Tensor, Iterable[Tensor]],
+        inputs: Union[KerasTensor, Iterable[KerasTensor]],
         **kwargs: Any,
-    ) -> List[Tensor]:
+    ) -> List[KerasTensor]:
         if is_tensor(inputs):
             raise ValueError(
                 """Expected inputs to be a iterable of tensors,
@@ -133,9 +131,9 @@ def allow_single_or_multiple_tensor_input(layer_call_method: Callable) -> Callab
 
     def _allow_single_or_multiple_tensor_input(
         self: Any,
-        inputs: Union[Tensor, Iterable[Tensor]],
+        inputs: Union[KerasTensor, Iterable[KerasTensor]],
         **kwargs: Any,
-    ) -> List[Tensor]:
+    ) -> List[KerasTensor]:
         if is_tensor(inputs):
             processed_inputs = [inputs]
         else:

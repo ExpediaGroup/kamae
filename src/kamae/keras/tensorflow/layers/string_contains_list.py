@@ -14,12 +14,13 @@
 
 from typing import Any, Dict, List, Optional
 
+import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 
 
@@ -34,6 +35,7 @@ class StringContainsListLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
@@ -68,7 +70,7 @@ class StringContainsListLayer(BaseLayer):
         return ["string"]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
+    def _call(self, inputs: KerasTensor, **kwargs: Any) -> KerasTensor:
         """
         Checks for the existence of any substring in the string_contains_list
         within a tensor.

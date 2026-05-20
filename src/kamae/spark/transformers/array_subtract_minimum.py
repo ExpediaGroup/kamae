@@ -30,6 +30,7 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import ArraySubtractMinimumLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
@@ -42,8 +43,6 @@ class ArraySubtractMinimumParams(Params):
     Mixin class containing pad value parameters needed
     for array subtract min transformers.
     """
-
-    jit_compatible = True
 
     padValue = Param(
         Params._dummy(),
@@ -82,6 +81,9 @@ class ArraySubtractMinimumTransformer(
 
     The main use case in mind for this is working with an array of timestamps.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

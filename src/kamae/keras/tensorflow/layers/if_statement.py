@@ -16,11 +16,11 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 
 import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 from kamae.utils import get_condition_operator
 
@@ -52,6 +52,7 @@ class IfStatementLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
@@ -173,7 +174,9 @@ class IfStatementLayer(BaseLayer):
         )
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
+    def _call(
+        self, inputs: Union[KerasTensor, Iterable[KerasTensor]], **kwargs: Any
+    ) -> KerasTensor:
         """
         Performs the numerical if statement on the inputs. If the inputs are a tensor,
         we assume that the value_to_compare, result_if_true, and result_if_false are

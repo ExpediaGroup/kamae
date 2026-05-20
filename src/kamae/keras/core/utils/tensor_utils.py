@@ -18,10 +18,9 @@ Multi-backend tensor utility functions for backend-agnostic operations.
 
 from typing import Any, List, Union
 
+import keras
 import numpy as np
 from keras import ops
-
-from kamae.keras.core.typing import Tensor
 
 
 def listify_tensors(x: Union[Any, np.ndarray, List[Any]]) -> List[Any]:

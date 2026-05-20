@@ -14,12 +14,13 @@
 
 from typing import Any, Dict, Iterable, List, Optional, Union
 
+import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 
 
@@ -42,6 +43,7 @@ class StringEqualsIfStatementLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
@@ -82,7 +84,7 @@ class StringEqualsIfStatementLayer(BaseLayer):
         """
         return ["string"]
 
-    def _construct_input_tensors(self, inputs: List[Tensor]) -> List[Tensor]:
+    def _construct_input_tensors(self, inputs: List[KerasTensor]) -> List[KerasTensor]:
         """
         Constructs the input tensors for the layer in the case where all the optional
         parameters are not specified. We need to run through the provided inputs and
@@ -120,7 +122,9 @@ class StringEqualsIfStatementLayer(BaseLayer):
         return multiple_inputs
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
+    def _call(
+        self, inputs: Union[KerasTensor, Iterable[KerasTensor]], **kwargs: Any
+    ) -> KerasTensor:
         """
         Performs the string if equals statement on the inputs. If the inputs are a
         tensor, we assume that the value_to_compare, result_if_true, and

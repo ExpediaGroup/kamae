@@ -22,7 +22,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, NumericType
 
-from kamae.keras.core.backend import ALL_BACKENDS, validate_backend
+from kamae.keras.core.backend import validate_backend
 from kamae.spark.params import (
     HasInputDtype,
     HasLayerName,
@@ -43,8 +43,8 @@ class SparkOperation(
     param setting, input/output dtype casting, and layer name setting.
     """
 
-    supported_backends: frozenset = ALL_BACKENDS
-    jit_compatible: bool = False
+    supported_backends: frozenset
+    jit_compatible: bool
 
     def __init__(self) -> None:
         """

@@ -14,12 +14,13 @@
 
 from typing import Any, Dict, Iterable, List, Optional, Union
 
+import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 
 
@@ -30,6 +31,7 @@ class StringReplaceLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
@@ -82,7 +84,9 @@ class StringReplaceLayer(BaseLayer):
         return ["string"]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
+    def _call(
+        self, inputs: Union[KerasTensor, Iterable[KerasTensor]], **kwargs: Any
+    ) -> KerasTensor:
         """
         Checks for the existence of a substring/pattern within a tensor and replaces
         if there is a match.
@@ -167,7 +171,7 @@ class StringReplaceLayer(BaseLayer):
             )
             mappable_tensor = tf.reshape(mappable_tensor, [-1, 3])
 
-            def _tensor_replace(x: List[Tensor]) -> Tensor:
+            def _tensor_replace(x: List[KerasTensor]) -> KerasTensor:
                 match_substring = x[1]
                 if not self.regex:
                     match_substring = self._escape_special_characters(x[1])
@@ -193,8 +197,8 @@ class StringReplaceLayer(BaseLayer):
         return replaced_tensor
 
     def _escape_special_characters(
-        self, string_to_escape: Union[str, Tensor]
-    ) -> Union[str, Tensor]:
+        self, string_to_escape: Union[str, KerasTensor]
+    ) -> Union[str, KerasTensor]:
         """
         Escapes special characters in a string so they are not parsed as regex.
         :param string_to_escape: The string or string tensor to escape special characters in.

@@ -21,6 +21,7 @@ from pyspark.ml.param import Param, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import BooleanType, DataType, FloatType, IntegerType, StringType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import ArrayCropLayer
 from kamae.spark.params import PadValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
@@ -36,8 +37,6 @@ class ArrayCropParams(PadValueParams):
     Mixin class containing pad value parameters needed
     for array crop transformers.
     """
-
-    jit_compatible = True
 
     arrayLength = Param(
         PadValueParams._dummy(),
@@ -74,6 +73,9 @@ class ArrayCropTransformer(
     If the tensor is shorter than the specified length, it is
     padded with specified pad value.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

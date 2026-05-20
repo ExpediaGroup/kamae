@@ -14,13 +14,14 @@
 
 from typing import Any, Dict, List, Optional, Union
 
+import keras
 import tensorflow as tf
+from keras import KerasTensor
 from tensorflow.keras.layers import StringLookup
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 
 
@@ -35,6 +36,7 @@ class StringIndexLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
@@ -91,7 +93,7 @@ class StringIndexLayer(BaseLayer):
         return ["string"]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
+    def _call(self, inputs: KerasTensor, **kwargs: Any) -> KerasTensor:
         """
         Performs string indexing by calling the StringLookup layer.
 

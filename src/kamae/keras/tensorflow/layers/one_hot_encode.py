@@ -15,12 +15,13 @@
 import warnings
 from typing import Any, Dict, List, Optional, Union
 
+import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 
 
@@ -37,6 +38,7 @@ class OneHotEncodeLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
@@ -98,7 +100,7 @@ class OneHotEncodeLayer(BaseLayer):
         return ["int16", "int32", "int64", "string"]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
+    def _call(self, inputs: KerasTensor, **kwargs: Any) -> KerasTensor:
         """
         Performs the one-hot encoding on the input tensor.
 
@@ -161,6 +163,9 @@ class OneHotEncodeLayer(BaseLayer):
 #  it is maintained for backwards compatibility
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
 class OneHotLayer(OneHotEncodeLayer):
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         warnings.warn(
             "OneHotLayer is deprecated and will be removed in a future release. "

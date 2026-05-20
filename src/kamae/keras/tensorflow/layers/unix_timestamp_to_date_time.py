@@ -14,12 +14,13 @@
 
 from typing import Any, Dict, List, Optional
 
+import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.tensorflow.utils.date_utils import unix_timestamp_to_datetime
 
@@ -32,6 +33,7 @@ class UnixTimestampToDateTimeLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
@@ -81,7 +83,7 @@ class UnixTimestampToDateTimeLayer(BaseLayer):
         ]
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
+    def _call(self, inputs: KerasTensor, **kwargs: Any) -> KerasTensor:
         """
         Returns the datetime in yyyy-MM-dd HH:mm:ss.SSS format if `include_time` is
         set to `True`. Otherwise, returns the date in yyyy-MM-dd format.

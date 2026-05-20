@@ -16,10 +16,10 @@ from typing import Any, Dict, List, Optional, Union
 
 import keras
 import numpy as np
-from keras import ops
+from keras import KerasTensor, ops
 
 import kamae
-from kamae.keras.core.typing import Tensor
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 from kamae.keras.core.utils.normalize_layer import NormalizeLayer
 from kamae.keras.core.utils.ops_utils import divide_no_nan
@@ -38,6 +38,7 @@ class StandardScaleLayer(NormalizeLayer):
     the input value.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     def __init__(
@@ -90,7 +91,7 @@ class StandardScaleLayer(NormalizeLayer):
         self.mask_value = mask_value
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
+    def _call(self, inputs: KerasTensor, **kwargs: Any) -> KerasTensor:
         """
         Performs normalization on the input tensor(s). It ignores values which
         are equal to the mask_value.

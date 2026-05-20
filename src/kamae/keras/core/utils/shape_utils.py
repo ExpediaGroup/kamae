@@ -18,12 +18,11 @@ Multi-backend shape utility functions for backend-agnostic operations.
 
 from typing import Iterable, List
 
-from keras import ops
+import keras
+from keras import KerasTensor, ops
 
-from kamae.keras.core.typing import Tensor
 
-
-def reshape_to_equal_rank(inputs: Iterable[Tensor]) -> List[Tensor]:
+def reshape_to_equal_rank(inputs: Iterable[KerasTensor]) -> List[KerasTensor]:
     """
     Reshapes the input tensors to match the rank of the largest tensor.
 

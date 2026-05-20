@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import IdentityLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 
@@ -40,6 +41,7 @@ class IdentityTransformer(
     Used for cases where you want to keep the input the same.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

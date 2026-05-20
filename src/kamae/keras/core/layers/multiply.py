@@ -16,11 +16,11 @@ from functools import reduce
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import keras
-from keras import ops
+from keras import KerasTensor, ops
 
 import kamae
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 
 
@@ -32,6 +32,7 @@ class MultiplyLayer(BaseLayer):
     If multiplier is set, inputs must be a tensor.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     def __init__(
@@ -78,7 +79,9 @@ class MultiplyLayer(BaseLayer):
         ]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any) -> Tensor:
+    def _call(
+        self, inputs: Union[KerasTensor, Iterable[KerasTensor]], **kwargs: Any
+    ) -> KerasTensor:
         """
         Performs the multiply(x, y) operation on either an iterable of input tensors or
         a single input tensor and a constant.

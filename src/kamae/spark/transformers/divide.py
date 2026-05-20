@@ -25,6 +25,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import DivideLayer
 from kamae.spark.params import (
     MathFloatConstantParams,
@@ -47,6 +48,7 @@ class DivideTransformer(
     This transformer divides a column by a constant or another column.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

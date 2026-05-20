@@ -15,11 +15,11 @@
 from typing import Any, Dict, Iterable, List, Optional
 
 import keras
-from keras import ops
+from keras import KerasTensor, ops
 
 import kamae
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 from kamae.keras.core.utils.ops_utils import get_degrees, get_radians
 
@@ -38,6 +38,7 @@ class BearingAngleLayer(BaseLayer):
     For lat, this is [-90, 90] and for lon, this is [-180, 180].
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     def __init__(
@@ -74,8 +75,8 @@ class BearingAngleLayer(BaseLayer):
         return ["bfloat16", "float16", "float32", "float64"]
 
     def compute_bearing_angle(
-        self, lat1: Tensor, lon1: Tensor, lat2: Tensor, lon2: Tensor
-    ) -> Tensor:
+        self, lat1: KerasTensor, lon1: KerasTensor, lat2: KerasTensor, lon2: KerasTensor
+    ) -> KerasTensor:
         """
         Computes the bearing angle between two lat/lon pairs.
 
@@ -103,7 +104,7 @@ class BearingAngleLayer(BaseLayer):
         return bearing_deg
 
     @enforce_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
+    def _call(self, inputs: Iterable[KerasTensor], **kwargs: Any) -> KerasTensor:
         """
         Computes the bearing angle between two lat/lon pairs.
 

@@ -15,11 +15,11 @@
 from typing import Any, Dict, Iterable, List, Optional
 
 import keras
-from keras import ops
+from keras import KerasTensor, ops
 
 import kamae
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 from kamae.keras.core.utils.ops_utils import l2_normalize
 
@@ -35,6 +35,7 @@ class PairwiseCosineSimilarityLayer(BaseLayer):
     Output:  (..., N)       -- cosine similarity per candidate
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     def __init__(
@@ -60,7 +61,7 @@ class PairwiseCosineSimilarityLayer(BaseLayer):
         ]
 
     @enforce_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
+    def _call(self, inputs: Iterable[KerasTensor], **kwargs: Any) -> KerasTensor:
         if len(inputs) != 2:
             raise ValueError(f"Expected 2 inputs, received {len(inputs)} instead.")
 

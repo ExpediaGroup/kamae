@@ -41,8 +41,6 @@ class BucketizeParams(Params):
     Mixin class containing splits parameter needed for bucketing.
     """
 
-    jit_compatible = True
-
     splits = Param(
         Params._dummy(),
         "splits",
@@ -91,6 +89,8 @@ class BucketizeTransformer(
     The bins are integer values starting at 1 and ending at the number of splits + 1.
     The 0 index is reserved for masking/padding.
     """
+
+    jit_compatible = True
 
     supported_backends = TENSORFLOW_ONLY
 

@@ -21,6 +21,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import ArrayReduceMaxLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_array_transform
@@ -41,6 +42,7 @@ class ArrayReduceMaxTransformer(
     Returns defaultValue when the array is empty or null.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     defaultValue = Param(

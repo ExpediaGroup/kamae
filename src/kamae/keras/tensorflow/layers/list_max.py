@@ -14,12 +14,13 @@
 
 from typing import Any, Dict, Iterable, List, Optional
 
+import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 from kamae.keras.tensorflow.utils.list_utils import get_top_n, segmented_operation
 from kamae.keras.tensorflow.utils.transform_utils import map_fn_w_axis
@@ -111,7 +112,7 @@ class ListMaxLayer(BaseLayer):
         ]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Iterable[Tensor], **kwargs: Any) -> Tensor:
+    def _call(self, inputs: Iterable[KerasTensor], **kwargs: Any) -> KerasTensor:
         """
         Calculate the listwise max, optionally sorting and
         filtering based on the second input tensor, or segmenting

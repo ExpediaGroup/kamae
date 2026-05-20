@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import ArrayConcatenateLayer
 from kamae.spark.params import AutoBroadcastParams, MultiInputSingleOutputParams
 from kamae.spark.utils import (
@@ -46,6 +47,7 @@ class ArrayConcatenateTransformer(
     This transformer assembles multiple columns into a single array column.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

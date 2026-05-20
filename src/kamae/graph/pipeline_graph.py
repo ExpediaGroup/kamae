@@ -17,8 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import keras
 import keras_tuner
 import networkx as nx
-
-from kamae.keras.core.typing import Tensor
+from keras import KerasTensor
 
 
 class PipelineGraph:
@@ -53,7 +52,9 @@ class PipelineGraph:
         self.layer_store = {}
         self.inputs = {}
 
-    def update_layer_store_with_key(self, layer_key: str, layer_output: Tensor) -> None:
+    def update_layer_store_with_key(
+        self, layer_key: str, layer_output: KerasTensor
+    ) -> None:
         """
         Updates the layer store at a specific key with the layer output and whether
         it was reused. A layer is deemed to be reused if it is already present in
@@ -68,7 +69,7 @@ class PipelineGraph:
         else:
             self.layer_store[layer_key] = {"output": layer_output, "reused": False}
 
-    def update_layer_store(self, layer_dict: Dict[str, Tensor]) -> None:
+    def update_layer_store(self, layer_dict: Dict[str, KerasTensor]) -> None:
         """
         Given a dictionary of layer output names and tensor outputs,
         update the layer store.
@@ -79,7 +80,7 @@ class PipelineGraph:
         for name, output in layer_dict.items():
             self.update_layer_store_with_key(layer_key=name, layer_output=output)
 
-    def get_layer_output_from_layer_store(self, layer_output_name: str) -> Tensor:
+    def get_layer_output_from_layer_store(self, layer_output_name: str) -> KerasTensor:
         """
         Given a layer name and index, get the output from the layer store.
 
@@ -117,7 +118,7 @@ class PipelineGraph:
 
     def get_model_outputs(
         self, output_names: Optional[List[str]] = None
-    ) -> Dict[str, Tensor]:
+    ) -> Dict[str, KerasTensor]:
         """
         Gets the outputs of the model. If output_names is provided, we use this to find
         the outputs for the model. Otherwise, the outputs are those that are not reused
@@ -174,8 +175,8 @@ class PipelineGraph:
             self.update_layer_store_with_key(layer_key=name, layer_output=input_layer)
 
     def sort_inputs(
-        self, layer_name: str, input_dict: Dict[str, Tensor]
-    ) -> List[Tensor]:
+        self, layer_name: str, input_dict: Dict[str, KerasTensor]
+    ) -> List[KerasTensor]:
         """
         Sorts the inputs for a given layer based on the order of the inputs in the
         stage dict. This is needed because layers with multiple inputs are not
@@ -191,7 +192,7 @@ class PipelineGraph:
 
     def build_transform_layer_inputs(
         self, node: str, in_edges: List[Tuple[str, str]]
-    ) -> List[Tensor]:
+    ) -> List[KerasTensor]:
         """
         Constructs all the layers that are connected to the current node.
         These are either input layers or the outputs of previous layers.

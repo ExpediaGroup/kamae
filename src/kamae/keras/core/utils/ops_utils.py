@@ -20,12 +20,11 @@ Provides common operations that aren't directly available in keras.ops.
 
 import math
 
-from keras import ops
+import keras
+from keras import KerasTensor, ops
 
-from kamae.keras.core.typing import Tensor
 
-
-def divide_no_nan(x: Tensor, y: Tensor) -> Tensor:
+def divide_no_nan(x: KerasTensor, y: KerasTensor) -> KerasTensor:
     """
     Multi-backend safe division that returns 0 where y == 0.
 
@@ -40,7 +39,7 @@ def divide_no_nan(x: Tensor, y: Tensor) -> Tensor:
     return ops.where(is_zero, ops.zeros_like(x), ops.divide(x, y))
 
 
-def get_radians(degrees: Tensor) -> Tensor:
+def get_radians(degrees: KerasTensor) -> KerasTensor:
     """
     Converts degrees tensor to radians. We need to cast to float64 otherwise
     pi / 180 will lose precision.
@@ -53,7 +52,7 @@ def get_radians(degrees: Tensor) -> Tensor:
     )
 
 
-def get_degrees(radians: Tensor) -> Tensor:
+def get_degrees(radians: KerasTensor) -> KerasTensor:
     """
     Converts radians tensor to degrees.
 
@@ -65,7 +64,7 @@ def get_degrees(radians: Tensor) -> Tensor:
     )
 
 
-def l2_normalize(x: Tensor, axis: int, epsilon: float = 1e-12) -> Tensor:
+def l2_normalize(x: KerasTensor, axis: int, epsilon: float = 1e-12) -> KerasTensor:
     """
     L2 normalize a tensor along a specified axis.
 

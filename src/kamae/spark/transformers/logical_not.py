@@ -24,6 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import BooleanType, DataType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import LogicalNotLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
@@ -40,6 +41,7 @@ class LogicalNotTransformer(
     This transformer performs a logical not operation on a single column.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     @keyword_only

@@ -14,12 +14,13 @@
 
 from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
+import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 
 
@@ -37,10 +38,14 @@ class LambdaFunctionLayer(BaseLayer, tf.keras.layers.Lambda):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
-        function: Callable[[Union[Tensor, List[Tensor]]], Union[Tensor, List[Tensor]]],
+        function: Callable[
+            [Union[KerasTensor, List[KerasTensor]]],
+            Union[KerasTensor, List[KerasTensor]],
+        ],
         name: Optional[str] = None,
         input_dtype: Optional[str] = None,
         output_dtype: Optional[str] = None,
@@ -73,8 +78,8 @@ class LambdaFunctionLayer(BaseLayer, tf.keras.layers.Lambda):
 
     @allow_single_or_multiple_tensor_input
     def _call(
-        self, inputs: Union[Tensor, Iterable[Tensor]], **kwargs: Any
-    ) -> Union[Tensor, Iterable[Tensor]]:
+        self, inputs: Union[KerasTensor, Iterable[KerasTensor]], **kwargs: Any
+    ) -> Union[KerasTensor, Iterable[KerasTensor]]:
         """
         Transforms the input tensor(s) by applying the lambda function.
 

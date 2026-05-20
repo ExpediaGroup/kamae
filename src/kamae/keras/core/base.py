@@ -29,16 +29,14 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import keras
 import tensorflow as tf
-from keras import ops
+from keras import KerasTensor, ops
 
 import kamae
 from kamae.keras.core.backend import (
-    ALL_BACKENDS,
     current_backend,
     require_tensorflow,
     validate_backend,
 )
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 
 
@@ -58,8 +56,8 @@ class BaseLayer(keras.layers.Layer, ABC):
     Attempting to use string dtypes on JAX or PyTorch backends raises an error.
     """
 
-    supported_backends: frozenset = ALL_BACKENDS
-    jit_compatible: bool = False
+    supported_backends: frozenset
+    jit_compatible: bool
 
     def __init__(
         self,
@@ -100,7 +98,7 @@ class BaseLayer(keras.layers.Layer, ABC):
         """
         raise NotImplementedError
 
-    def _string_to_bool_cast(self, inputs: Tensor) -> Tensor:
+    def _string_to_bool_cast(self, inputs: KerasTensor) -> KerasTensor:
         """
         Casts a string tensor to a bool tensor.
 
@@ -148,7 +146,7 @@ class BaseLayer(keras.layers.Layer, ABC):
         return tf.cast(bool_float_tensor, tf.bool)
 
     @staticmethod
-    def _float_to_string_cast(inputs: Tensor) -> Tensor:
+    def _float_to_string_cast(inputs: KerasTensor) -> KerasTensor:
         """
         Casts a float tensor to a string tensor. Ensures that the precision of the float
         does not impact the string representation. Specifically, we want the string
@@ -181,7 +179,7 @@ class BaseLayer(keras.layers.Layer, ABC):
             shortest_float_string,
         )
 
-    def _to_string_cast(self, inputs: Tensor) -> Tensor:
+    def _to_string_cast(self, inputs: KerasTensor) -> KerasTensor:
         """
         Casts inputs to string tensor.
 
@@ -192,7 +190,7 @@ class BaseLayer(keras.layers.Layer, ABC):
             return self._float_to_string_cast(inputs)
         return tf.strings.as_string(inputs)
 
-    def _from_string_cast(self, inputs: Tensor, cast_dtype: str) -> Tensor:
+    def _from_string_cast(self, inputs: KerasTensor, cast_dtype: str) -> KerasTensor:
         """
         Casts inputs to the desired dtype when inputs are a string tensor.
 
@@ -215,7 +213,7 @@ class BaseLayer(keras.layers.Layer, ABC):
         else:
             raise TypeError(f"Casting string to dtype {cast_dtype} is not supported.")
 
-    def _string_cast(self, inputs: Tensor, cast_dtype: str) -> Tensor:
+    def _string_cast(self, inputs: KerasTensor, cast_dtype: str) -> KerasTensor:
         """
         Casts from and to string tensors.
 
@@ -260,7 +258,7 @@ class BaseLayer(keras.layers.Layer, ABC):
                 )
 
     @staticmethod
-    def _numeric_cast(inputs: Tensor, cast_dtype: str) -> Tensor:
+    def _numeric_cast(inputs: KerasTensor, cast_dtype: str) -> KerasTensor:
         """
         Casts a numeric tensor to the desired dtype using keras.ops.
 
@@ -288,7 +286,7 @@ class BaseLayer(keras.layers.Layer, ABC):
                 )
         return ops.cast(inputs, cast_dtype)
 
-    def _cast(self, inputs: Tensor, cast_dtype: str) -> Tensor:
+    def _cast(self, inputs: KerasTensor, cast_dtype: str) -> KerasTensor:
         """
         Casts inputs to the desired dtype.
 
@@ -308,8 +306,8 @@ class BaseLayer(keras.layers.Layer, ABC):
         return self._numeric_cast(inputs, cast_dtype)
 
     def _force_cast_to_compatible_numeric_type(
-        self, inputs: Tensor, constant: Union[float, int]
-    ) -> Tuple[Tensor, Tensor]:
+        self, inputs: KerasTensor, constant: Union[float, int]
+    ) -> Tuple[KerasTensor, KerasTensor]:
         """
         Casts an input tensor and a single constant to compatible numeric tensors.
 
@@ -360,8 +358,8 @@ class BaseLayer(keras.layers.Layer, ABC):
         )
 
     def _cast_input_output_tensors(
-        self, tensors: Union[Tensor, List[Tensor]], ingress: bool
-    ) -> Union[Tensor, List[Tensor]]:
+        self, tensors: Union[KerasTensor, List[KerasTensor]], ingress: bool
+    ) -> Union[KerasTensor, List[KerasTensor]]:
         """
         Casts either the input or output tensors to the given input/output dtype, if
         specified. Ingress is a boolean that indicates whether we are casting the
@@ -408,8 +406,8 @@ class BaseLayer(keras.layers.Layer, ABC):
         return tensors
 
     def cast_input_tensors(
-        self, inputs: Union[Tensor, List[Tensor]]
-    ) -> Union[Tensor, List[Tensor]]:
+        self, inputs: Union[KerasTensor, List[KerasTensor]]
+    ) -> Union[KerasTensor, List[KerasTensor]]:
         """
         Casts the input tensors to the given input dtype, if specified. All tensors are
         cast to this. Subclasses can override for more complex casting behavior.
@@ -420,8 +418,8 @@ class BaseLayer(keras.layers.Layer, ABC):
         return self._cast_input_output_tensors(tensors=inputs, ingress=True)
 
     def cast_output_tensors(
-        self, outputs: Union[Tensor, List[Tensor]]
-    ) -> Union[Tensor, List[Tensor]]:
+        self, outputs: Union[KerasTensor, List[KerasTensor]]
+    ) -> Union[KerasTensor, List[KerasTensor]]:
         """
         Casts the output tensors to the given output dtype, if specified. All tensors
         are cast to this. Subclasses can override for more complex casting behavior.
@@ -431,7 +429,7 @@ class BaseLayer(keras.layers.Layer, ABC):
         """
         return self._cast_input_output_tensors(tensors=outputs, ingress=False)
 
-    def _check_input_dtypes_compatible(self, inputs: List[Tensor]) -> None:
+    def _check_input_dtypes_compatible(self, inputs: List[KerasTensor]) -> None:
         """
         Checks if the input tensors are compatible with the compatible_dtypes of the
         layer.
@@ -459,8 +457,8 @@ class BaseLayer(keras.layers.Layer, ABC):
 
     @allow_single_or_multiple_tensor_input
     def call(
-        self, inputs: Iterable[Tensor], **kwargs: Any
-    ) -> Union[Tensor, List[Tensor]]:
+        self, inputs: Iterable[KerasTensor], **kwargs: Any
+    ) -> Union[KerasTensor, List[KerasTensor]]:
         """
         Casts inputs to the given `input_dtype`, calls the internal `_call` method, and
         casts the outputs to the given `output_dtype`.
@@ -480,8 +478,8 @@ class BaseLayer(keras.layers.Layer, ABC):
 
     @abstractmethod
     def _call(
-        self, inputs: Union[Tensor, List[Tensor]], **kwargs: Any
-    ) -> Union[Tensor, List[Tensor]]:
+        self, inputs: Union[KerasTensor, List[KerasTensor]], **kwargs: Any
+    ) -> Union[KerasTensor, List[KerasTensor]]:
         """
         The internal call method that should be implemented by the layer.
 

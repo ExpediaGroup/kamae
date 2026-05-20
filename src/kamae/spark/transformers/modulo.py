@@ -33,6 +33,7 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import ModuloLayer
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
@@ -47,8 +48,6 @@ class ModuloParams(Params):
     """
     Mixin class for divisor used in modulo transform layers.
     """
-
-    jit_compatible = True
 
     divisor = Param(
         Params._dummy(),
@@ -90,6 +89,9 @@ class ModuloTransformer(
     This transformer applies a modulo transform to the input column by dividing
     by the divisor parameter or another column.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

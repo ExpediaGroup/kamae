@@ -26,6 +26,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.spark.params import (
     NanFillValueParams,
     SampleFractionParams,
@@ -44,8 +45,6 @@ class ConditionalStandardScaleEstimatorParams(Params):
     Mixin class containing conditional standard scale parameters,
     needed for single feature array scaler layers.
     """
-
-    jit_compatible = True
 
     scalingFunction = Param(
         Params._dummy(),
@@ -238,6 +237,9 @@ class ConditionalStandardScaleEstimator(
     WARNING: If the input is an array, we assume that the array has a constant
     shape across all rows.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

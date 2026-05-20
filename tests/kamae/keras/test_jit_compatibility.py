@@ -14,8 +14,6 @@
 
 """Tests for JIT compatibility of Keras layers."""
 
-import inspect
-
 import keras
 import pytest
 import tensorflow as tf
@@ -510,8 +508,8 @@ def test_jit_incompatible_layers_fail(layer_cls, input_tensors, kwargs):
             result.numpy()
 
 
-def test_all_layers_have_jit_compatible_attribute():
-    """Test that all layers have jit_compatible attribute defined."""
+def test_all_layers_define_jit_compatible_and_supported_backends():
+    """Test that all layers define jit_compatible and supported_backends directly (not inherited)."""
     # Get all classes from kamae.keras.core.layers (multi-backend)
     multi_backend_layers = [
         obj
@@ -534,12 +532,18 @@ def test_all_layers_have_jit_compatible_attribute():
     all_layers = multi_backend_layers + tf_only_layers
 
     for layer_cls in all_layers:
-        assert hasattr(
-            layer_cls, "jit_compatible"
-        ), f"{layer_cls.__name__} missing jit_compatible attribute"
+        assert (
+            "jit_compatible" in layer_cls.__dict__
+        ), f"{layer_cls.__name__} must define 'jit_compatible' directly (not inherit it)"
         assert isinstance(
             layer_cls.jit_compatible, bool
         ), f"{layer_cls.__name__}.jit_compatible must be bool, got {type(layer_cls.jit_compatible)}"
+        assert (
+            "supported_backends" in layer_cls.__dict__
+        ), f"{layer_cls.__name__} must define 'supported_backends' directly (not inherit it)"
+        assert isinstance(
+            layer_cls.supported_backends, frozenset
+        ), f"{layer_cls.__name__}.supported_backends must be frozenset"
 
 
 def test_all_layers_in_jit_tests():

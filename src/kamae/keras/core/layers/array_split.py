@@ -15,11 +15,11 @@
 from typing import Any, Dict, List, Optional
 
 import keras
-from keras import ops
+from keras import KerasTensor, ops
 
 import kamae
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import enforce_single_tensor_input
 
 
@@ -30,6 +30,7 @@ class ArraySplitLayer(BaseLayer):
     Expands dimensions to ensure the output tensors are the same shape as the input.
     """
 
+    supported_backends = ALL_BACKENDS
     jit_compatible = True
 
     def __init__(
@@ -63,7 +64,7 @@ class ArraySplitLayer(BaseLayer):
         return None
 
     @enforce_single_tensor_input
-    def _call(self, inputs: Tensor, **kwargs: Any) -> List[Tensor]:
+    def _call(self, inputs: KerasTensor, **kwargs: Any) -> List[KerasTensor]:
         """
         Splits the input tensor along the specified axis.
 

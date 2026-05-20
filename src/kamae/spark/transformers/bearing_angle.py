@@ -25,6 +25,7 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import BearingAngleLayer
 from kamae.spark.params import LatLonConstantParams, MultiInputSingleOutputParams
 from kamae.spark.utils import multi_input_single_output_scalar_transform
@@ -36,8 +37,6 @@ class BearingAngleParams(LatLonConstantParams, MultiInputSingleOutputParams):
     """
     Mixin class setting input cols.
     """
-
-    jit_compatible = True
 
     def setInputCols(self, value: List[str]) -> "BearingAngleParams":
         """
@@ -73,6 +72,9 @@ class BearingAngleTransformer(
     The transformer will return null angle if any of the lat/lon values
     are out of bounds. For lat, this is [-90, 90] and for lon, this is [-180, 180].
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

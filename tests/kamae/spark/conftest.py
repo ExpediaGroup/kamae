@@ -19,6 +19,7 @@ import tensorflow as tf
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers import BaseTransformer
 
@@ -421,6 +422,9 @@ def tf_layer():
 def test_base_transformer(layer_name, output_col, input_col, tf_layer):
     class TestTransformer(BaseTransformer, SingleInputSingleOutputParams):
         """Test transformer for testing abstract base class BaseTransformer"""
+
+        supported_backends = ALL_BACKENDS
+        jit_compatible = False
 
         @property
         def compatible_dtypes(self) -> Optional[List[DataType]]:

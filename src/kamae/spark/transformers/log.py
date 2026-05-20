@@ -25,6 +25,7 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import LogLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
@@ -36,8 +37,6 @@ class LogParams(Params):
     """
     Mixin class containing alpha parameter needed for log transform layers.
     """
-
-    jit_compatible = True
 
     alpha = Param(
         Params._dummy(),
@@ -73,6 +72,9 @@ class LogTransformer(
     Log Spark Transformer for use in Spark pipelines.
     This transformer applies a log(alpha + x) transform to the input column.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

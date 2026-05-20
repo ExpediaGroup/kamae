@@ -16,11 +16,11 @@ from typing import Any, Dict, List, Optional
 
 import keras
 import tensorflow as tf
+from keras import KerasTensor
 
 import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
-from kamae.keras.core.typing import Tensor
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
 from kamae.keras.tensorflow.utils.date_utils import datetime_add_days
 
@@ -34,6 +34,7 @@ class DateAddLayer(BaseLayer):
     """
 
     supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     def __init__(
         self,
@@ -76,7 +77,7 @@ class DateAddLayer(BaseLayer):
         return ["string", "int8", "int16", "int32", "int64"]
 
     @allow_single_or_multiple_tensor_input
-    def _call(self, inputs: Tensor, **kwargs: Any) -> Tensor:
+    def _call(self, inputs: KerasTensor, **kwargs: Any) -> KerasTensor:
         """
         Adds or subtracts a number of days from a date(time) string.
         """
