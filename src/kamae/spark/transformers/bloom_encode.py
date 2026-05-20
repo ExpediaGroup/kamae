@@ -25,13 +25,14 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import BloomEncodeLayer
 from kamae.spark.params import HashIndexParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
     hash_udf,
     single_input_single_output_array_udf_transform,
     single_input_single_output_scalar_transform,
 )
-from kamae.tensorflow.layers import BloomEncodeLayer
 
 from .base import BaseTransformer
 
@@ -128,6 +129,9 @@ class BloomEncodeTransformer(
     See paper for more details: https://arxiv.org/pdf/1706.03993.pdf
     """
 
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
+
     @keyword_only
     def __init__(
         self,
@@ -151,7 +155,7 @@ class BloomEncodeTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param numHashFns: Number of hash functions to use. Defaults to 3.
         The paper suggests a range of 2-4 hash functions for optimal performance.
@@ -254,17 +258,17 @@ class BloomEncodeTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer that performs the bloom encoding.
+        Gets the Keras layer that performs the bloom encoding.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that performs the bloom encoding operation.
         """
         return BloomEncodeLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             num_hash_fns=self.getNumHashFns(),
             num_bins=self.getNumBins(),
             mask_value=self.getMaskValue(),

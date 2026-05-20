@@ -20,7 +20,7 @@ from functools import reduce
 from operator import add
 from typing import List, Optional
 
-import tensorflow as tf
+import keras
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
@@ -33,13 +33,14 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import ALL_BACKENDS
+from kamae.keras.core.layers import MeanLayer
 from kamae.spark.params import (
     MathFloatConstantParams,
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
 )
 from kamae.spark.utils import multi_input_single_output_scalar_transform
-from kamae.tensorflow.layers import MeanLayer
 
 from .base import BaseTransformer
 
@@ -54,6 +55,9 @@ class MeanTransformer(
     Mean Spark Transformer for use in Spark pipelines.
     This transformer gets the mean of a column and a constant or another column.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(
@@ -77,7 +81,7 @@ class MeanTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param mathFloatConstant: Optional constant to use for min op. If not provided,
         then two input columns are required.
@@ -136,16 +140,16 @@ class MeanTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
-        Gets the tensorflow layer for the mean transformer.
+        Gets the Keras layer for the mean transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs a min operation.
         """
         return MeanLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             mean_constant=self.getMathFloatConstant(),
         )

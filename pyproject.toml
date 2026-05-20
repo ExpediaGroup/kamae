@@ -8,19 +8,24 @@ authors = [
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE.txt"]
-requires-python = ">=3.8.1,<3.13"
+requires-python = ">=3.10,<3.13"
 dependencies = [
     "pyspark>=3.4.0,<4.0.0",
     "pandas>=1.3.4,<3.0.0",
     "networkx>=2.6.3,<3.0.0",
     "pyfarmhash>=0.3.2,<0.4.0",
-    "keras-tuner>=1.0.4,<2.0.0",
-    "scikit-learn>=1.0.0,<2.0.0",
-    "joblib>=1.0.0,<2.0.0",
+    "keras>=3.0.0,<4.0.0",
+    "keras-tuner>=1.4.0,<2.0.0",
     "numpy>=1.22.0,<2.0.0",
-    "tensorflow>=2.9.1,<2.19.0",
+    "tensorflow>=2.16.0,<3.0.0",
     "dill>=0.3.0,<1.0.0",
 ]
+
+[project.optional-dependencies]
+# JAX backend (for future multi-backend support)
+jax = ["jax>=0.4.0", "jaxlib>=0.4.0"]
+# PyTorch backend (for future multi-backend support)
+torch = ["torch>=2.0.0"]
 
 [dependency-groups]
 dev = [

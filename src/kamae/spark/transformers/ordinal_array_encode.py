@@ -20,12 +20,13 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import OrdinalArrayEncodeLayer
 from kamae.spark.params import PadValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
     ordinal_array_encode_udf,
     single_input_single_output_array_udf_transform,
 )
-from kamae.tensorflow.layers import OrdinalArrayEncodeLayer
 
 from .base import BaseTransformer
 
@@ -42,6 +43,9 @@ class OrdinalArrayEncodeTransformer(
     according to the order in which they appear in the array. It will also
     ignore the pad value if specified.
     """
+
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     @keyword_only
     def __init__(
@@ -61,7 +65,7 @@ class OrdinalArrayEncodeTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         :param padValue: The value to be considered as padding. Defaults to `None`.
         :returns: None
         """
@@ -128,17 +132,17 @@ class OrdinalArrayEncodeTransformer(
             output_col,
         )
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer that performs the ordinal array encoding.
+        Gets the Keras layer that performs the ordinal array encoding.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that performs the ordinal array encoding operation.
         """
         return OrdinalArrayEncodeLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             pad_value=self.getPadValue(),
             axis=-1,
         )

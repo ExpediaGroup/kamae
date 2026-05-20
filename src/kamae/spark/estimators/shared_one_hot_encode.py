@@ -23,6 +23,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, IntegerType, LongType, ShortType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.spark.params import (
     DropUnseenParams,
     MultiInputMultiOutputParams,
@@ -47,6 +48,9 @@ class SharedOneHotEncodeEstimator(
     used to create one-hot arrays from additional feature columns using the
     same string labels.
     """
+
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     @keyword_only
     def __init__(

@@ -25,12 +25,13 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, IntegerType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import MinHashIndexLayer
 from kamae.spark.params import MaskStringValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
     min_hash_udf,
     single_input_single_output_array_udf_transform,
 )
-from kamae.tensorflow.layers import MinHashIndexLayer
 
 from .base import BaseTransformer
 
@@ -94,6 +95,9 @@ class MinHashIndexTransformer(
     characters. If you have null characters in your data, you should remove them.
     """
 
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
+
     @keyword_only
     def __init__(
         self,
@@ -114,7 +118,7 @@ class MinHashIndexTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param numPermutations: Number of permutations of your output min hash.
         Defaults to 128. This is the length of the output array.
@@ -171,17 +175,17 @@ class MinHashIndexTransformer(
             output_col,
         )
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer that performs the min hash indexing.
+        Gets the Keras layer that performs the min hash indexing.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that performs the hash indexing operation.
         """
         return MinHashIndexLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             num_permutations=self.getNumPermutations(),
             mask_value=self.getMaskValue(),
         )

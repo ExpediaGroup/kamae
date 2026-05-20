@@ -24,9 +24,10 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, IntegerType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import HashIndexLayer
 from kamae.spark.params import HashIndexParams, SingleInputSingleOutputParams
 from kamae.spark.utils import hash_udf, single_input_single_output_scalar_udf_transform
-from kamae.tensorflow.layers import HashIndexLayer
 
 from .base import BaseTransformer
 
@@ -46,6 +47,9 @@ class HashIndexTransformer(
     This transformer could fail since the hashing algorithm uses cannot accept null
     characters. If you have null characters in your data, you should remove them.
     """
+
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     @keyword_only
     def __init__(
@@ -67,7 +71,7 @@ class HashIndexTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param numBins: Number of bins to use for hash indexing.
         :param maskValue: Mask value to use for hash indexing.
@@ -114,17 +118,17 @@ class HashIndexTransformer(
             output_col,
         )
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer that performs the hash indexing.
+        Gets the Keras layer that performs the hash indexing.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that performs the hash indexing operation.
         """
         return HashIndexLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             num_bins=self.getNumBins(),
             mask_value=self.getMaskValue(),
         )

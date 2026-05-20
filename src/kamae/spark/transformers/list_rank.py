@@ -28,9 +28,10 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import ListRankLayer
 from kamae.spark.params import ListwiseParams, SingleInputSingleOutputParams
 from kamae.spark.utils import check_listwise_columns
-from kamae.tensorflow.layers import ListRankLayer
 
 from .base import BaseTransformer
 
@@ -55,6 +56,10 @@ class ListRankTransformer(
     :param sortOrder: Option of 'asc' or 'desc' which defines order
     for listwise operation. Default is 'desc'.
     """
+
+    jit_compatible = True
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(
@@ -127,16 +132,16 @@ class ListRankTransformer(
 
         return dataset
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the listwise-rank transformer.
+        Gets the Keras layer for the listwise-rank transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs a ranking operation.
         """
         return ListRankLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             sort_order=self.getSortOrder(),
         )

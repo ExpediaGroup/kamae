@@ -17,10 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import keras
 import keras_tuner
 import networkx as nx
-import tensorflow as tf
-from packaging.version import Version
-
-keras_version = Version(keras.__version__)
+from keras import KerasTensor
 
 
 class PipelineGraph:
@@ -33,7 +30,7 @@ class PipelineGraph:
 
     The graph is then topologically sorted to determine the order in which the layers
     should be constructed. Iterating through this order, the layers are constructed by
-    calling the get_tf_layer method of each stage. The inputs to the layer are
+    calling the get_keras_layer method of each stage. The inputs to the layer are
     determined by the outputs of the previous layers.
     """
 
@@ -56,7 +53,7 @@ class PipelineGraph:
         self.inputs = {}
 
     def update_layer_store_with_key(
-        self, layer_key: str, layer_output: tf.Tensor
+        self, layer_key: str, layer_output: KerasTensor
     ) -> None:
         """
         Updates the layer store at a specific key with the layer output and whether
@@ -72,7 +69,7 @@ class PipelineGraph:
         else:
             self.layer_store[layer_key] = {"output": layer_output, "reused": False}
 
-    def update_layer_store(self, layer_dict: Dict[str, tf.Tensor]) -> None:
+    def update_layer_store(self, layer_dict: Dict[str, KerasTensor]) -> None:
         """
         Given a dictionary of layer output names and tensor outputs,
         update the layer store.
@@ -83,7 +80,7 @@ class PipelineGraph:
         for name, output in layer_dict.items():
             self.update_layer_store_with_key(layer_key=name, layer_output=output)
 
-    def get_layer_output_from_layer_store(self, layer_output_name: str) -> tf.Tensor:
+    def get_layer_output_from_layer_store(self, layer_output_name: str) -> KerasTensor:
         """
         Given a layer name and index, get the output from the layer store.
 
@@ -121,7 +118,7 @@ class PipelineGraph:
 
     def get_model_outputs(
         self, output_names: Optional[List[str]] = None
-    ) -> Dict[str, tf.Tensor]:
+    ) -> Dict[str, KerasTensor]:
         """
         Gets the outputs of the model. If output_names is provided, we use this to find
         the outputs for the model. Otherwise, the outputs are those that are not reused
@@ -143,9 +140,7 @@ class PipelineGraph:
             k: v["output"] for k, v in self.layer_store.items() if k in output_names
         }
 
-    def build_keras_inputs(
-        self, tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]]
-    ) -> None:
+    def build_keras_inputs(self, input_schema: List[Dict[str, Any]]) -> None:
         """
         Builds a Keras input layer for the given node.
 
@@ -157,32 +152,17 @@ class PipelineGraph:
         keras input layer. We then store this layer as an input and update the
         layer store.
 
-        :param tf_input_schema: List of tf.TypeSpec objects containing the input schema
-        for the model or a list of dict config to be passed to the Input constructor.
+        :param input_schema: List of dict config to be passed to the Input constructor.
         :returns: None - layer store is updated and input layer is stored in the
         inputs dict.
         """
 
-        if isinstance(tf_input_schema, list) and all(
-            isinstance(x, tf.TypeSpec) for x in tf_input_schema
+        if not isinstance(input_schema, list) or not all(
+            isinstance(x, dict) for x in input_schema
         ):
-            if keras_version >= Version("3.0.0"):
-                raise ValueError(
-                    "tf.TypeSpec is not supported in Keras 3, please use a dict config"
-                )
-            input_config = [
-                {
-                    "name": spec.name,
-                    "type_spec": spec,
-                }
-                for spec in tf_input_schema
-            ]
-        elif isinstance(tf_input_schema, list) and all(
-            isinstance(x, dict) for x in tf_input_schema
-        ):
-            input_config = tf_input_schema
-        else:
-            raise ValueError("tf_input_schema must be a list of tf.TypeSpec or dict!")
+            raise ValueError("input_schema must be a list of dict!")
+
+        input_config = input_schema
 
         for conf in input_config:
             name = conf.get("name", None)
@@ -190,13 +170,13 @@ class PipelineGraph:
                 raise ValueError(
                     "Input schema must have names for all inputs, but found None"
                 )
-            input_layer = tf.keras.layers.Input(**conf)
+            input_layer = keras.layers.Input(**conf)
             self.inputs[name] = input_layer
             self.update_layer_store_with_key(layer_key=name, layer_output=input_layer)
 
     def sort_inputs(
-        self, layer_name: str, input_dict: Dict[str, tf.Tensor]
-    ) -> List[tf.Tensor]:
+        self, layer_name: str, input_dict: Dict[str, KerasTensor]
+    ) -> List[KerasTensor]:
         """
         Sorts the inputs for a given layer based on the order of the inputs in the
         stage dict. This is needed because layers with multiple inputs are not
@@ -212,7 +192,7 @@ class PipelineGraph:
 
     def build_transform_layer_inputs(
         self, node: str, in_edges: List[Tuple[str, str]]
-    ) -> List[tf.Tensor]:
+    ) -> List[KerasTensor]:
         """
         Constructs all the layers that are connected to the current node.
         These are either input layers or the outputs of previous layers.
@@ -271,9 +251,9 @@ class PipelineGraph:
 
     @staticmethod
     def override_hyperparameters(
-        layer: Union[tf.keras.layers.Layer, List[tf.keras.layers.Layer]],
+        layer: Union[keras.layers.Layer, List[keras.layers.Layer]],
         hp_override: Dict[str, Any] = None,
-    ) -> Union[tf.keras.layers.Layer, List[tf.keras.layers.Layer]]:
+    ) -> Union[keras.layers.Layer, List[keras.layers.Layer]]:
         """
         Overrides layer arguments with hyperparameters provided in the
         hyperparameter override dictionary.
@@ -284,8 +264,8 @@ class PipelineGraph:
         """
 
         def update_layer(
-            layer: tf.keras.layers.Layer, hp_override: Dict[str, Any]
-        ) -> tf.keras.layers.Layer:
+            layer: keras.layers.Layer, hp_override: Dict[str, Any]
+        ) -> keras.layers.Layer:
             config = layer.get_config()
             config.update(hp_override)
             updated_layer = type(layer).from_config(config)
@@ -393,17 +373,17 @@ class PipelineGraph:
 
     def get_keras_tuner_model_builder(
         self,
-        tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
+        input_schema: List[Dict[str, Any]],
         hp_dict: Dict[str, List[Dict[str, Any]]],
         output_names: Optional[List[str]] = None,
-    ) -> Callable[[keras_tuner.HyperParameters], tf.keras.Model]:
+    ) -> Callable[[keras_tuner.HyperParameters], keras.Model]:
         """
         Returns a Keras tuner model builder function for the current graph.
         This allows the user to tune the hyperparameters of the preprocessing model.
         Useful for scenarios where the best preprocessing variables are not known
         a priori. For example, the num_bins to use for a HashIndexLayer.
 
-        :param tf_input_schema: List of tf.TypeSpec objects containing the input schema
+        :param input_schema: List of dict config containing the input schema
         for the model. Specifically the name, shape and dtype of each input.
         These will be passed as is to the Keras Input layer.
         :param hp_dict: Dictionary of possible hyperparameters for each layer.
@@ -427,12 +407,12 @@ class PipelineGraph:
 
         transform_order = self.transform_order
 
-        def keras_model_builder(hp: keras_tuner.HyperParameters) -> tf.keras.Model:
+        def keras_model_builder(hp: keras_tuner.HyperParameters) -> keras.Model:
             # We need to clear the layer store and inputs each time we build a model.
             self.layer_store = {}
             self.inputs = {}
             # Build the input layers
-            self.build_keras_inputs(tf_input_schema=tf_input_schema)
+            self.build_keras_inputs(input_schema=input_schema)
 
             for node in transform_order:
                 in_edges = list(self.graph.in_edges(node))
@@ -449,7 +429,7 @@ class PipelineGraph:
                 )
 
             sorted_inputs = [self.inputs[k] for k in sorted(self.inputs)]
-            return tf.keras.Model(
+            return keras.Model(
                 inputs=sorted_inputs,
                 outputs=self.get_model_outputs(output_names=output_names),
             )
@@ -458,21 +438,21 @@ class PipelineGraph:
 
     def build_keras_model(
         self,
-        tf_input_schema: Union[List[tf.TypeSpec], List[Dict[str, Any]]],
+        input_schema: List[Dict[str, Any]],
         output_names: Optional[List[str]] = None,
-    ) -> tf.keras.Model:
+    ) -> keras.Model:
         """
         Builds a Keras model from the graph.
 
-        :param tf_input_schema: List of tf.TypeSpec objects containing the input schema
-        for the model. Each TypeSpec object must define a unique `name` attribute.
+        :param input_schema: List of dict config containing the input schema
+        for the model. Each dict must have a 'name' key.
         These will be passed as is to the Keras Input layer.
         :param output_names: Optional list of output names for the Keras model. If
         provided, only the outputs specified are used as model outputs.
         :returns: Keras model to be applied to a tensors dictionary: {name: Tensor}.
         """
         # Build the input layers
-        self.build_keras_inputs(tf_input_schema=tf_input_schema)
+        self.build_keras_inputs(input_schema=input_schema)
 
         for node in self.transform_order:
             in_edges = list(self.graph.in_edges(node))
@@ -482,7 +462,7 @@ class PipelineGraph:
         # with all inputs/outputs specified.
         # We can now build the model by specifying the inputs and outputs.
         sorted_inputs = {k: self.inputs[k] for k in sorted(self.inputs)}
-        return tf.keras.Model(
+        return keras.Model(
             inputs=sorted_inputs,
             outputs=self.get_model_outputs(output_names=output_names),
         )

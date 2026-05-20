@@ -19,19 +19,20 @@
 from functools import reduce
 from typing import List, Optional
 
+import keras
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
+from kamae.keras.core.layers import DivideLayer
 from kamae.spark.params import (
     MathFloatConstantParams,
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
 )
 from kamae.spark.utils import multi_input_single_output_scalar_transform
-from kamae.tensorflow.layers import DivideLayer
 
 from .base import BaseTransformer
 
@@ -46,6 +47,9 @@ class DivideTransformer(
     DivideLayer Spark Transformer for use in Spark pipelines.
     This transformer divides a column by a constant or another column.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(
@@ -69,7 +73,7 @@ class DivideTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param mathFloatConstant: Optional constant to divide by. If not provided,
         then two input columns are required.
@@ -127,16 +131,16 @@ class DivideTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
-        Gets the tensorflow layer for the divide transformer.
+        Gets the Keras layer for the divide transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs a divide operation.
         """
         return DivideLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             divisor=self.getMathFloatConstant(),
         )

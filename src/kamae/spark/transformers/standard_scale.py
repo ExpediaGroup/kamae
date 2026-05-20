@@ -18,16 +18,17 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
+import keras
 import numpy as np
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
+from kamae.keras.core.layers import StandardScaleLayer
 from kamae.spark.params import SingleInputSingleOutputParams, StandardScaleParams
 from kamae.spark.utils import single_input_single_output_array_transform
-from kamae.tensorflow.layers import StandardScaleLayer
 
 from .base import BaseTransformer
 
@@ -45,6 +46,9 @@ class StandardScaleTransformer(
     WARNING: If the input is an array, we assume that the array has a constant
     shape across all rows.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(
@@ -67,7 +71,7 @@ class StandardScaleTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model.
         :param mean: List of mean values corresponding to the input column.
         :param stddev: List of standard deviation values corresponding to the
@@ -130,11 +134,11 @@ class StandardScaleTransformer(
 
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
-        Gets the tensorflow layer for the standard scaler transformer.
+        Gets the Keras layer for the standard scaler transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
          that performs the standardization.
         """
         np_mean = np.array(self.getMean())
@@ -142,8 +146,8 @@ class StandardScaleTransformer(
         mask_value = self.getMaskValue()
         return StandardScaleLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             mean=np_mean,
             variance=np_variance,
             mask_value=mask_value,

@@ -68,17 +68,17 @@ class HasInputDtype(Params):
         """
         return self.getOrDefault(self.inputDtype)
 
-    def getInputTFDtype(self) -> Optional[str]:
+    def getInputKerasDtype(self) -> Optional[str]:
         """
-        Gets the tensorflow datatype string from the inputDtype parameter.
-        Uses the DType enum within Kamae to map the inputDtype to the tensorflow
+        Gets the Keras datatype string from the inputDtype parameter.
+        Uses the DType enum within Kamae to map the inputDtype to the Keras
         datatype string.
-        :returns: String of the tensorflow datatype.
+        :returns: String of the Keras datatype.
         """
         input_dtype = self.getInputDtype()
         if input_dtype is None:
             return None
-        dtypes_map = {dtype.dtype_name: dtype.tf_dtype.name for dtype in DType}
+        dtypes_map = {dtype.dtype_name: dtype.keras_dtype for dtype in DType}
         return dtypes_map[input_dtype]
 
 
@@ -117,18 +117,18 @@ class HasOutputDtype(Params):
         """
         return self.getOrDefault(self.outputDtype)
 
-    def getOutputTFDtype(self) -> Optional[str]:
+    def getOutputKerasDtype(self) -> Optional[str]:
         """
-        Gets the tensorflow datatype string from the outputDtype parameter.
-        Uses the DType enum within Kamae to map the outputDtype to the tensorflow
+        Gets the Keras datatype string from the outputDtype parameter.
+        Uses the DType enum within Kamae to map the outputDtype to the Keras
         datatype string.
-        :returns: String of the tensorflow datatype.
+        :returns: String of the Keras datatype.
         """
 
         output_dtype = self.getOutputDtype()
         if output_dtype is None:
             return None
-        dtypes_map = {dtype.dtype_name: dtype.tf_dtype.name for dtype in DType}
+        dtypes_map = {dtype.dtype_name: dtype.keras_dtype for dtype in DType}
         return dtypes_map[output_dtype]
 
 

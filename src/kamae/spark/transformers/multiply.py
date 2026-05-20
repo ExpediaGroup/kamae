@@ -20,7 +20,7 @@ from functools import reduce
 from operator import mul
 from typing import List, Optional
 
-import tensorflow as tf
+import keras
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
@@ -33,13 +33,14 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import ALL_BACKENDS
+from kamae.keras.core.layers import MultiplyLayer
 from kamae.spark.params import (
     MathFloatConstantParams,
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
 )
 from kamae.spark.utils import multi_input_single_output_scalar_transform
-from kamae.tensorflow.layers import MultiplyLayer
 
 from .base import BaseTransformer
 
@@ -54,6 +55,9 @@ class MultiplyTransformer(
     MultiplyLayer Spark Transformer for use in Spark pipelines.
     This transformer multiplies a column by a constant or another column.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(
@@ -77,7 +81,7 @@ class MultiplyTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param mathFloatConstant: Optional constant to multiply by. If not provided,
         then input columns are required.
@@ -133,16 +137,16 @@ class MultiplyTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
-        Gets the tensorflow layer for the multiply transformer.
+        Gets the Keras layer for the multiply transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs a multiply operation.
         """
         return MultiplyLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             multiplier=self.getMathFloatConstant(),
         )

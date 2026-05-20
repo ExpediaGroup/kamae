@@ -557,7 +557,7 @@ class TestListStdDev:
         tensorflow_values = np.reshape(
             [
                 np.squeeze(v)
-                for v in transformer.get_tf_layer()(input_tensors).numpy().tolist()
+                for v in transformer.get_keras_layer()(input_tensors).numpy().tolist()
             ],
             -1,
         )

@@ -14,19 +14,20 @@
 
 from typing import List, Optional, Union
 
+import keras
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.ml.param import Param, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import BooleanType, DataType, FloatType, IntegerType, StringType
 
+from kamae.keras.core.backend import ALL_BACKENDS
+from kamae.keras.core.layers import ArrayCropLayer
 from kamae.spark.params import PadValueParams, SingleInputSingleOutputParams
 from kamae.spark.utils import (
     get_array_nesting_level_and_element_dtype,
     single_input_single_output_array_transform,
 )
-from kamae.tensorflow.layers import ArrayCropLayer
 
 from .base import BaseTransformer
 
@@ -73,6 +74,9 @@ class ArrayCropTransformer(
     padded with specified pad value.
     """
 
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,
@@ -92,7 +96,7 @@ class ArrayCropTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         :param arrayLength: The length to crop or pad the arrays to. Defaults to 128.
         :param padValue: The value pad the arrays with. Defaults to `None`.
         :returns: None
@@ -201,17 +205,17 @@ class ArrayCropTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
-        Gets the tensorflow layer that performs the array cropping and padding.
+        Gets the Keras layer that performs the array cropping and padding.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that performs the array cropping and padding operation.
         """
         return ArrayCropLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             array_length=self.getArrayLength(),
             pad_value=self.getPadValue(),
         )

@@ -116,7 +116,7 @@ class TestArrayReduceMaxTransformer:
         )
 
         inputs = tf.constant(rows, dtype=tf.float32)
-        keras_values = transformer.get_tf_layer()(inputs).numpy().tolist()
+        keras_values = transformer.get_keras_layer()(inputs).numpy().tolist()
 
         np.testing.assert_almost_equal(
             spark_values,

@@ -14,13 +14,10 @@
 
 import keras
 import tensorflow as tf
-from packaging.version import Version
 from pyspark.sql import SparkSession
 
 from kamae.spark.pipeline import KamaeSparkPipeline, KamaeSparkPipelineModel
 from kamae.spark.transformers import CosineSimilarityTransformer
-
-is_keras_3 = Version(keras.__version__) >= Version("3.0.0")
 
 if __name__ == "__main__":
     print("Starting test of Spark pipeline and integration with Tensorflow")
@@ -71,7 +68,7 @@ if __name__ == "__main__":
 
     print("Building keras model from fit pipeline")
     # Create input schema for keras model.
-    tf_input_schema = [
+    input_schema = [
         {
             "name": "col1",
             "dtype": "float32",
@@ -83,17 +80,13 @@ if __name__ == "__main__":
             "shape": (None, 4),
         },
     ]
-    keras_model = loaded_fitted_pipeline.build_keras_model(
-        tf_input_schema=tf_input_schema
-    )
+    keras_model = loaded_fitted_pipeline.build_keras_model(input_schema=input_schema)
     print(keras_model.summary())
-    model_path = "./output/test_saved_model"
-    if is_keras_3:
-        model_path += ".keras"
+    model_path = "./output/test_saved_model.keras"
     keras_model.save(model_path)
 
     print("Loading keras model from disk")
-    loaded_keras_model = tf.keras.models.load_model(model_path)
+    loaded_keras_model = keras.models.load_model(model_path)
     inputs = [
         tf.constant(
             [

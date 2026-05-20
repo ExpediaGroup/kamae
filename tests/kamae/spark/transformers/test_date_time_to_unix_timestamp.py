@@ -322,7 +322,7 @@ class TestDateTimeToUnixTimestamp:
             .collect()
         )
         tensorflow_values = [
-            v for v in transformer.get_tf_layer()(input_tensor).numpy().tolist()
+            v for v in transformer.get_keras_layer()(input_tensor).numpy().tolist()
         ]
         np.testing.assert_equal(
             spark_values,

@@ -14,15 +14,16 @@
 
 from typing import List, Optional
 
+import keras
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
+from kamae.keras.core.layers import PairwiseCosineSimilarityLayer
 from kamae.spark.params import MultiInputSingleOutputParams
-from kamae.tensorflow.layers import PairwiseCosineSimilarityLayer
 
 from .base import BaseTransformer
 
@@ -39,6 +40,9 @@ class PairwiseCosineSimilarityTransformer(
     Input 1: flat candidate embeddings as Array[Float] of size N*D.
     Output:  Array[Float] of size N containing cosine similarities.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     embeddingDim = Param(
         Params._dummy(),
@@ -127,10 +131,10 @@ class PairwiseCosineSimilarityTransformer(
         similarities = F.transform(indices, cosine_sim_at_index)
         return dataset.withColumn(self.getOutputCol(), similarities)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         return PairwiseCosineSimilarityLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             embedding_dim=self.getEmbeddingDim(),
         )

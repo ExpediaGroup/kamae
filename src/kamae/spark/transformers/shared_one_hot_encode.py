@@ -32,6 +32,8 @@ from pyspark.sql.types import (
     StringType,
 )
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import OneHotEncodeLayer
 from kamae.spark.params import (
     DropUnseenParams,
     MultiInputMultiOutputParams,
@@ -41,7 +43,6 @@ from kamae.spark.utils import (
     one_hot_encoding_udf,
     single_input_single_output_scalar_udf_transform,
 )
-from kamae.tensorflow.layers import OneHotEncodeLayer
 
 from .base import BaseTransformer
 
@@ -63,6 +64,9 @@ class SharedOneHotEncodeTransformer(
     characters. If you have null characters in your data, you should remove them.
     """
 
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
+
     @keyword_only
     def __init__(
         self,
@@ -82,7 +86,7 @@ class SharedOneHotEncodeTransformer(
 
         :param inputCols: List of input column names.
         :param outputCols: List of output column name.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param labelsArray: List of string labels to use for one-hot encoding.
         :param stringOrderType: How to order the string indices.
@@ -159,19 +163,19 @@ class SharedOneHotEncodeTransformer(
 
         return dataset.select(*select_cols)
 
-    def get_tf_layer(self) -> List[tf.keras.layers.Layer]:
+    def get_keras_layer(self) -> List[tf.keras.layers.Layer]:
         """
-        Gets the list of tensorflow layers for the shared onehot encoder transformer.
+        Gets the list of Keras layers for the shared onehot encoder transformer.
         We need to use a list as each layer could operate on differing input shapes.
 
-        :returns: List of Tensorflow keras layer with name equal to the layerName
+        :returns: List of Keras layer with name equal to the layerName
         parameter and the input column name, that performs the indexing.
         """
         return [
             OneHotEncodeLayer(
                 name=f"{self.getLayerName()}_{input_name}",
-                input_dtype=self.getInputTFDtype(),
-                output_dtype=self.getOutputTFDtype(),
+                input_dtype=self.getInputKerasDtype(),
+                output_dtype=self.getOutputKerasDtype(),
                 vocabulary=self.getLabelsArray(),
                 num_oov_indices=self.getNumOOVIndices(),
                 mask_token=self.getMaskToken(),

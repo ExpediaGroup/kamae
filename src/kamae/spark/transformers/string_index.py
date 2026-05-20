@@ -24,12 +24,13 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, IntegerType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import StringIndexLayer
 from kamae.spark.params import SingleInputSingleOutputParams, StringIndexParams
 from kamae.spark.utils import (
     indexer_udf,
     single_input_single_output_scalar_udf_transform,
 )
-from kamae.tensorflow.layers import StringIndexLayer
 
 from .base import BaseTransformer
 
@@ -49,6 +50,9 @@ class StringIndexTransformer(
     This transformer could fail since the hashing algorithm uses cannot accept null
     characters. If you have null characters in your data, you should remove them.
     """
+
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     @keyword_only
     def __init__(
@@ -72,7 +76,7 @@ class StringIndexTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param stringOrderType: How to order the string indices.
         Options are 'frequencyAsc', 'frequencyDesc', 'alphabeticalAsc',
@@ -134,17 +138,17 @@ class StringIndexTransformer(
             output_col,
         )
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the string indexer transformer.
+        Gets the Keras layer for the string indexer transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that performs the indexing.
         """
         return StringIndexLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             vocabulary=self.getLabelsArray(),
             mask_token=self.getMaskToken(),
             num_oov_indices=self.getNumOOVIndices(),

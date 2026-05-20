@@ -24,6 +24,8 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql.types import DataType, DoubleType, LongType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import UnixTimestampToDateTimeLayer
 from kamae.spark.params import (
     DateTimeParams,
     SingleInputSingleOutputParams,
@@ -31,7 +33,6 @@ from kamae.spark.params import (
 )
 from kamae.spark.transformers.base import BaseTransformer
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import UnixTimestampToDateTimeLayer
 
 
 class UnixTimestampToDateTimeTransformer(
@@ -45,6 +46,9 @@ class UnixTimestampToDateTimeTransformer(
     yyyy-MM-dd HH:mm:ss.SSS format. If set to False, the output will be in
     yyyy-MM-dd format.
     """
+
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     @keyword_only
     def __init__(
@@ -69,7 +73,7 @@ class UnixTimestampToDateTimeTransformer(
         :param unit: Unit of the timestamp. Can be `milliseconds` (shorthand `ms`)
          or `seconds` (shorthand `s`). Default is `s` (seconds).
         :param includeTime: Whether to include the time in the output. Default is True.
-        :param layerName: Layer name. Used as the name of the tensorflow layer
+        :param layerName: Layer name. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -153,16 +157,16 @@ class UnixTimestampToDateTimeTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer that performs the unix timestamp to date transform.
+        Gets the Keras layer that performs the unix timestamp to date transform.
 
-        :returns: Tensorflow layer that performs the unix timestamp to date transform.
+        :returns: Keras layer that performs the unix timestamp to date transform.
         """
         return UnixTimestampToDateTimeLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             unit=self.getUnit(),
             include_time=self.getIncludeTime(),
         )

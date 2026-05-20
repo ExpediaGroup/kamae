@@ -24,10 +24,11 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql.types import DataType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import CurrentDateTimeLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.transformers.base import BaseTransformer
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import CurrentDateTimeLayer
 
 
 class CurrentDateTimeTransformer(BaseTransformer, SingleInputSingleOutputParams):
@@ -41,6 +42,9 @@ class CurrentDateTimeTransformer(BaseTransformer, SingleInputSingleOutputParams)
 
     It is recommended not to rely on parity at the millisecond level.
     """
+
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     @keyword_only
     def __init__(
@@ -60,7 +64,7 @@ class CurrentDateTimeTransformer(BaseTransformer, SingleInputSingleOutputParams)
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -123,14 +127,14 @@ class CurrentDateTimeTransformer(BaseTransformer, SingleInputSingleOutputParams)
 
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer.
+        Gets the Keras layer.
 
-        :returns: CurrentDateTimeLayer Tensorflow layer.
+        :returns: CurrentDateTimeLayer Keras layer.
         """
         return CurrentDateTimeLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
         )

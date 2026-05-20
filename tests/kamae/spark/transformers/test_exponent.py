@@ -194,7 +194,7 @@ class TestExponent:
         )
         tensorflow_values = [
             v.decode("utf-8") if isinstance(v, bytes) else v
-            for v in transformer.get_tf_layer()(input_tensor).numpy().tolist()
+            for v in transformer.get_keras_layer()(input_tensor).numpy().tolist()
         ]
 
         # then
@@ -275,7 +275,9 @@ class TestExponent:
             .rdd.map(lambda r: r[0])
             .collect()
         )
-        tensorflow_values = transformer.get_tf_layer()(input_tensors).numpy().tolist()
+        tensorflow_values = (
+            transformer.get_keras_layer()(input_tensors).numpy().tolist()
+        )
 
         # then
         if isinstance(spark_values[0], str):
