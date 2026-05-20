@@ -87,7 +87,6 @@ from kamae.keras.tensorflow.layers import (
     ListStdDevLayer,
     MinHashIndexLayer,
     OneHotEncodeLayer,
-    OneHotLayer,
     OrdinalArrayEncodeLayer,
     StringAffixLayer,
     StringArrayConstantLayer,
@@ -95,7 +94,6 @@ from kamae.keras.tensorflow.layers import (
     StringConcatenateLayer,
     StringContainsLayer,
     StringContainsListLayer,
-    StringEqualsIfStatementLayer,
     StringIndexLayer,
     StringIsInListLayer,
     StringListToStringLayer,
@@ -324,12 +322,6 @@ from kamae.keras.tensorflow.layers import (
             False,
         ),
         (
-            OneHotLayer,
-            [tf.constant("a", shape=(100, 10, 1))],
-            {"num_oov_indices": 1, "vocabulary": ["a", "b"], "drop_unseen": True},
-            False,
-        ),
-        (
             OrdinalArrayEncodeLayer,
             [tf.constant([["a", "a", "b", "-1"]])],
             {"pad_value": "-1"},
@@ -472,15 +464,6 @@ from kamae.keras.tensorflow.layers import (
             StringContainsListLayer,
             [tf.constant("a", shape=(230, 67, 1))],
             {"negation": True, "string_constant_list": ["a", "b", "c"]},
-            False,
-        ),
-        (
-            StringEqualsIfStatementLayer,
-            [
-                tf.constant("a", shape=(23, 1, 1, 67)),
-                tf.constant("b", shape=(23, 1, 1, 67)),
-            ],
-            {"result_if_true": "a", "result_if_false": "b"},
             False,
         ),
         (

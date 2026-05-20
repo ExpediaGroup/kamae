@@ -17,10 +17,7 @@ import tensorflow as tf
 from pyspark.sql import SparkSession
 
 from kamae.spark.pipeline import KamaeSparkPipeline, KamaeSparkPipelineModel
-from kamae.spark.transformers import (
-    NumericalIfStatementTransformer,
-    StringEqualsIfStatementTransformer,
-)
+from kamae.spark.transformers import NumericalIfStatementTransformer
 
 if __name__ == "__main__":
     print("Starting test of Spark pipeline and integration with Tensorflow")
@@ -48,19 +45,8 @@ if __name__ == "__main__":
         .setOutputCol("col1_col2_col3_if_statement")
         .setInputDtype("float")
     )
-    string_if_statement = (
-        StringEqualsIfStatementTransformer()
-        .setResultIfTrue("TRUE")
-        .setInputCol("col4")
-        .setOutputCol("col4_if_statement")
-        .setResultIfFalse("FALSE")
-        .setValueToCompare("a")
-    )
-
     print("Creating pipeline and writing to disk")
-    test_pipeline = KamaeSparkPipeline(
-        stages=[numeric_if_statement, string_if_statement]
-    )
+    test_pipeline = KamaeSparkPipeline(stages=[numeric_if_statement])
     test_pipeline.write().overwrite().save("./output/test_pipeline/")
 
     print("Loading pipeline from disk")

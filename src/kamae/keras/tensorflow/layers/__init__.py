@@ -38,7 +38,7 @@ from .list_min import ListMinLayer  # noqa: F401
 from .list_rank import ListRankLayer  # noqa: F401
 from .list_std_dev import ListStdDevLayer  # noqa: F401
 from .min_hash_index import MinHashIndexLayer  # noqa: F401
-from .one_hot_encode import OneHotEncodeLayer, OneHotLayer  # noqa: F401
+from .one_hot_encode import OneHotEncodeLayer  # noqa: F401
 from .ordinal_array_encode import OrdinalArrayEncodeLayer  # noqa: F401
 from .string_affix import StringAffixLayer  # noqa: F401
 from .string_array_constant import StringArrayConstantLayer  # noqa: F401
@@ -46,7 +46,6 @@ from .string_case import StringCaseLayer  # noqa: F401
 from .string_concatenate import StringConcatenateLayer  # noqa: F401
 from .string_contains import StringContainsLayer  # noqa: F401
 from .string_contains_list import StringContainsListLayer  # noqa: F401
-from .string_equals_if_statement import StringEqualsIfStatementLayer  # noqa: F401
 from .string_index import StringIndexLayer  # noqa: F401
 from .string_isin_list import StringIsInListLayer  # noqa: F401
 from .string_list_to_string import StringListToStringLayer  # noqa: F401
@@ -77,7 +76,6 @@ __all__ = [
     "ListStdDevLayer",
     "MinHashIndexLayer",
     "OneHotEncodeLayer",
-    "OneHotLayer",
     "OrdinalArrayEncodeLayer",
     "StringAffixLayer",
     "StringArrayConstantLayer",
@@ -85,7 +83,6 @@ __all__ = [
     "StringConcatenateLayer",
     "StringContainsLayer",
     "StringContainsListLayer",
-    "StringEqualsIfStatementLayer",
     "StringIndexLayer",
     "StringIsInListLayer",
     "StringListToStringLayer",

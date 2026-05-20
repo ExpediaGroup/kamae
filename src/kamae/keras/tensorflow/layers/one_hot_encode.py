@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from typing import Any, Dict, List, Optional, Union
 
 import keras
@@ -53,7 +52,7 @@ class OneHotEncodeLayer(BaseLayer):
         **kwargs: Any,
     ) -> None:
         """
-        Intialises the OneHotLayer layer.
+        Intialises the OneHotEncodeLayer layer.
 
         :param vocabulary: Either an array of strings or a string path to a
         text file. If passing an array, can pass a tuple, list, 1D numpy array,
@@ -157,20 +156,3 @@ class OneHotEncodeLayer(BaseLayer):
             }
         )
         return config
-
-
-# TODO: Remove this alias in next breaking change,
-#  it is maintained for backwards compatibility
-@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
-class OneHotLayer(OneHotEncodeLayer):
-    supported_backends = TENSORFLOW_ONLY
-    jit_compatible = False
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn(
-            "OneHotLayer is deprecated and will be removed in a future release. "
-            "Use OneHotEncodeLayer instead.",
-            DeprecationWarning,
-            stacklevel=3,
-        )
-        super().__init__(*args, **kwargs)
