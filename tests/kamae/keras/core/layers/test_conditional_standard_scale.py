@@ -172,6 +172,31 @@ class TestConditionalStandardScale:
         else:
             tf.debugging.assert_near(expected_output, output_tensor)
 
+    def test_zero_variance_produces_zero_output(self):
+        """Zero-variance features should produce 0.0 even when input != mean."""
+        input_tensor = tf.constant([[3.0, 5.0, 7.0]])
+        layer = ConditionalStandardScaleLayer(
+            name="zero_var",
+            mean=[5.0, 5.0, 5.0],
+            variance=[0.0, 0.0, 0.0],
+        )
+        output_tensor = layer(input_tensor)
+        expected = tf.constant([[0.0, 0.0, 0.0]])
+        tf.debugging.assert_near(output_tensor, expected)
+
+    def test_zero_variance_with_skip_zeros(self):
+        """Zero-variance + skip_zeros: both zero-input and non-zero-input produce 0.0."""
+        input_tensor = tf.constant([[0.0, 3.0, 7.0]])
+        layer = ConditionalStandardScaleLayer(
+            name="zero_var_skip",
+            mean=[5.0, 5.0, 5.0],
+            variance=[0.0, 0.0, 0.0],
+            skip_zeros=True,
+        )
+        output_tensor = layer(input_tensor)
+        expected = tf.constant([[0.0, 0.0, 0.0]])
+        tf.debugging.assert_near(output_tensor, expected)
+
     @pytest.mark.parametrize(
         "inputs, input_name, input_dtype, output_dtype",
         [
