@@ -99,7 +99,7 @@ class StandardScaleLayer(NormalizeLayer):
         variance = self._cast(self.variance, inputs.dtype.name)
         normalized_outputs = tf.math.divide_no_nan(
             tf.math.subtract(inputs, mean),
-            tf.math.maximum(tf.sqrt(variance), tf.constant(1e-8, dtype=inputs.dtype)),
+            tf.sqrt(variance),
         )
         if self.mask_value is not None:
             mask = tf.equal(inputs, self.mask_value)
