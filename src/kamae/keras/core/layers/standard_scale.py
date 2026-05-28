@@ -110,10 +110,7 @@ class StandardScaleLayer(NormalizeLayer):
 
         # Compute (input - mean) / sqrt(variance) using safe division
         numerator = ops.subtract(inputs, mean)
-        denominator = ops.maximum(
-            ops.sqrt(variance), ops.convert_to_tensor(1e-8, dtype=inputs.dtype)
-        )
-        normalized_outputs = divide_no_nan(numerator, denominator)
+        normalized_outputs = divide_no_nan(numerator, ops.sqrt(variance))
 
         if self.mask_value is not None:
             mask = ops.equal(inputs, self.mask_value)
