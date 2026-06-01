@@ -118,17 +118,7 @@ class ConditionalStandardScaleLayer(NormalizeLayer):
 
         # Compute (input - mean) / sqrt(variance) using safe division
         numerator = ops.subtract(inputs, mean)
-        denominator = ops.maximum(
-            ops.sqrt(variance), ops.convert_to_tensor(self.epsilon, dtype=inputs.dtype)
-        )
-        normalized_outputs = divide_no_nan(numerator, denominator)
-
-        # Output is 0 if variance is 0
-        normalized_outputs = ops.where(
-            ops.equal(variance, 0),
-            ops.zeros_like(normalized_outputs),
-            normalized_outputs,
-        )
+        normalized_outputs = divide_no_nan(numerator, ops.sqrt(variance))
 
         if self.skip_zeros:
             eps = ops.convert_to_tensor(self.epsilon, dtype=inputs.dtype)
