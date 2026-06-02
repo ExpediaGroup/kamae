@@ -105,15 +105,7 @@ class ConditionalStandardScaleLayer(NormalizeLayer):
         variance = self._cast(self.variance, inputs.dtype.name)
         normalized_outputs = tf.math.divide_no_nan(
             tf.math.subtract(inputs, mean),
-            tf.math.maximum(
-                tf.sqrt(variance), tf.constant(self.epsilon, dtype=inputs.dtype)
-            ),
-        )
-        # output is 0 if variance is 0
-        normalized_outputs = tf.where(
-            tf.equal(variance, 0),
-            tf.zeros_like(normalized_outputs),
-            normalized_outputs,
+            tf.sqrt(variance),
         )
         if self.skip_zeros:
             eps = tf.constant(self.epsilon, dtype=inputs.dtype)
