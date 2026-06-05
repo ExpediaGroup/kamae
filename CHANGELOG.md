@@ -2,6 +2,21 @@
 
 
 
+## v2.40.1 (2026-06-02)
+
+### Fix
+
+* fix: standard scaling do not replace 0 variance with epsilon (#53)
+
+* fix: in standard scaling do not replace 0 variance with epsilon - output 0 - same as in spark.
+
+* chore: add tests for conditional standard scaler as well
+
+---------
+
+Co-authored-by: Marian Andrecki &lt;t-mandreki@expediagroup.com&gt; ([`66b4bd6`](https://github.com/ExpediaGroup/kamae/commit/66b4bd6776df7db79d35f8f7223509ceacdbff6e))
+
+
 ## v2.40.0 (2026-05-06)
 
 ### Documentation
