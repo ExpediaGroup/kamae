@@ -76,6 +76,7 @@ from .string_isin_list import StringIsInListLayer  # noqa: F401
 from .string_list_to_string import StringListToStringLayer  # noqa: F401
 from .string_map import StringMapLayer  # noqa: F401
 from .string_replace import StringReplaceLayer  # noqa: F401
+from .string_sequence_to_embedding import StringSequenceToEmbeddingLayer  # noqa: F401
 from .string_to_string_list import StringToStringListLayer  # noqa: F401
 from .sub_string_delim_at_index import SubStringDelimAtIndexLayer  # noqa: F401
 from .subtract import SubtractLayer  # noqa: F401
