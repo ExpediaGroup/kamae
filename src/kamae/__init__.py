@@ -21,3 +21,10 @@ transformation layers.
 
 __version__ = "2.40.1"
 __name__ = "kamae"
+
+from .discovery import (  # noqa: F401
+    get_compatible_layers,
+    get_compatible_transformers,
+    get_jit_compatible_layers,
+    get_jit_compatible_transformers,
+)

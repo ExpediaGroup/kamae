@@ -25,13 +25,14 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import StringReplaceLayer
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
     StringRegexParams,
 )
 from kamae.spark.utils import multi_input_single_output_scalar_transform
-from kamae.tensorflow.layers import StringReplaceLayer
 
 from .base import BaseTransformer
 
@@ -108,6 +109,9 @@ class StringReplaceTransformer(
     This is consistent in both spark and tensorflow components.
     """
 
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
+
     @keyword_only
     def __init__(
         self,
@@ -135,7 +139,7 @@ class StringReplaceTransformer(
         operation.
         :param stringReplaceConstant: String constant to replace with.
         :param regex: Whether to allow regex-matching in the string matching.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -263,17 +267,17 @@ class StringReplaceTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the StringReplaceLayer transformer.
+        Gets the Keras layer for the StringReplaceLayer transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs a string replace operation.
         """
         return StringReplaceLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             regex=self.getRegex(),
             string_match_constant=self.getStringMatchConstant(),
             string_replace_constant=self.getStringReplaceConstant(),

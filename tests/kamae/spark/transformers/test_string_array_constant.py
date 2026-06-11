@@ -237,7 +237,7 @@ class TestStringArrayConstant:
         # (this drops first dimension)
         # and put it in a list to bring back the dimension
         spark_values_reshape = [spark_values[0]]
-        tensorflow_values_np = transformer.get_tf_layer()(input_tensor).numpy()
+        tensorflow_values_np = transformer.get_keras_layer()(input_tensor).numpy()
         tensorflow_values = np.vectorize(
             lambda x: x.decode("utf-8") if isinstance(x, bytes) else x
         )(tensorflow_values_np).tolist()

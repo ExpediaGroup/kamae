@@ -18,8 +18,8 @@
 # pylint: disable=no-member
 from typing import Any, List, Optional, Union
 
+import keras
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
@@ -33,9 +33,10 @@ from pyspark.sql.types import (
     ShortType,
 )
 
+from kamae.keras.core.backend import ALL_BACKENDS
+from kamae.keras.core.layers import BinLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import BinLayer
 from kamae.utils import get_condition_operator
 
 from .base import BaseTransformer
@@ -203,6 +204,9 @@ class BinTransformer(
     If no conditions evaluate to True, the default label is returned.
     """
 
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,
@@ -236,7 +240,7 @@ class BinTransformer(
         :param binValues: Float values to compare to input column.
         :param binLabels: Bin labels to use when binning.
         :param defaultLabel: Default label to use when binning.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -305,17 +309,17 @@ class BinTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
-        Gets the tensorflow layer for the bin transformer.
+        Gets the Keras layer for the bin transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs the binning operation.
         """
         return BinLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             condition_operators=self.getConditionOperators(),
             bin_values=self.getBinValues(),
             bin_labels=self.getBinLabels(),

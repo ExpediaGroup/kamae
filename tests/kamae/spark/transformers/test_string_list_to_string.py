@@ -243,7 +243,7 @@ class TestStringListToString:
         )
 
         tensorflow_values = vec_decoder(
-            transformer.get_tf_layer()(input_tensor).numpy().flatten()
+            transformer.get_keras_layer()(input_tensor).numpy().flatten()
         ).tolist()
 
         # then

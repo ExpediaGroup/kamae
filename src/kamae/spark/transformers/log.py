@@ -18,16 +18,17 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
+import keras
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
+from kamae.keras.core.layers import LogLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import LogLayer
 
 from .base import BaseTransformer
 
@@ -72,6 +73,9 @@ class LogTransformer(
     This transformer applies a log(alpha + x) transform to the input column.
     """
 
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
+
     @keyword_only
     def __init__(
         self,
@@ -93,7 +97,7 @@ class LogTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param alpha: Value to use in log transform: log(alpha + x). Default is 0.
         :returns: None - class instantiated.
@@ -132,16 +136,16 @@ class LogTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
-        Gets the tensorflow layer that performs the log transform.
+        Gets the Keras layer that performs the log transform.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that performs the log(alpha + x) operation.
         """
         return LogLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             alpha=self.getAlpha(),
         )

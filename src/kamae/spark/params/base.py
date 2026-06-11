@@ -68,17 +68,17 @@ class HasInputDtype(Params):
         """
         return self.getOrDefault(self.inputDtype)
 
-    def getInputTFDtype(self) -> Optional[str]:
+    def getInputKerasDtype(self) -> Optional[str]:
         """
-        Gets the tensorflow datatype string from the inputDtype parameter.
-        Uses the DType enum within Kamae to map the inputDtype to the tensorflow
+        Gets the Keras datatype string from the inputDtype parameter.
+        Uses the DType enum within Kamae to map the inputDtype to the Keras
         datatype string.
-        :returns: String of the tensorflow datatype.
+        :returns: String of the Keras datatype.
         """
         input_dtype = self.getInputDtype()
         if input_dtype is None:
             return None
-        dtypes_map = {dtype.dtype_name: dtype.tf_dtype.name for dtype in DType}
+        dtypes_map = {dtype.dtype_name: dtype.keras_dtype for dtype in DType}
         return dtypes_map[input_dtype]
 
 
@@ -117,18 +117,18 @@ class HasOutputDtype(Params):
         """
         return self.getOrDefault(self.outputDtype)
 
-    def getOutputTFDtype(self) -> Optional[str]:
+    def getOutputKerasDtype(self) -> Optional[str]:
         """
-        Gets the tensorflow datatype string from the outputDtype parameter.
-        Uses the DType enum within Kamae to map the outputDtype to the tensorflow
+        Gets the Keras datatype string from the outputDtype parameter.
+        Uses the DType enum within Kamae to map the outputDtype to the Keras
         datatype string.
-        :returns: String of the tensorflow datatype.
+        :returns: String of the Keras datatype.
         """
 
         output_dtype = self.getOutputDtype()
         if output_dtype is None:
             return None
-        dtypes_map = {dtype.dtype_name: dtype.tf_dtype.name for dtype in DType}
+        dtypes_map = {dtype.dtype_name: dtype.keras_dtype for dtype in DType}
         return dtypes_map[output_dtype]
 
 
@@ -206,29 +206,19 @@ class SingleOutputParams(HasLayerName, HasOutputCol, HasOutputDtype):
     def setLayerName(self, value: str) -> "SingleOutputParams":
         """
         Sets the parameter layerName to the given string value.
-        Throws an error if the value is the same as the output column name,
-        as this causes issues when constructing the pipeline graph.
 
         :param value: String to set the layerName parameter to.
         :returns: Instance of class mixed in.
         """
-        if self.hasParam("outputCol") and self.isDefined("outputCol"):
-            if value == self.getOutputCol():
-                raise ValueError("Layer name and output column name must be different.")
         return self._set(layerName=value)
 
     def setOutputCol(self, value: str) -> "SingleOutputParams":
         """
         Sets the parameter outputCol to the given string value.
-        Throws an error if the value is the same as the layer name,
-        as this causes issues when constructing the pipeline graph.
 
         :param value: String to set the outputCol parameter to.
         :returns: Instance of class mixed in.
         """
-        if self.hasParam("layerName") and self.isDefined("layerName"):
-            if value == self.getLayerName():
-                raise ValueError("Layer name and output column name must be different.")
         return self._set(outputCol=value)
 
 
@@ -240,33 +230,19 @@ class MultiOutputParams(HasLayerName, HasOutputCols, HasOutputDtype):
     def setLayerName(self, value: str) -> "MultiOutputParams":
         """
         Sets the parameter layerName to the given string value.
-        Throws an error if the value is the same as one of the output column names,
-        as this causes issues when constructing the pipeline graph.
 
         :param value: String to set the layerName parameter to.
         :returns: Instance of class mixed in.
         """
-        if self.hasParam("outputCol") and self.isDefined("outputCols"):
-            if value in self.getOutputCols():
-                raise ValueError(
-                    "Layer name and output column names must be different."
-                )
         return self._set(layerName=value)
 
     def setOutputCols(self, value: List[str]) -> "MultiOutputParams":
         """
         Sets the parameter outputCols to the given list of strings.
-        Throws an error if one of the output column names is the same as the layer name,
-        as this causes issues when constructing the pipeline graph.
 
         :param value: List of strings to set the outputCols parameter to.
         :returns: Instance of class mixed in.
         """
-        if self.hasParam("layerName") and self.isDefined("layerName"):
-            if self.getLayerName() in value:
-                raise ValueError(
-                    "Layer name and output column names must be different."
-                )
         return self._set(outputCols=value)
 
 

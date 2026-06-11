@@ -361,11 +361,11 @@ class TestCurrentUnixTimestamp:
             )
 
         with patch(
-            "kamae.tensorflow.layers.current_unix_timestamp.tf.timestamp",
+            "kamae.keras.tensorflow.layers.current_unix_timestamp.tf.timestamp",
             lambda: tf.constant(timestamp_seconds, dtype=tf.float64),
         ):
             tensorflow_values = [
-                v for v in transformer.get_tf_layer()(input_tensor).numpy().tolist()
+                v for v in transformer.get_keras_layer()(input_tensor).numpy().tolist()
             ]
         np.testing.assert_equal(
             spark_values,
@@ -426,7 +426,7 @@ class TestCurrentUnixTimestamp:
         )
 
         tensorflow_values = [
-            v for v in transformer.get_tf_layer()(input_tensor).numpy().tolist()
+            v for v in transformer.get_keras_layer()(input_tensor).numpy().tolist()
         ]
         # Set Spark and Tensorflow to numpy floats
         spark_values = np.array(spark_values).astype(np.float64)

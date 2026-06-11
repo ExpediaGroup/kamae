@@ -25,6 +25,8 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import StringContainsListLayer
 from kamae.spark.params import (
     ConstantStringArrayParams,
     NegationParams,
@@ -32,7 +34,6 @@ from kamae.spark.params import (
 )
 from kamae.spark.transformers.base import BaseTransformer
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import StringContainsListLayer
 
 
 class StringContainsListTransformer(
@@ -46,6 +47,9 @@ class StringContainsListTransformer(
     This transformer performs a string contains operation on the input column over all
     constants in the passed constantStringArray.
     """
+
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     @keyword_only
     def __init__(
@@ -70,7 +74,7 @@ class StringContainsListTransformer(
         :param constantStringArray: String constant array to use in string contains list
         operation.
         :param negation: Whether to negate the string contains list operation.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -124,11 +128,11 @@ class StringContainsListTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the StringContainsLayer transformer.
+        Gets the Keras layer for the StringContainsLayer transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs a string contains operation.
         """
 
@@ -137,8 +141,8 @@ class StringContainsListTransformer(
 
         return StringContainsListLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             negation=self.getNegation(),
             string_constant_list=self.getConstantStringArray(),
         )

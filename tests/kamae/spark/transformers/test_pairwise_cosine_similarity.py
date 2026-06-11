@@ -157,7 +157,7 @@ class TestPairwiseCosineSimilarityTransformer:
         tf_queries = tf.constant(queries, dtype=tf.float32)
         tf_candidates = tf.constant(flat_candidates, dtype=tf.float32)
         keras_values = (
-            transformer.get_tf_layer()([tf_queries, tf_candidates]).numpy().tolist()
+            transformer.get_keras_layer()([tf_queries, tf_candidates]).numpy().tolist()
         )
 
         np.testing.assert_almost_equal(

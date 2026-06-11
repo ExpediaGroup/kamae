@@ -448,7 +448,7 @@ class TestConditionalStandardScale:
         )
         tensorflow_values = [
             array_decoder(v) if isinstance(v[0], bytes) else v
-            for v in transformer.get_tf_layer()(input_tensor).numpy().tolist()
+            for v in transformer.get_keras_layer()(input_tensor).numpy().tolist()
         ]
         # then
         if isinstance(spark_values[0][0], str):

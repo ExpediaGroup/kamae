@@ -31,6 +31,8 @@ from pyspark.sql.types import (
     StringType,
 )
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import DateAddLayer
 from kamae.spark.params import (
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
@@ -40,7 +42,6 @@ from kamae.spark.utils import (
     get_element_type,
     multi_input_single_output_scalar_transform,
 )
-from kamae.tensorflow.layers import DateAddLayer
 
 
 class DateAdditionParams(Params):
@@ -88,6 +89,9 @@ class DateAddTransformer(
     WARNING: This transform destroys the time component of the date column.
     """
 
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
+
     @keyword_only
     def __init__(
         self,
@@ -108,7 +112,7 @@ class DateAddTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Layer name. Used as the name of the tensorflow layer
+        :param layerName: Layer name. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param numDays: Number of days to add/subtract. Negative values subtract.
         :returns: None - class instantiated.
@@ -212,15 +216,15 @@ class DateAddTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer.
+        Gets the Keras layer.
 
-        :returns: DateAddLayer Tensorflow layer.
+        :returns: DateAddLayer Keras layer.
         """
         return DateAddLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             num_days=self.getNumDays(),
         )

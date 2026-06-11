@@ -79,7 +79,6 @@ from .string_case import StringCaseTransformer  # noqa: F401
 from .string_concatenate import StringConcatenateTransformer  # noqa: F401
 from .string_contains import StringContainsTransformer  # noqa: F401
 from .string_contains_list import StringContainsListTransformer  # noqa: F401
-from .string_equals_if_statement import StringEqualsIfStatementTransformer  # noqa: F401
 from .string_index import StringIndexTransformer  # noqa: F401
 from .string_isin_list import StringIsInListTransformer  # noqa: F401
 from .string_list_to_string import StringListToStringTransformer  # noqa: F401

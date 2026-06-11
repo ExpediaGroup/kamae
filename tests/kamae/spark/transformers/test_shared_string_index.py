@@ -283,7 +283,7 @@ class TestSharedStringIndex:
         )
         tensorflow_values = [
             v.decode("utf-8") if isinstance(v, bytes) else v
-            for v in transformer.get_tf_layer()[0](input_tensor).numpy().tolist()
+            for v in transformer.get_keras_layer()[0](input_tensor).numpy().tolist()
         ]
 
         # then

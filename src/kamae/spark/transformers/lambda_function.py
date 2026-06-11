@@ -27,14 +27,15 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, StructField, StructType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import LambdaFunctionLayer
+from kamae.keras.tensorflow.utils.typing import Tensor
 from kamae.spark.params import (
     MultiInputMultiOutputParams,
     MultiInputSingleOutputParams,
     SingleInputMultiOutputParams,
     SingleInputSingleOutputParams,
 )
-from kamae.tensorflow.layers import LambdaFunctionLayer
-from kamae.tensorflow.typing import Tensor
 
 from .base import BaseTransformer
 
@@ -138,6 +139,9 @@ class LambdaFunctionTransformer(
     native Spark functions.
     """
 
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
+
     @keyword_only
     def __init__(
         self,
@@ -175,7 +179,7 @@ class LambdaFunctionTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -306,7 +310,7 @@ class LambdaFunctionTransformer(
         a struct column is created and then the columns are extracted.
 
         :param dataset: Pyspark dataframe to transform.
-        :param func: Tensorflow function.
+        :param func: Keras function.
         :param input_col_names: List of input column names.
         :param output_col_names: List of output column names.
         :param function_return_types: List of return types of the lambda function.
@@ -366,7 +370,7 @@ class LambdaFunctionTransformer(
             If value is a list of size 1, return the single value.
             - If the output tensor is a string, decodes the bytes to a string.
 
-            :param fn: Tensorflow function.
+            :param fn: Keras function.
             :returns: Function that can be used within a Spark UDF.
             """
 
@@ -425,16 +429,16 @@ class LambdaFunctionTransformer(
             function_return_types=function_return_types,
         )
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the lambda function transformer.
+        Gets the Keras layer for the lambda function transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs the lambda function on the input.
         """
         return LambdaFunctionLayer(
             function=self.getFunction(),
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
         )

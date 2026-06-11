@@ -14,13 +14,10 @@
 
 import keras
 import tensorflow as tf
-from packaging.version import Version
 from pyspark.sql import SparkSession
 
 from kamae.spark.pipeline import KamaeSparkPipeline
 from kamae.spark.transformers import StringReplaceTransformer
-
-is_keras_3 = Version(keras.__version__) >= Version("3.0.0")
 
 if __name__ == "__main__":
     print("Starting test of Spark pipeline and integration with Tensorflow")
@@ -64,7 +61,7 @@ if __name__ == "__main__":
     fit_pipeline.transform(fake_data).show(20, False)
 
     # Create input schema for keras model.
-    tf_input_schema = [
+    input_schema = [
         {
             "name": "col4",
             "dtype": tf.string,
@@ -81,15 +78,13 @@ if __name__ == "__main__":
             "shape": (None, 1),
         },
     ]
-    keras_model = fit_pipeline.build_keras_model(tf_input_schema=tf_input_schema)
+    keras_model = fit_pipeline.build_keras_model(input_schema=input_schema)
     print(keras_model.summary())
-    model_path = "./output/test_keras_model"
-    if is_keras_3:
-        model_path += ".keras"
+    model_path = "./output/test_keras_model.keras"
     keras_model.save(model_path)
 
     # print("Loading keras model from disk")
-    # loaded_keras_model = tf.keras.models.load_model("./output/test_keras_model/")
+    # loaded_keras_model = keras.models.load_model("./output/test_keras_model.keras")
     inputs = [
         tf.constant(
             [[["EXPEDIA"], ["EXPEDIA.._UK"], ["EXPEDIA_.UK_4EVA.UK_4EV_WHEHEIW"]]]

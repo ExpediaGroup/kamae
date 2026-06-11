@@ -20,6 +20,8 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import ListMedianLayer
 from kamae.spark.params import (
     ListwiseStatisticsParams,
     MultiInputSingleOutputParams,
@@ -27,7 +29,6 @@ from kamae.spark.params import (
     SingleInputSingleOutputParams,
 )
 from kamae.spark.utils import check_listwise_columns, get_listwise_condition_and_window
-from kamae.tensorflow.layers import ListMedianLayer
 
 from .base import BaseTransformer
 
@@ -71,6 +72,10 @@ class ListMedianTransformer(
     defaults to >= 0.
     :nanFillValue: Value to fill NaNs results with. Defaults to 0.
     """
+
+    jit_compatible = True
+
+    supported_backends = TENSORFLOW_ONLY
 
     @keyword_only
     def __init__(
@@ -176,17 +181,17 @@ class ListMedianTransformer(
 
         return dataset
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the listwise-median transformer.
+        Gets the Keras layer for the listwise-median transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
          performs a median operation.
         """
         return ListMedianLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             top_n=self.getTopN(),
             sort_order=self.getSortOrder(),
             min_filter_value=self.getMinFilterValue(),

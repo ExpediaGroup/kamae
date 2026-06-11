@@ -173,7 +173,7 @@ if __name__ == "__main__":
     fit_pipeline = test_pipeline.fit(fit_data)
     fit_pipeline.transform(fit_data).show()
 
-    tf_input_schema = [
+    input_schema = [
         {
             "name": col,
             "dtype": tf.float32,
@@ -182,7 +182,7 @@ if __name__ == "__main__":
         for col in x_schema
     ]
 
-    tf_preproc_model = fit_pipeline.build_keras_model(tf_input_schema=tf_input_schema)
+    tf_preproc_model = fit_pipeline.build_keras_model(input_schema=input_schema)
     tf_preproc_model.summary()
 
     print("\n* Build and train a JAX neural network\n")

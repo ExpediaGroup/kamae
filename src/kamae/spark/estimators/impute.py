@@ -23,6 +23,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
+from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.spark.params import (
     ImputeMethodParams,
     MaskValueParams,
@@ -50,6 +51,9 @@ class ImputeEstimator(
     Rows are not included in the calculation of the statistic when they are
     either null or equal to the supplied mask value.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(

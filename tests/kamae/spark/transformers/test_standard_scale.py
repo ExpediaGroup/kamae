@@ -439,7 +439,7 @@ class TestStandardScale:
             .rdd.map(lambda r: r[0])
             .collect()
         )
-        tensorflow_values = transformer.get_tf_layer()(input_tensor).numpy().tolist()
+        tensorflow_values = transformer.get_keras_layer()(input_tensor).numpy().tolist()
 
         # then
         np.testing.assert_almost_equal(
@@ -449,8 +449,8 @@ class TestStandardScale:
             err_msg="Spark and Tensorflow transform outputs are not equal",
         )
 
-    def test_zero_variance_spark_tf_parity(self, spark_session):
-        """Zero-variance features produce 0.0 in both Spark and TF layers."""
+    def test_zero_variance_spark_keras_parity(self, spark_session):
+        """Zero-variance features produce 0.0 in both Spark and Keras layers."""
         input_tensor = tf.constant([[3.0, 5.0, 7.0], [5.0, 5.0, 5.0]])
         mean = [5.0, 5.0, 5.0]
         stddev = [0.0, 0.0, 0.0]
@@ -471,16 +471,16 @@ class TestStandardScale:
             .rdd.map(lambda r: r[0])
             .collect()
         )
-        tensorflow_values = transformer.get_tf_layer()(input_tensor).numpy().tolist()
+        keras_values = transformer.get_keras_layer()(input_tensor).numpy().tolist()
 
         expected = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
         np.testing.assert_almost_equal(spark_values, expected, decimal=6)
-        np.testing.assert_almost_equal(tensorflow_values, expected, decimal=6)
+        np.testing.assert_almost_equal(keras_values, expected, decimal=6)
         np.testing.assert_almost_equal(
             spark_values,
-            tensorflow_values,
+            keras_values,
             decimal=6,
-            err_msg="Spark and TF outputs differ for zero-variance features",
+            err_msg="Spark and Keras outputs differ for zero-variance features",
         )
 
     @pytest.mark.parametrize(

@@ -225,7 +225,7 @@ class TestLogicalOr:
         )
         tensorflow_values = [
             v.decode("utf-8") if isinstance(v, bytes) else v
-            for v in transformer.get_tf_layer()(input_tensors).numpy().tolist()
+            for v in transformer.get_keras_layer()(input_tensors).numpy().tolist()
         ]
 
         # then

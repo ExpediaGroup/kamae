@@ -41,9 +41,9 @@ class TestBloomEncode:
                     3,
                     [["a", "c", "c"], ["a", "c", "c"], ["a", "a", "a"]],
                     [
-                        [[34, 95, 8], [34, 16, 64], [34, 16, 64]],
-                        [[34, 95, 8], [34, 16, 64], [34, 16, 64]],
-                        [[34, 95, 8], [34, 95, 8], [34, 95, 8]],
+                        [[26, 9, 79], [2, 44, 94], [2, 44, 94]],
+                        [[26, 9, 79], [2, 44, 94], [2, 44, 94]],
+                        [[26, 9, 79], [26, 9, 79], [26, 9, 79]],
                     ],
                 ),
                 (
@@ -52,9 +52,9 @@ class TestBloomEncode:
                     6,
                     [["a", "d", "c"], ["a", "t", "s"], ["x", "o", "p"]],
                     [
-                        [[34, 95, 8], [28, 54, 80], [34, 16, 64]],
-                        [[34, 95, 8], [85, 67, 27], [61, 22, 41]],
-                        [[0, 59, 16], [92, 86, 90], [94, 92, 70]],
+                        [[26, 9, 79], [59, 19, 48], [2, 44, 94]],
+                        [[26, 9, 79], [48, 7, 70], [80, 3, 72]],
+                        [[64, 44, 78], [28, 98, 75], [51, 33, 23]],
                     ],
                 ),
                 (
@@ -63,9 +63,9 @@ class TestBloomEncode:
                     3,
                     [["l", "c", "c"], ["a", "h", "c"], ["a", "w", "a"]],
                     [
-                        [[54, 5, 34], [34, 16, 64], [34, 16, 64]],
-                        [[34, 95, 8], [31, 53, 85], [34, 16, 64]],
-                        [[34, 95, 8], [58, 67, 64], [34, 95, 8]],
+                        [[88, 73, 23], [2, 44, 94], [2, 44, 94]],
+                        [[26, 9, 79], [10, 40, 70], [2, 44, 94]],
+                        [[26, 9, 79], [68, 86, 75], [26, 9, 79]],
                     ],
                 ),
             ],
@@ -76,9 +76,9 @@ class TestBloomEncode:
     def bloom_encoder_col4_expected(self, spark_session):
         return spark_session.createDataFrame(
             [
-                (1, 2, 3, "a", "c", [1, 2, 3], [34, 95, 8]),
-                (4, 2, 6, "b", "c", [4, 2, 6], [92, 62, 96]),
-                (7, 8, 3, "a", "a", [7, 8, 3], [34, 95, 8]),
+                (1, 2, 3, "a", "c", [1, 2, 3], [26, 9, 79]),
+                (4, 2, 6, "b", "c", [4, 2, 6], [61, 41, 94]),
+                (7, 8, 3, "a", "a", [7, 8, 3], [26, 9, 79]),
             ],
             [
                 "col1",
@@ -179,6 +179,27 @@ class TestBloomEncode:
         diff = actual.exceptAll(expected)
         assert diff.isEmpty(), "Expected and actual dataframes are not equal"
 
+    def test_bloom_encoder_with_nulls(self, spark_session):
+        # given
+        input_dataframe = spark_session.createDataFrame(
+            [("a",), (None,), ("b",)], ["col1"]
+        )
+        expected = spark_session.createDataFrame(
+            [("a", [26, 9, 79]), (None, [0, 0, 0]), ("b", [61, 41, 94])],
+            ["col1", "bloom_col1"],
+        )
+        # when
+        transformer = BloomEncodeTransformer(
+            inputCol="col1",
+            outputCol="bloom_col1",
+            numBins=100,
+            numHashFns=3,
+        )
+        actual = transformer.transform(input_dataframe)
+        # then
+        diff = actual.exceptAll(expected)
+        assert diff.isEmpty(), "Expected and actual dataframes are not equal"
+
     def test_bloom_encoder_defaults(self):
         # when
         bloom_encoder = BloomEncodeTransformer()
@@ -260,7 +281,7 @@ class TestBloomEncode:
         )
         tensorflow_values = [
             v.decode("utf-8") if isinstance(v, bytes) else v
-            for v in transformer.get_tf_layer()(input_tensor).numpy().tolist()
+            for v in transformer.get_keras_layer()(input_tensor).numpy().tolist()
         ]
 
         # then

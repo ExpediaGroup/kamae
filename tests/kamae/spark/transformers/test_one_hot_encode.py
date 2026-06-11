@@ -354,7 +354,7 @@ class TestOneHotEncode:
         vec_decoder = np.vectorize(decoder)
         tensorflow_values = [
             vec_decoder(v) if isinstance(v[0], bytes) else v
-            for v in transformer.get_tf_layer()(input_tensor).numpy().tolist()
+            for v in transformer.get_keras_layer()(input_tensor).numpy().tolist()
         ]
 
         # then

@@ -18,12 +18,14 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
+import keras
 import pyspark.sql.functions as F
-import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType
 
+from kamae.keras.core.backend import ALL_BACKENDS
+from kamae.keras.core.layers import ArrayConcatenateLayer
 from kamae.spark.params import AutoBroadcastParams, MultiInputSingleOutputParams
 from kamae.spark.utils import (
     broadcast_scalar_column_to_array_with_inner_singleton_array,
@@ -31,7 +33,6 @@ from kamae.spark.utils import (
     nested_arrays_zip,
     nested_transform,
 )
-from kamae.tensorflow.layers import ArrayConcatenateLayer
 
 from .base import BaseTransformer
 
@@ -45,6 +46,9 @@ class ArrayConcatenateTransformer(
     ArrayConcatenate Spark Transformer for use in Spark pipelines.
     This transformer assembles multiple columns into a single array column.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(
@@ -65,7 +69,7 @@ class ArrayConcatenateTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param autoBroadcast: If True, the Keras transformer will broadcast scalar
         inputs to the biggest rank. Default is False.
@@ -275,17 +279,17 @@ class ArrayConcatenateTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> keras.layers.Layer:
         """
-        Gets the tensorflow layer that concatneates the input tensors.
+        Gets the Keras layer that concatneates the input tensors.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter
+        :returns: Keras layer with name equal to the layerName parameter
         that concatenates the input tensors.
         """
         return ArrayConcatenateLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             axis=-1,
             auto_broadcast=self.getAutoBroadcast(),
         )

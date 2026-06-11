@@ -24,10 +24,11 @@ from pyspark import keyword_only
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import DateTimeToUnixTimestampLayer
 from kamae.spark.params import SingleInputSingleOutputParams, UnixTimestampParams
 from kamae.spark.transformers.base import BaseTransformer
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import DateTimeToUnixTimestampLayer
 
 
 class DateTimeToUnixTimestampTransformer(
@@ -38,6 +39,9 @@ class DateTimeToUnixTimestampTransformer(
 
     The unix timestamp can be in milliseconds or seconds, set by the `unit` parameter.
     """
+
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
 
     @keyword_only
     def __init__(
@@ -60,7 +64,7 @@ class DateTimeToUnixTimestampTransformer(
         transforming.
         :param unit: Unit of the output timestamp. Can be `milliseconds`
         (shorthand `ms`) or `seconds` (shorthand `s`). Default is `s` (seconds).
-        :param layerName: Layer name. Used as the name of the tensorflow layer
+        :param layerName: Layer name. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -131,15 +135,15 @@ class DateTimeToUnixTimestampTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer that performs the datetime to unix timestamp.
+        Gets the Keras layer that performs the datetime to unix timestamp.
 
-        :returns: Tensorflow layer that performs the unix timestamp to date transform.
+        :returns: Keras layer that performs the unix timestamp to date transform.
         """
         return DateTimeToUnixTimestampLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             unit=self.getUnit(),
         )

@@ -25,9 +25,10 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers import StringMapLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils import single_input_single_output_scalar_transform
-from kamae.tensorflow.layers import StringMapLayer
 
 from .base import BaseTransformer
 
@@ -129,6 +130,9 @@ class StringMapTransformer(
     This transformer replaces a list of strings with the respective mapping value.
     """
 
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = False
+
     @keyword_only
     def __init__(
         self,
@@ -154,7 +158,7 @@ class StringMapTransformer(
         :param stringReplaceValues: List of string replace constants.
         :param defaultReplaceValue: Default value to replace the unmatched strings with.
         If None, the original string is kept unchanged.
-        :param layerName: Name of the layer. Used as the name of the tensorflow layer
+        :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :returns: None - class instantiated.
         """
@@ -224,17 +228,17 @@ class StringMapTransformer(
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
-    def get_tf_layer(self) -> tf.keras.layers.Layer:
+    def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the tensorflow layer for the StringMapLayer transformer.
+        Gets the Keras layer for the StringMapLayer transformer.
 
-        :returns: Tensorflow keras layer with name equal to the layerName parameter that
+        :returns: Keras layer with name equal to the layerName parameter that
         performs a string replace operation.
         """
         return StringMapLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputTFDtype(),
-            output_dtype=self.getOutputTFDtype(),
+            input_dtype=self.getInputKerasDtype(),
+            output_dtype=self.getOutputKerasDtype(),
             string_match_values=self.getStringMatchValues(),
             string_replace_values=self.getStringReplaceValues(),
             default_replace_value=self.getDefaultReplaceValue(),

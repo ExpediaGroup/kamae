@@ -14,7 +14,6 @@
 
 import keras
 import tensorflow as tf
-from packaging.version import Version
 from pyspark.sql import SparkSession
 
 from kamae.spark.estimators import StringIndexEstimator
@@ -24,8 +23,6 @@ from kamae.spark.transformers import (
     LogTransformer,
     OrdinalArrayEncodeTransformer,
 )
-
-is_keras_3 = Version(keras.__version__) >= Version("3.0.0")
 
 if __name__ == "__main__":
     print("Starting test of Spark pipeline and integration with Tensorflow")
@@ -124,7 +121,7 @@ if __name__ == "__main__":
     print("Transformed array fake data")
     loaded_fitted_pipeline.transform(array_fake_data_to_transform).show(20, False)
 
-    tf_input_schema = [
+    input_schema = [
         {
             "name": "col4",
             "dtype": "string",
@@ -136,9 +133,7 @@ if __name__ == "__main__":
             "shape": (None, None),
         },
     ]
-    keras_model = loaded_fitted_pipeline.build_keras_model(
-        tf_input_schema=tf_input_schema
-    )
+    keras_model = loaded_fitted_pipeline.build_keras_model(input_schema=input_schema)
     print(keras_model.summary())
 
     print("Start: Predicting with the model with reg_inputs")
@@ -212,16 +207,14 @@ if __name__ == "__main__":
 
     # Saving model in pb format
     print("Saving model in pb format")
-    model_path = "./output/test_saved_model"
-    if is_keras_3:
-        model_path += ".keras"
+    model_path = "./output/test_saved_model.keras"
 
     keras_model.save(model_path)
     print("Model saved in pb format")
 
     # Load model from SavedModel format
     print("Loading model from pb format")
-    loaded_model = tf.keras.models.load_model(model_path)
+    loaded_model = keras.models.load_model(model_path)
     print("Model loaded from pb format")
 
     # Predict with the loaded model
