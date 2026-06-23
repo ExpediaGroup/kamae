@@ -89,6 +89,10 @@ class StringSequenceToEmbeddingLayer(BaseLayer):
             raise ValueError("embedding_dim must be >= 1.")
         if separator == sequence_separator:
             raise ValueError("separator and sequence_separator must be different.")
+        try:
+            float(pad_value)
+        except (TypeError, ValueError):
+            raise ValueError(f"pad_value must be a numeric string, got {pad_value!r}.")
         self.seq_len = seq_len
         self.embedding_dim = embedding_dim
         self.separator = separator
@@ -147,9 +151,14 @@ class StringSequenceToEmbeddingLayer(BaseLayer):
         result = tf.reshape(floats, [-1, self.seq_len, self.embedding_dim])
 
         if self.reverse:
-            # A row is considered padding iff all of its components are 0.
-            row_norms = tf.reduce_sum(tf.abs(result), axis=-1)
-            seq_lengths = tf.reduce_sum(tf.cast(row_norms > 0, tf.int32), axis=-1)
+            # Reverse only the vectors actually supplied in the input, leaving
+            # any padding we appended at the tail untouched. The number of
+            # supplied vectors is derived positionally (the count of non-empty
+            # vectors in the original input, capped at ``seq_len``) so it does
+            # not depend on the numeric value of ``pad_value``.
+            vector_groups = tf.strings.split(flat, sep=self.sequence_separator)
+            non_empty = tf.cast(tf.not_equal(vector_groups, ""), tf.int32)
+            seq_lengths = tf.minimum(tf.reduce_sum(non_empty, axis=-1), self.seq_len)
             result = tf.reverse_sequence(result, seq_lengths, seq_axis=1, batch_axis=0)
 
         leading_shape = (

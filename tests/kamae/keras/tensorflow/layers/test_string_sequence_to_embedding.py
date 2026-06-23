@@ -102,15 +102,17 @@ class TestStringSequenceToEmbedding:
         assert output.shape == (2, 3, 2)
         tf.debugging.assert_near(expected, output)
 
-    def test_reverse_reverses_only_non_pad_portion(self):
+    def test_reverse_reverses_only_supplied_portion(self):
         layer = StringSequenceToEmbeddingLayer(
             name="reverse",
             seq_len=4,
             embedding_dim=2,
             reverse=True,
         )
-        inputs = tf.constant([["1|1,2|2,3|3,0|0"]])
-        # Non-pad portion "1|1, 2|2, 3|3" reversed -> "3|3, 2|2, 1|1".
+        # Only 3 vectors supplied; the 4th is padding added by the layer.
+        # The supplied prefix "1|1, 2|2, 3|3" is reversed and the pad stays
+        # at the tail.
+        inputs = tf.constant([["1|1,2|2,3|3"]])
         expected = tf.constant(
             [
                 [
@@ -118,6 +120,32 @@ class TestStringSequenceToEmbedding:
                     [2.0, 2.0],
                     [1.0, 1.0],
                     [0.0, 0.0],
+                ]
+            ],
+            dtype=tf.float32,
+        )
+        output = layer(inputs)
+        tf.debugging.assert_near(expected, output)
+
+    def test_reverse_with_non_zero_pad_value(self):
+        # Padding detection must be positional, not value-based: with a
+        # non-zero pad value the appended pad vector still must not be
+        # reversed into the supplied portion.
+        layer = StringSequenceToEmbeddingLayer(
+            name="reverse_non_zero_pad",
+            seq_len=4,
+            embedding_dim=2,
+            pad_value="-1",
+            reverse=True,
+        )
+        inputs = tf.constant([["1|1,2|2,3|3"]])
+        expected = tf.constant(
+            [
+                [
+                    [3.0, 3.0],
+                    [2.0, 2.0],
+                    [1.0, 1.0],
+                    [-1.0, -1.0],
                 ]
             ],
             dtype=tf.float32,
@@ -199,3 +227,5 @@ class TestStringSequenceToEmbedding:
             StringSequenceToEmbeddingLayer(seq_len=3, embedding_dim=0)
         with pytest.raises(ValueError):
             StringSequenceToEmbeddingLayer(separator=",", sequence_separator=",")
+        with pytest.raises(ValueError):
+            StringSequenceToEmbeddingLayer(pad_value="hello")

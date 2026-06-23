@@ -84,7 +84,17 @@ class TestStringSequenceToEmbedding:
             atol=1e-6,
         )
 
-    def test_spark_transform_reverse(self, example_dataframe):
+    def test_spark_transform_reverse(self, spark_session):
+        # Reversal is positional: only the supplied vectors are reversed and
+        # the padding the transformer appends stays at the tail.
+        df = spark_session.createDataFrame(
+            [
+                ("1|2|3,4|5|6",),  # 2 supplied, 2 padded
+                ("1|2|3",),  # 1 supplied, 3 padded
+                ("1|2|3,4|5|6,7|8|9,1|1|1",),  # 4 supplied, full reverse
+            ],
+            ["embedding_str"],
+        )
         transformer = StringSequenceToEmbeddingTransformer(
             inputCol="embedding_str",
             outputCol="embedding",
@@ -92,30 +102,23 @@ class TestStringSequenceToEmbedding:
             embeddingDim=3,
             reverse=True,
         )
-        actual = transformer.transform(example_dataframe)
-        rows = actual.select("embedding").collect()
+        rows = transformer.transform(df).select("embedding").collect()
         expected = [
-            # Reverse only the non-pad prefix (first two vectors).
+            # Reverse the 2 supplied vectors, pad stays at the tail.
             [
                 [4.0, 5.0, 6.0],
                 [1.0, 2.0, 3.0],
                 [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0],
             ],
-            [
-                [1.0, 1.0, 1.0],
-                [7.0, 8.0, 9.0],
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-            ],
-            # Single non-pad vector remains unchanged when reversed.
+            # Single supplied vector remains unchanged when reversed.
             [
                 [1.0, 2.0, 3.0],
                 [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0],
             ],
-            # All four slots filled: full reverse.
+            # All four slots supplied: full reverse.
             [
                 [1.0, 1.0, 1.0],
                 [7.0, 8.0, 9.0],
@@ -128,6 +131,45 @@ class TestStringSequenceToEmbedding:
             np.array(expected),
             atol=1e-6,
         )
+
+    def test_spark_transform_reverse_non_zero_pad_value(self, spark_session):
+        # Padding detection must be positional, not value-based: a non-zero
+        # pad value must still keep the appended pad vectors at the tail.
+        df = spark_session.createDataFrame([("1|2|3,4|5|6",)], ["embedding_str"])
+        transformer = StringSequenceToEmbeddingTransformer(
+            inputCol="embedding_str",
+            outputCol="embedding",
+            seqLen=4,
+            embeddingDim=3,
+            padValue="-1",
+            reverse=True,
+        )
+        rows = transformer.transform(df).select("embedding").collect()
+        expected = [
+            [
+                [4.0, 5.0, 6.0],
+                [1.0, 2.0, 3.0],
+                [-1.0, -1.0, -1.0],
+                [-1.0, -1.0, -1.0],
+            ],
+        ]
+        np.testing.assert_allclose(
+            np.array([r["embedding"] for r in rows]),
+            np.array(expected),
+            atol=1e-6,
+        )
+
+    def test_non_numeric_pad_value_raises(self):
+        # Explicit setter validates.
+        with pytest.raises(ValueError):
+            StringSequenceToEmbeddingTransformer().setPadValue("hello")
+        # Constructor path (setParams) also validates a non-numeric padValue.
+        with pytest.raises(ValueError):
+            StringSequenceToEmbeddingTransformer(
+                inputCol="embedding_str",
+                outputCol="embedding",
+                padValue="hello",
+            )
 
     @pytest.mark.parametrize(
         "input_strings, seq_len, embedding_dim, separator, sequence_separator, pad_value, reverse",

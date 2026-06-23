@@ -114,6 +114,10 @@ class StringSequenceToEmbeddingParams(Params):
         return self.getOrDefault(self.padValue)
 
     def setPadValue(self, value: str) -> "StringSequenceToEmbeddingParams":
+        try:
+            float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"padValue must be a numeric string, got {value!r}.")
         return self._set(padValue=value)
 
     def getReverse(self) -> bool:
@@ -211,6 +215,10 @@ class StringSequenceToEmbeddingTransformer(
         seq_len = self.getSeqLen()
         embedding_dim = self.getEmbeddingDim()
         pad_value = self.getPadValue()
+        try:
+            float(pad_value)
+        except (TypeError, ValueError):
+            raise ValueError(f"padValue must be a numeric string, got {pad_value!r}.")
         reverse = self.getReverse()
         total_floats = seq_len * embedding_dim
         # Build a single regex pattern that matches either delimiter so we can
@@ -219,6 +227,9 @@ class StringSequenceToEmbeddingTransformer(
             f"[{re.escape(self.getSeparator())}"
             f"{re.escape(self.getSequenceSeparator())}]"
         )
+        # Pattern matching only the sequence separator, used to count the
+        # number of supplied vectors when reversing.
+        sequence_separator_pattern = re.escape(self.getSequenceSeparator())
 
         input_datatype = self.get_column_datatype(
             dataset=dataset, column_name=self.getInputCol()
@@ -255,21 +266,16 @@ class StringSequenceToEmbeddingTransformer(
             if not reverse:
                 return vectors
 
-            # Count the number of non-pad vectors (a vector is pad iff all
-            # of its components are zero). Reverse only that prefix.
-            abs_sums = F.transform(
-                vectors,
-                lambda v: F.aggregate(
-                    v,
-                    F.lit(0.0),
-                    lambda acc, value: acc + F.abs(value),
-                ),
+            # Reverse only the vectors actually supplied in the input, leaving
+            # any padding we appended at the tail untouched. The number of
+            # supplied vectors is derived positionally (count of non-empty
+            # vectors in the original input, capped at ``seq_len``) so it does
+            # not depend on the numeric value of ``pad_value``.
+            supplied_vectors = F.filter(
+                F.split(x, pattern=sequence_separator_pattern),
+                lambda g: g != F.lit(""),
             )
-            non_pad_count = F.aggregate(
-                abs_sums,
-                F.lit(0),
-                lambda acc, s: acc + F.when(s > F.lit(0.0), 1).otherwise(0),
-            )
+            non_pad_count = F.least(F.size(supplied_vectors), F.lit(seq_len))
             reversed_prefix = F.reverse(F.slice(vectors, 1, non_pad_count))
             suffix = F.slice(vectors, non_pad_count + 1, F.lit(seq_len) - non_pad_count)
             return F.concat(reversed_prefix, suffix)
