@@ -19,13 +19,9 @@ import pyspark.sql.functions as F
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
+from pyspark.storagelevel import StorageLevel
 
-from kamae.keras.core.backend import ALL_BACKENDS
-from kamae.spark.params import (
-    MaskValueParams,
-    SampleFractionParams,
-    SingleInputSingleOutputParams,
-)
+from kamae.spark.params import MaskValueParams, SingleInputSingleOutputParams
 from kamae.spark.transformers import StandardScaleTransformer
 from kamae.spark.utils import flatten_nested_arrays
 
@@ -34,7 +30,6 @@ from .base import BaseEstimator
 
 class SingleFeatureArrayStandardScaleEstimator(
     BaseEstimator,
-    SampleFractionParams,
     SingleInputSingleOutputParams,
     MaskValueParams,
 ):
@@ -48,9 +43,6 @@ class SingleFeatureArrayStandardScaleEstimator(
     and standard deviation are calculated across all elements in all the arrays.
     """
 
-    supported_backends = ALL_BACKENDS
-    jit_compatible = True
-
     @keyword_only
     def __init__(
         self,
@@ -60,7 +52,6 @@ class SingleFeatureArrayStandardScaleEstimator(
         outputDtype: Optional[str] = None,
         layerName: Optional[str] = None,
         maskValue: Optional[float] = None,
-        sampleFraction: Optional[float] = None,
     ) -> None:
         """
         Initializes a SingleFeatureArrayStandardScaleEstimator estimator.
@@ -74,12 +65,10 @@ class SingleFeatureArrayStandardScaleEstimator(
         transforming.
         :param layerName: Name of the layer. Used as the name of the tensorflow layer
          in the keras model. If not set, we use the uid of the Spark transformer.
-        :param sampleFraction: Fraction of data to sample for statistics
-         estimation (exclusive 0.0-1.0). Default None (no sampling).
         :returns: None - class instantiated.
         """
         super().__init__()
-        self._setDefault(maskValue=None, sampleFraction=None)
+        self._setDefault(maskValue=None)
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
 
@@ -113,32 +102,45 @@ class SingleFeatureArrayStandardScaleEstimator(
                         Got {input_column_type} instead."""
             )
 
-        # Collect a single row to driver and get the length.
-        # We assume all subsequent rows have the same length.
-        array_size = np.array((dataset.select(self.getInputCol()).first()[0])).shape[-1]
+        # Persist so the array-size probe and the moments aggregation reuse a
+        # materialised result instead of re-scanning the upstream lineage twice.
+        # Guarded so we do not double-persist data the caller already cached.
+        already_cached = dataset.storageLevel.useMemory or dataset.storageLevel.useDisk
+        if not already_cached:
+            dataset = dataset.persist(StorageLevel.MEMORY_AND_DISK)
 
-        # Flatten the array to a single array.
-        # Will do nothing if the array is not nested.
-        flattened_array_col = flatten_nested_arrays(
-            column=F.col(self.getInputCol()), column_data_type=input_column_type
-        )
+        try:
+            # Collect a single row to driver and get the length.
+            # We assume all subsequent rows have the same length.
+            array_size = np.array(
+                (dataset.select(self.getInputCol()).first()[0])
+            ).shape[-1]
 
-        mean_and_stddev_dict: Dict[str, float] = (
-            dataset.select(F.explode(flattened_array_col).alias(self.getInputCol()))
-            .withColumn(
-                "mask",
-                F.when(
-                    F.col(self.getInputCol()) == F.lit(self.getMaskValue()), 1
-                ).otherwise(0),
+            # Flatten the array to a single array.
+            # Will do nothing if the array is not nested.
+            flattened_array_col = flatten_nested_arrays(
+                column=F.col(self.getInputCol()), column_data_type=input_column_type
             )
-            .filter(F.col("mask") == F.lit(0))
-            .agg(
-                F.mean(self.getInputCol()).alias("mean"),
-                F.stddev_pop(self.getInputCol()).alias("stddev"),
+
+            mean_and_stddev_dict: Dict[str, float] = (
+                dataset.select(F.explode(flattened_array_col).alias(self.getInputCol()))
+                .withColumn(
+                    "mask",
+                    F.when(
+                        F.col(self.getInputCol()) == F.lit(self.getMaskValue()), 1
+                    ).otherwise(0),
+                )
+                .filter(F.col("mask") == F.lit(0))
+                .agg(
+                    F.mean(self.getInputCol()).alias("mean"),
+                    F.stddev_pop(self.getInputCol()).alias("stddev"),
+                )
+                .first()
+                .asDict()
             )
-            .first()
-            .asDict()
-        )
+        finally:
+            if not already_cached:
+                dataset.unpersist()
         mean: List[float] = [mean_and_stddev_dict["mean"] for _ in range(array_size)]
         stddev: List[float] = [
             mean_and_stddev_dict["stddev"] for _ in range(array_size)
