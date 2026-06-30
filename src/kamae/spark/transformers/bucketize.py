@@ -16,22 +16,21 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from bisect import bisect_right
-from typing import List, Optional, Union
+from functools import reduce
+from typing import List, Optional
 
 import pyspark.sql.functions as F
 import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
-from pyspark.sql import DataFrame
+from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, DoubleType, FloatType, IntegerType, LongType
 
-from kamae.keras.core.backend import TENSORFLOW_ONLY
-from kamae.keras.tensorflow.layers import BucketizeLayer
 from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils.transform_utils import (
-    single_input_single_output_scalar_udf_transform,
+    single_input_single_output_scalar_transform,
 )
+from kamae.tensorflow.layers import BucketizeLayer
 
 from .base import BaseTransformer
 
@@ -49,7 +48,7 @@ class BucketizeParams(Params):
     )
 
     @staticmethod
-    def check_splits_sorted(splits: List[float]) -> None:
+    def check_splits_sorted(splits: List[float]):
         """
         Checks that the splits parameter is sorted.
 
@@ -90,10 +89,6 @@ class BucketizeTransformer(
     The 0 index is reserved for masking/padding.
     """
 
-    jit_compatible = True
-
-    supported_backends = TENSORFLOW_ONLY
-
     @keyword_only
     def __init__(
         self,
@@ -113,7 +108,7 @@ class BucketizeTransformer(
         transforming.
         :param outputDtype: Output data type to cast the output column to after
         transforming.
-        :param layerName: Name of the layer. Used as the name of the Keras layer
+        :param layerName: Name of the layer. Used as the name of the tensorflow layer
         in the keras model. If not set, we use the uid of the Spark transformer.
         :param splits: List of float values to use for bucketing.
         :returns: None - class instantiated.
@@ -141,23 +136,26 @@ class BucketizeTransformer(
         :returns: Transformed pyspark dataframe.
         """
         splits = self.getSplits()
-        # We need to create a UDF to perform binary search on the splits.
 
-        def bucketize(value: Optional[Union[float, int]]) -> Optional[int]:
-            # If null, keep null. There is no best bucket to place these into.
-            if value is None:
-                return None
-            # We add 1 because we want to reserve the 0 index for mask/padding.
-            return bisect_right(splits, value) + 1
+        def bucketize(value: Column) -> Column:
+            # Bucket index equals the number of splits <= value (matching
+            # bisect_right on a sorted splits list), plus 1 to reserve index 0 for
+            # mask/padding. Nulls are kept null - there is no best bucket for them.
+            bucket = reduce(
+                lambda acc, s: acc
+                + F.when(value >= F.lit(s), F.lit(1)).otherwise(F.lit(0)),
+                splits,
+                F.lit(1),
+            )
+            return F.when(value.isNull(), F.lit(None)).otherwise(bucket)
 
         input_datatype = self.get_column_datatype(
             dataset=dataset, column_name=self.getInputCol()
         )
-        output_col = single_input_single_output_scalar_udf_transform(
+        output_col = single_input_single_output_scalar_transform(
             input_col=F.col(self.getInputCol()),
             input_col_datatype=input_datatype,
-            func=lambda x: bucketize(x),
-            udf_return_element_datatype=IntegerType(),
+            func=bucketize,
         )
 
         return dataset.withColumn(
@@ -165,16 +163,16 @@ class BucketizeTransformer(
             output_col,
         )
 
-    def get_keras_layer(self) -> tf.keras.layers.Layer:
+    def get_tf_layer(self) -> tf.keras.layers.Layer:
         """
-        Gets the Keras layer for the BucketizeLayer transformer.
+        Gets the tensorflow layer for the BucketizeLayer transformer.
 
-        :returns: Keras layer with name equal to the layerName parameter that
+        :returns: Tensorflow keras layer with name equal to the layerName parameter that
          performs a bucketing operation.
         """
         return BucketizeLayer(
             name=self.getLayerName(),
-            input_dtype=self.getInputKerasDtype(),
-            output_dtype=self.getOutputKerasDtype(),
+            input_dtype=self.getInputTFDtype(),
+            output_dtype=self.getOutputTFDtype(),
             splits=self.getSplits(),
         )
