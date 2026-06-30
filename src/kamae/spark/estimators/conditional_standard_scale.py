@@ -25,11 +25,10 @@ from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
+from pyspark.storagelevel import StorageLevel
 
-from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.spark.params import (
     NanFillValueParams,
-    SampleFractionParams,
     SingleInputSingleOutputParams,
     StandardScaleSkipZerosParams,
 )
@@ -212,7 +211,6 @@ class ConditionalStandardScaleEstimatorParams(Params):
 
 class ConditionalStandardScaleEstimator(
     BaseEstimator,
-    SampleFractionParams,
     SingleInputSingleOutputParams,
     ConditionalStandardScaleEstimatorParams,
     StandardScaleSkipZerosParams,
@@ -233,13 +231,7 @@ class ConditionalStandardScaleEstimator(
     scalingFunction parameter.
     When fit is called it returns a ConditionalStandardScaleTransformer
     which can be used to standardize/transform the input data.
-
-    WARNING: If the input is an array, we assume that the array has a constant
-    shape across all rows.
     """
-
-    supported_backends = ALL_BACKENDS
-    jit_compatible = True
 
     @keyword_only
     def __init__(
@@ -257,7 +249,6 @@ class ConditionalStandardScaleEstimator(
         skipZeros: bool = False,
         epsilon: float = 0,
         nanFillValue: Optional[float] = None,
-        sampleFraction: Optional[float] = None,
     ) -> None:
         """
         Initializes a ConditionalStandardScaleEstimator estimator.
@@ -285,8 +276,6 @@ class ConditionalStandardScaleEstimator(
         when skipZeros is True. Defaults to 0.
         :param nanFillValue: Value to fill NaNs with after scaling. It is important
         to use it if epsilon filters out all the values. Defaults to None.
-        :param sampleFraction: Fraction of data to sample for statistics
-        estimation (exclusive 0.0-1.0). Default None (no sampling).
         :returns: None - class instantiated.
         """
         super().__init__()
@@ -299,7 +288,6 @@ class ConditionalStandardScaleEstimator(
             skipZeros=False,
             epsilon=0,
             nanFillValue=None,
-            sampleFraction=None,
         )
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
@@ -378,22 +366,37 @@ class ConditionalStandardScaleEstimator(
                 mask_val = self.getMaskValues()[i]
                 dataset = dataset.filter(mask_op(F.col(mask_col), mask_val))
 
-        # Collect a single row to driver and get the length.
-        # We assume all subsequent rows have the same length.
-        row = dataset.select(input_col).first()
-        if row is None:
-            raise ValueError("No data left after application of mask conditions.")
-        array_size = np.array((row[0])).shape[-1]
+        # Persist so the array-size probe and the moments aggregation reuse a
+        # materialised result instead of re-scanning the (masked) upstream lineage
+        # twice. Guarded so we do not double-persist data the caller already cached.
+        already_cached = dataset.storageLevel.useMemory or dataset.storageLevel.useDisk
+        if not already_cached:
+            dataset = dataset.persist(StorageLevel.MEMORY_AND_DISK)
 
-        # Calculate the moments
-        if self.getScalingFunction().lower() == "standard":
-            return self._fit_standard(
-                dataset, input_col, input_column_dtype, array_size
-            )
-        elif self.getScalingFunction().lower() == "binary":
-            return self._fit_binary(dataset, input_col, input_column_dtype, array_size)
-        else:
-            raise ValueError(f"Unknown scaling function: {self.getScalingFunction()}.")
+        try:
+            # Collect a single row to driver and get the length.
+            # We assume all subsequent rows have the same length.
+            row = dataset.select(input_col).first()
+            if row is None:
+                raise ValueError("No data left after application of mask conditions.")
+            array_size = np.array((row[0])).shape[-1]
+
+            # Calculate the moments
+            if self.getScalingFunction().lower() == "standard":
+                return self._fit_standard(
+                    dataset, input_col, input_column_dtype, array_size
+                )
+            elif self.getScalingFunction().lower() == "binary":
+                return self._fit_binary(
+                    dataset, input_col, input_column_dtype, array_size
+                )
+            else:
+                raise ValueError(
+                    f"Unknown scaling function: {self.getScalingFunction()}."
+                )
+        finally:
+            if not already_cached:
+                dataset.unpersist()
 
     def _fit_binary(
         self,
