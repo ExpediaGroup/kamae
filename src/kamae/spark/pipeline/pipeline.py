@@ -40,18 +40,25 @@ class KamaeSparkPipeline(Pipeline):
     together BaseTransformers.
     It maintains the same functionality as pyspark.ml.Pipeline e.g. serialisation.
 
-    The `localCheckpointInterval` param optionally bounds the depth of the Spark
+    The `checkpointInterval` param optionally bounds the depth of the Spark
     logical plan built up while fitting a multi-estimator pipeline. When set to a
-    positive integer it triggers an ephemeral `DataFrame.localCheckpoint(eager=True)`
-    every `localCheckpointInterval` stages (evaluated at estimator-fit action
+    positive integer it triggers a reliable `DataFrame.checkpoint(eager=True)`
+    every `checkpointInterval` stages (evaluated at estimator-fit action
     boundaries), physically truncating the accumulated lineage. This is a
     depth-bounding / reliability feature: it guards against deep-plan failures such
     as "plan too large", 64KB codegen, and CodeCache-full errors, and avoids
-    re-executing the full upstream lineage on every estimator fit. Its throughput
-    impact is data-dependent and NOT guaranteed positive (localCheckpoint persists
-    the full, wide intermediate DataFrame to executor local disk with no column
-    pruning), so benchmark before relying on it for speed. The default of 0 disables
-    checkpointing entirely, leaving fit behaviour byte-for-byte unchanged.
+    re-executing the full upstream lineage on every estimator fit.
+
+    Reliable checkpointing writes the intermediate DataFrame to the checkpoint
+    directory configured via `spark.sparkContext.setCheckpointDir(<path>)`, which
+    must point at fault-tolerant storage (DFS/cloud storage). Unlike local
+    checkpointing it survives executor loss (e.g. autoscaling, spot reclaim, OOM),
+    at the cost of writing to remote storage rather than executor-local disk. A
+    checkpoint directory MUST be set before fitting with a positive interval. Its
+    throughput impact is data-dependent and NOT guaranteed positive (the full, wide
+    intermediate DataFrame is persisted with no column pruning), so benchmark before
+    relying on it for speed. The default of 0 disables checkpointing entirely,
+    leaving fit behaviour byte-for-byte unchanged.
 
     The `cacheIntermediateData` param optionally persists the working DataFrame
     (MEMORY_AND_DISK) at each estimator-fit boundary so that the estimator's fit
@@ -59,17 +66,18 @@ class KamaeSparkPipeline(Pipeline):
     re-executing (and re-reading from source) the full upstream lineage on every
     estimator. Only one intermediate frame is held at a time: each new persist
     unpersists the one it supersedes, and the final frame is released before
-    returning. Unlike `localCheckpointInterval` it does not truncate the logical
-    plan; it is purely a re-scan-avoidance optimisation. It preserves data exactly,
-    so fitted results are identical to the default. The default of False leaves fit
-    behaviour unchanged.
+    returning. Unlike `checkpointInterval` it does not truncate the logical plan or
+    require a checkpoint directory; it is purely a re-scan-avoidance optimisation.
+    It preserves data exactly, so fitted results are identical to the default. The
+    default of False leaves fit behaviour unchanged.
     """
 
-    localCheckpointInterval = Param(
+    checkpointInterval = Param(
         Params._dummy(),
-        "localCheckpointInterval",
-        "Number of stages between ephemeral localCheckpoint(eager=True) calls during "
-        "fit, used to bound logical-plan depth. 0 (the default) disables "
+        "checkpointInterval",
+        "Number of stages between reliable checkpoint(eager=True) calls during "
+        "fit, used to bound logical-plan depth. Requires a checkpoint directory set "
+        "via spark.sparkContext.setCheckpointDir. 0 (the default) disables "
         "checkpointing and leaves fit behaviour exactly unchanged.",
         typeConverter=TypeConverters.toInt,
     )
@@ -89,15 +97,15 @@ class KamaeSparkPipeline(Pipeline):
         self,
         *,
         stages: Optional[List["KamaePipelineStage"]] = None,
-        localCheckpointInterval: int = 0,
+        checkpointInterval: int = 0,
         cacheIntermediateData: bool = False,
     ) -> None:
         """
         Initialises the KamaeSparkPipeline object.
 
         :param stages: List of LayerTransformers to chain together.
-        :param localCheckpointInterval: Number of stages between ephemeral
-        localCheckpoint(eager=True) calls during fit. 0 (default) disables it.
+        :param checkpointInterval: Number of stages between reliable
+        checkpoint(eager=True) calls during fit. 0 (default) disables it.
         :param cacheIntermediateData: If True, persist the working DataFrame at
         each estimator-fit boundary to avoid re-scanning the upstream lineage.
         False (default) disables it.
@@ -105,7 +113,7 @@ class KamaeSparkPipeline(Pipeline):
         """
         kwargs = self._input_kwargs
         super().__init__()
-        self._setDefault(localCheckpointInterval=0, cacheIntermediateData=False)
+        self._setDefault(checkpointInterval=0, cacheIntermediateData=False)
         self.setParams(**kwargs)
 
     def setStages(self, value: List["KamaePipelineStage"]) -> "KamaeSparkPipeline":
@@ -125,23 +133,23 @@ class KamaeSparkPipeline(Pipeline):
         """
         return self.getOrDefault("stages")
 
-    def setLocalCheckpointInterval(self, value: int) -> "KamaeSparkPipeline":
+    def setCheckpointInterval(self, value: int) -> "KamaeSparkPipeline":
         """
-        Sets the `localCheckpointInterval` parameter.
+        Sets the `checkpointInterval` parameter.
 
-        :param value: Number of stages between ephemeral localCheckpoint calls during
+        :param value: Number of stages between reliable checkpoint calls during
         fit. 0 (or None) disables checkpointing.
-        :returns: KamaeSparkPipeline object with localCheckpointInterval set.
+        :returns: KamaeSparkPipeline object with checkpointInterval set.
         """
-        return self._set(localCheckpointInterval=value)
+        return self._set(checkpointInterval=value)
 
-    def getLocalCheckpointInterval(self) -> int:
+    def getCheckpointInterval(self) -> int:
         """
-        Gets the value of the `localCheckpointInterval` parameter.
+        Gets the value of the `checkpointInterval` parameter.
 
-        :returns: The localCheckpointInterval value.
+        :returns: The checkpointInterval value.
         """
-        return self.getOrDefault(self.localCheckpointInterval)
+        return self.getOrDefault(self.checkpointInterval)
 
     def setCacheIntermediateData(self, value: bool) -> "KamaeSparkPipeline":
         """
@@ -166,15 +174,15 @@ class KamaeSparkPipeline(Pipeline):
         self,
         *,
         stages: Optional["KamaePipelineStage"] = None,
-        localCheckpointInterval: int = 0,
+        checkpointInterval: int = 0,
         cacheIntermediateData: bool = False,
     ) -> "KamaeSparkPipeline":
         """
         Sets the keyword arguments of the pipeline.
 
         :param stages: List of pipeline stages.
-        :param localCheckpointInterval: Number of stages between ephemeral
-        localCheckpoint(eager=True) calls during fit. 0 (default) disables it.
+        :param checkpointInterval: Number of stages between reliable
+        checkpoint(eager=True) calls during fit. 0 (default) disables it.
         :param cacheIntermediateData: If True, persist the working DataFrame at
         each estimator-fit boundary. False (default) disables it.
         :returns: KamaeSparkPipeline object with params set.
@@ -241,13 +249,14 @@ class KamaeSparkPipeline(Pipeline):
         Calls the super fit method of the pyspark.ml.Pipeline class and
         then constructs a KamaeSparkPipelineModel uses the stages from the fit pipeline.
 
-        If `localCheckpointInterval` is a positive integer, the working DataFrame is
-        ephemerally checkpointed via `localCheckpoint(eager=True)` roughly every
-        `localCheckpointInterval` stages (at estimator-fit action boundaries) to bound
-        logical-plan depth. localCheckpoint(eager=True) preserves the data exactly and
+        If `checkpointInterval` is a positive integer, the working DataFrame is
+        reliably checkpointed via `checkpoint(eager=True)` roughly every
+        `checkpointInterval` stages (at estimator-fit action boundaries) to bound
+        logical-plan depth. checkpoint(eager=True) preserves the data exactly and
         only truncates lineage, so fitted results are numerically identical to the
-        default (interval=0) behaviour. The default of 0 (or None) disables
-        checkpointing entirely.
+        default (interval=0) behaviour. A checkpoint directory must be configured via
+        `spark.sparkContext.setCheckpointDir` before fitting with a positive interval.
+        The default of 0 (or None) disables checkpointing entirely.
 
         If `cacheIntermediateData` is True, the working DataFrame is persisted
         (MEMORY_AND_DISK) at each estimator-fit boundary so the fit action and any
@@ -257,6 +266,8 @@ class KamaeSparkPipeline(Pipeline):
 
         :param dataset: PySpark DataFrame to fit the pipeline to.
         :returns: KamaeSparkPipelineModel object.
+        :raises ValueError: If checkpointing is enabled but no checkpoint directory
+        has been set on the SparkContext.
         """
         expanded_pipeline_stages = self.expand_pipeline_stages()
 
@@ -279,10 +290,18 @@ class KamaeSparkPipeline(Pipeline):
             expanded_pipeline_stages
         )
         # Optional, opt-in plan-depth bounding. 0 (or None) keeps behaviour unchanged.
-        local_checkpoint_interval = self.getLocalCheckpointInterval()
-        checkpoint_enabled = (
-            local_checkpoint_interval is not None and local_checkpoint_interval > 0
-        )
+        checkpoint_interval = self.getCheckpointInterval()
+        checkpoint_enabled = checkpoint_interval is not None and checkpoint_interval > 0
+        # Reliable checkpoint() requires a checkpoint directory; fail fast with a clear
+        # message rather than letting Spark raise mid-fit after work has been done.
+        if (
+            checkpoint_enabled
+            and dataset.sparkSession.sparkContext.getCheckpointDir() is None
+        ):
+            raise ValueError(
+                "checkpointInterval > 0 requires a checkpoint directory. Set one via "
+                "spark.sparkContext.setCheckpointDir(<path>) before fitting."
+            )
         cache_enabled = self.getCacheIntermediateData()
         last_checkpoint_index = 0
         # Holds the single intermediate frame currently persisted (if any) so it can
@@ -301,9 +320,9 @@ class KamaeSparkPipeline(Pipeline):
                 # plan is physically bounded. eager=True forces materialisation now.
                 if (
                     checkpoint_enabled
-                    and index - last_checkpoint_index >= local_checkpoint_interval
+                    and index - last_checkpoint_index >= checkpoint_interval
                 ):
-                    dataset = dataset.localCheckpoint(eager=True)
+                    dataset = dataset.checkpoint(eager=True)
                     last_checkpoint_index = index
                 # Persist the working frame so the fit action and any subsequent
                 # transform read a materialised result rather than re-scanning the
