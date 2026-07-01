@@ -21,10 +21,16 @@ from typing import List, Optional
 import numpy as np
 import pyspark.sql.functions as F
 from pyspark import keyword_only
+from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 from pyspark.storagelevel import StorageLevel
 
-from kamae.spark.params import MaskValueParams, SingleInputSingleOutputParams
+from kamae.keras.core.backend import ALL_BACKENDS
+from kamae.spark.params import (
+    MaskValueParams,
+    SampleFractionParams,
+    SingleInputSingleOutputParams,
+)
 from kamae.spark.transformers import StandardScaleTransformer
 from kamae.spark.utils import construct_nested_elements_for_scaling
 
@@ -33,6 +39,7 @@ from .base import BaseEstimator
 
 class StandardScaleEstimator(
     BaseEstimator,
+    SampleFractionParams,
     SingleInputSingleOutputParams,
     MaskValueParams,
 ):
@@ -41,7 +48,13 @@ class StandardScaleEstimator(
     This estimator is used to calculate the mean and standard deviation of the input
     feature column. When fit is called it returns a StandardScaleTransformer
     which can be used to standardize/transform additional features.
+
+    WARNING: If the input is an array, we assume that the array has a constant
+    shape across all rows.
     """
+
+    supported_backends = ALL_BACKENDS
+    jit_compatible = True
 
     @keyword_only
     def __init__(
@@ -52,6 +65,7 @@ class StandardScaleEstimator(
         outputDtype: Optional[str] = None,
         layerName: Optional[str] = None,
         maskValue: Optional[float] = None,
+        sampleFraction: Optional[float] = None,
     ) -> None:
         """
         Initializes a StandardScaleEstimator estimator.
@@ -65,10 +79,12 @@ class StandardScaleEstimator(
         transforming.
         :param layerName: Name of the layer. Used as the name of the tensorflow layer
          in the keras model. If not set, we use the uid of the Spark transformer.
+        :param sampleFraction: Fraction of data to sample for statistics
+         estimation (exclusive 0.0-1.0). Default None (no sampling).
         :returns: None - class instantiated.
         """
         super().__init__()
-        self._setDefault(maskValue=None)
+        self._setDefault(maskValue=None, sampleFraction=None)
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
 
@@ -82,7 +98,7 @@ class StandardScaleEstimator(
         """
         return [FloatType(), DoubleType()]
 
-    def _fit(self, dataset) -> "StandardScaleTransformer":
+    def _fit(self, dataset: DataFrame) -> "StandardScaleTransformer":
         """
         Fits the StandardScaleEstimator estimator to the given dataset.
         Calculates the mean and standard deviation of the input feature column and
