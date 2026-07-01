@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 class BaseEstimator(Estimator, SparkOperation):
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initializes the estimator.
         """
@@ -58,6 +58,11 @@ class BaseEstimator(Estimator, SparkOperation):
                 suffix=self.tmp_column_suffix,
             )
 
+            if self.hasParam("sampleFraction"):
+                frac = self.getSampleFraction()
+                if frac is not None:
+                    dataset = dataset.sample(fraction=frac)
+
             # Replicate the logic from the existing abstract estimator fit method
             transformer = super().fit(dataset, params)
 
@@ -81,9 +86,9 @@ class BaseEstimator(Estimator, SparkOperation):
             param_dict = {
                 param[0].name: param[1] for param in self.extractParamMap().items()
             }
-            raise RuntimeError(
+            raise e.__class__(
                 f"Error in estimator: {self.uid} with params: {param_dict}"
-            ) from e
+            ).with_traceback(e.__traceback__)
 
     def construct_layer_info(self) -> Dict[str, Any]:
         """
