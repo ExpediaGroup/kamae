@@ -30,7 +30,7 @@ from kamae.spark.params import SingleInputSingleOutputParams
 from kamae.spark.utils.transform_utils import (
     single_input_single_output_scalar_transform,
 )
-from kamae.tensorflow.layers import BucketizeLayer
+from kamae.keras.tensorflow.layers import BucketizeLayer
 
 from .base import BaseTransformer
 
