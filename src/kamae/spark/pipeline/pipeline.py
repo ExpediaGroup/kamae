@@ -70,6 +70,14 @@ class KamaeSparkPipeline(Pipeline):
     require a checkpoint directory; it is purely a re-scan-avoidance optimisation.
     It preserves data exactly, so fitted results are identical to the default. The
     default of False leaves fit behaviour unchanged.
+
+    The `pruneInputColumns` param optionally projects the input DataFrame down to
+    only the columns the pipeline reads before fitting, dropping columns no stage
+    consumes so they are not carried through every transform and materialisation.
+    The set of columns to keep is computed generously (see
+    `collect_required_input_columns`) to avoid dropping columns referenced via
+    params other than `inputCol(s)`. The default of False leaves fit behaviour
+    unchanged.
     """
 
     checkpointInterval = Param(
@@ -92,6 +100,15 @@ class KamaeSparkPipeline(Pipeline):
         typeConverter=TypeConverters.toBoolean,
     )
 
+    pruneInputColumns = Param(
+        Params._dummy(),
+        "pruneInputColumns",
+        "If True, project the input DataFrame down to only the columns the "
+        "pipeline reads before fitting, dropping columns no stage consumes. False "
+        "(the default) leaves fit behaviour exactly unchanged.",
+        typeConverter=TypeConverters.toBoolean,
+    )
+
     @keyword_only
     def __init__(
         self,
@@ -99,6 +116,7 @@ class KamaeSparkPipeline(Pipeline):
         stages: Optional[List["KamaePipelineStage"]] = None,
         checkpointInterval: int = 0,
         cacheIntermediateData: bool = False,
+        pruneInputColumns: bool = False,
     ) -> None:
         """
         Initialises the KamaeSparkPipeline object.
@@ -109,11 +127,17 @@ class KamaeSparkPipeline(Pipeline):
         :param cacheIntermediateData: If True, persist the working DataFrame at
         each estimator-fit boundary to avoid re-scanning the upstream lineage.
         False (default) disables it.
+        :param pruneInputColumns: If True, drop input columns no stage consumes
+        before fitting. False (default) disables it.
         :returns: None - class instantiated.
         """
         kwargs = self._input_kwargs
         super().__init__()
-        self._setDefault(checkpointInterval=0, cacheIntermediateData=False)
+        self._setDefault(
+            checkpointInterval=0,
+            cacheIntermediateData=False,
+            pruneInputColumns=False,
+        )
         self.setParams(**kwargs)
 
     def setStages(self, value: List["KamaePipelineStage"]) -> "KamaeSparkPipeline":
@@ -169,6 +193,23 @@ class KamaeSparkPipeline(Pipeline):
         """
         return self.getOrDefault(self.cacheIntermediateData)
 
+    def setPruneInputColumns(self, value: bool) -> "KamaeSparkPipeline":
+        """
+        Sets the `pruneInputColumns` parameter.
+
+        :param value: Whether to drop input columns no stage consumes before fitting.
+        :returns: KamaeSparkPipeline object with pruneInputColumns set.
+        """
+        return self._set(pruneInputColumns=value)
+
+    def getPruneInputColumns(self) -> bool:
+        """
+        Gets the value of the `pruneInputColumns` parameter.
+
+        :returns: The pruneInputColumns value.
+        """
+        return self.getOrDefault(self.pruneInputColumns)
+
     @keyword_only
     def setParams(
         self,
@@ -176,6 +217,7 @@ class KamaeSparkPipeline(Pipeline):
         stages: Optional["KamaePipelineStage"] = None,
         checkpointInterval: int = 0,
         cacheIntermediateData: bool = False,
+        pruneInputColumns: bool = False,
     ) -> "KamaeSparkPipeline":
         """
         Sets the keyword arguments of the pipeline.
@@ -185,6 +227,8 @@ class KamaeSparkPipeline(Pipeline):
         checkpoint(eager=True) calls during fit. 0 (default) disables it.
         :param cacheIntermediateData: If True, persist the working DataFrame at
         each estimator-fit boundary. False (default) disables it.
+        :param pruneInputColumns: If True, drop input columns no stage consumes
+        before fitting. False (default) disables it.
         :returns: KamaeSparkPipeline object with params set.
         """
         kwargs = self._input_kwargs
@@ -247,19 +291,43 @@ class KamaeSparkPipeline(Pipeline):
         stages: List["KamaePipelineStage"],
     ) -> Set[str]:
         """
-        Collects every column read as an input by any stage in the pipeline.
+        Collects every column potentially read by any stage in the pipeline.
 
         A raw input-DataFrame column absent from this set is consumed by no stage
         and can be dropped before fitting, so it is not carried through every
         transform (and every materialisation) below.
 
+        This is deliberately generous: as well as the canonical inputs
+        (`inputCol`/`inputCols` from `get_layer_inputs_outputs`), it unions the
+        value(s) of every param whose name ends in `Col`/`Cols`. Some stages read
+        extra columns during fit through such params (e.g. `maskCols` and
+        `relevanceCol` on ConditionalStandardScaleEstimator, `queryIdCol` on
+        listwise transformers) that `inputCol(s)` does not capture. The name
+        convention holds across all estimators and transformers, so this
+        self-maintaining heuristic covers future aux column params without a
+        per-stage allowlist. Over-inclusion is harmless - a name that is not a real
+        input column simply never matches `dataset.columns` - whereas omitting a
+        referenced column would wrongly drop data the pipeline needs at fit time.
+
         :param stages: List of pipeline stages.
-        :returns: Set of column names read by at least one stage.
+        :returns: Set of column names potentially read by at least one stage.
         """
         required_input_columns: Set[str] = set()
         for stage in stages:
             inputs, _ = stage.get_layer_inputs_outputs()
             required_input_columns.update(inputs)
+            for param in stage.params:
+                if not (param.name.endswith("Col") or param.name.endswith("Cols")):
+                    continue
+                if not stage.isDefined(param):
+                    continue
+                value = stage.getOrDefault(param)
+                if isinstance(value, str):
+                    required_input_columns.add(value)
+                elif isinstance(value, (list, tuple)):
+                    required_input_columns.update(
+                        item for item in value if isinstance(item, str)
+                    )
         return required_input_columns
 
     def prune_unused_input_columns(
@@ -294,9 +362,11 @@ class KamaeSparkPipeline(Pipeline):
         Calls the super fit method of the pyspark.ml.Pipeline class and
         then constructs a KamaeSparkPipelineModel uses the stages from the fit pipeline.
 
-        Before fitting, the input DataFrame is projected down to only the columns
-        the pipeline reads (see `prune_unused_input_columns`), so columns no stage
-        consumes are not carried through every transform and materialisation.
+        If `pruneInputColumns` is True, the input DataFrame is projected down to
+        only the columns the pipeline reads (see `prune_unused_input_columns`)
+        before fitting, so columns no stage consumes are not carried through every
+        transform and materialisation. The default of False leaves fit behaviour
+        unchanged.
 
         If `checkpointInterval` is a positive integer, the working DataFrame is
         reliably checkpointed via `checkpoint(eager=True)` roughly every
@@ -328,9 +398,11 @@ class KamaeSparkPipeline(Pipeline):
                     "Cannot recognize a pipeline stage of type %s." % type(stage)
                 )
 
-        # Drop input columns no stage consumes before any expansion, so dead
-        # columns are not carried through every transform and materialisation below.
-        dataset = self.prune_unused_input_columns(dataset, expanded_pipeline_stages)
+        # Optional, opt-in. Drop input columns no stage consumes before any
+        # expansion, so dead columns are not carried through every transform and
+        # materialisation below. Default False keeps behaviour unchanged.
+        if self.getPruneInputColumns():
+            dataset = self.prune_unused_input_columns(dataset, expanded_pipeline_stages)
 
         # Native Spark checks for the last estimator and executes all transformers
         # before it, regardless whether there is a dependency between them. See here:
