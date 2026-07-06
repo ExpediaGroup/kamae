@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, List, Optional, Type
+from typing import TYPE_CHECKING, List, Optional, Set, Type
 
 import networkx as nx
 from pyspark import keyword_only
@@ -242,12 +242,61 @@ class KamaeSparkPipeline(Pipeline):
         ]
         return estimator_parent_stages
 
+    @staticmethod
+    def collect_required_input_columns(
+        stages: List["KamaePipelineStage"],
+    ) -> Set[str]:
+        """
+        Collects every column read as an input by any stage in the pipeline.
+
+        A raw input-DataFrame column absent from this set is consumed by no stage
+        and can be dropped before fitting, so it is not carried through every
+        transform (and every materialisation) below.
+
+        :param stages: List of pipeline stages.
+        :returns: Set of column names read by at least one stage.
+        """
+        required_input_columns: Set[str] = set()
+        for stage in stages:
+            inputs, _ = stage.get_layer_inputs_outputs()
+            required_input_columns.update(inputs)
+        return required_input_columns
+
+    def prune_unused_input_columns(
+        self,
+        dataset: DataFrame,
+        stages: List["KamaePipelineStage"],
+    ) -> DataFrame:
+        """
+        Projects the input DataFrame down to only the columns the pipeline reads.
+
+        Columns produced by stages are created downstream via `withColumn`, so only
+        the pipeline's source columns need to be present up front. Pruning here
+        keeps the frame narrow before any expansion, reducing the cost of every
+        subsequent transform and materialisation. If no unused columns are found
+        (or the pipeline reads none of the DataFrame's columns) the DataFrame is
+        returned unchanged.
+
+        :param dataset: Input DataFrame to prune.
+        :param stages: Expanded pipeline stages.
+        :returns: DataFrame projected to the columns the pipeline consumes.
+        """
+        required_input_columns = self.collect_required_input_columns(stages)
+        columns_to_keep = [c for c in dataset.columns if c in required_input_columns]
+        if columns_to_keep and len(columns_to_keep) < len(dataset.columns):
+            return dataset.select(*columns_to_keep)
+        return dataset
+
     def _fit(self, dataset: DataFrame) -> "KamaeSparkPipelineModel":
         """
         Fits the pipeline to the dataset. Returns a KamaeSparkPipelineModel object.
 
         Calls the super fit method of the pyspark.ml.Pipeline class and
         then constructs a KamaeSparkPipelineModel uses the stages from the fit pipeline.
+
+        Before fitting, the input DataFrame is projected down to only the columns
+        the pipeline reads (see `prune_unused_input_columns`), so columns no stage
+        consumes are not carried through every transform and materialisation.
 
         If `checkpointInterval` is a positive integer, the working DataFrame is
         reliably checkpointed via `checkpoint(eager=True)` roughly every
@@ -278,6 +327,10 @@ class KamaeSparkPipeline(Pipeline):
                 raise TypeError(
                     "Cannot recognize a pipeline stage of type %s." % type(stage)
                 )
+
+        # Drop input columns no stage consumes before any expansion, so dead
+        # columns are not carried through every transform and materialisation below.
+        dataset = self.prune_unused_input_columns(dataset, expanded_pipeline_stages)
 
         # Native Spark checks for the last estimator and executes all transformers
         # before it, regardless whether there is a dependency between them. See here:
