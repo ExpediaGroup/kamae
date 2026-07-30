@@ -2,6 +2,73 @@
 
 
 
+## v3.1.0 (2026-07-30)
+
+### Build
+
+* build(deps): bump torch from 2.8.0 to 2.13.0 (#63)
+
+Bumps [torch](https://github.com/pytorch/pytorch) from 2.8.0 to 2.13.0.
+- [Release notes](https://github.com/pytorch/pytorch/releases)
+- [Changelog](https://github.com/pytorch/pytorch/blob/main/RELEASE.md)
+- [Commits](https://github.com/pytorch/pytorch/compare/v2.8.0...v2.13.0)
+
+---
+updated-dependencies:
+- dependency-name: torch
+  dependency-version: 2.13.0
+  dependency-type: direct:production
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`dce0447`](https://github.com/ExpediaGroup/kamae/commit/dce0447febbf7fc1f83d32ec0eaec4fd988a8c2d))
+
+### Chore
+
+* chore: Add agent.md and skills (#62) ([`406e4b4`](https://github.com/ExpediaGroup/kamae/commit/406e4b4c4fec50ce2780c207620048ee48cc6513))
+
+### Feature
+
+* feat: add StringSequenceToEmbedding transformer and layer (#47)
+
+* feat: add StringSequenceToEmbedding transformer and layer
+
+Parses a delimited string of pre-computed embedding vectors into a
+(seq_len, embedding_dim) float tensor, with optional reversal of the
+non-pad portion of each sequence. Includes the Spark transformer, the
+TensorFlow-only Keras 3 layer, unit tests, Spark/TF parity tests, and
+serialisation + JIT-compatibility registry entries.
+
+Authored on top of v3.0.0 (Keras 3 multi-backend migration): the layer
+lives in kamae.keras.tensorflow.layers, subclasses
+kamae.keras.core.base.BaseLayer, declares supported_backends =
+TENSORFLOW_ONLY and jit_compatible = False, and the transformer wraps it
+via get_keras_layer().
+
+Co-Authored-By: Claude Opus 4.8 &lt;noreply@anthropic.com&gt;
+
+* fix: make sequence reversal independent of pad_value and validate pad_value
+
+Addresses PR #47 review (georyetti):
+- reverse no longer infers padding from values (norm &gt; 0), which broke
+  for non-zero pad values (e.g. -1). It now counts the supplied vectors
+  positionally (non-empty groups in the original input, capped at
+  seq_len) and reverses only that prefix, leaving appended padding at
+  the tail. Applied to both the Keras layer and the Spark transformer.
+- validate that pad_value is a numeric string in the Keras layer
+  constructor and the Spark setPadValue/_transform; a non-numeric value
+  like &#34;hello&#34; now raises ValueError instead of producing NaNs.
+- add tests for a non-zero pad value and for non-numeric pad_value
+  rejection; rewrite the reverse tests to use genuinely padded inputs.
+
+Co-Authored-By: Claude Opus 4.8 &lt;noreply@anthropic.com&gt;
+
+---------
+
+Co-authored-by: ruiyyou &lt;ruiyyou@expediagroup.com&gt;
+Co-authored-by: Claude Opus 4.8 &lt;noreply@anthropic.com&gt; ([`f7f4ab7`](https://github.com/ExpediaGroup/kamae/commit/f7f4ab7d3d4d2307efe4a54d8f7279dd2f5d409c))
+
+
 ## v3.0.0 (2026-06-11)
 
 ### Breaking
