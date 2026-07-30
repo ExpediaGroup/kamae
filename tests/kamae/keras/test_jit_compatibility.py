@@ -92,6 +92,7 @@ from kamae.keras.tensorflow.layers import (
     StringListToStringLayer,
     StringMapLayer,
     StringReplaceLayer,
+    StringSequenceToEmbeddingLayer,
     StringToStringListLayer,
     SubStringDelimAtIndexLayer,
     UnixTimestampToDateTimeLayer,
@@ -422,6 +423,18 @@ JIT_INCOMPATIBLE_LAYERS = [
             "string_match_constant": "_",
             "string_replace_constant": "-",
             "regex": False,
+        },
+    ),
+    (
+        StringSequenceToEmbeddingLayer,
+        [tf.constant("1|2|3,4|5|6,0|0|0,0|0|0", shape=(8, 4))],
+        {
+            "seq_len": 4,
+            "embedding_dim": 3,
+            "separator": "|",
+            "sequence_separator": ",",
+            "pad_value": "0",
+            "reverse": True,
         },
     ),
     (
