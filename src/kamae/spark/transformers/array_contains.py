@@ -112,9 +112,8 @@ class ArrayContainsTransformer(
         :returns: Instance of class with input columns set.
         """
         if len(value) != 2:
-            raise ValueError(
-                f"Expected 2 input columns, received {len(value)} instead."
-            )
+            raise ValueError(f"Expected 2 input cols, received {len(value)} instead.")
+
         return self._set(inputCols=value)
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
@@ -126,33 +125,21 @@ class ArrayContainsTransformer(
         :param dataset: Pyspark dataframe to transform.
         :returns: Transformed pyspark dataframe.
         """
-        array_col_name, value_col_name = self.getInputCols()
+        arr_c, val_c = self.getInputCols()
+        arr_t = self.get_column_datatype(dataset, arr_c)
+        val_t = self.get_column_datatype(dataset, val_c)
 
-        array_type = self.get_column_datatype(dataset, array_col_name)
-        value_type = self.get_column_datatype(dataset, value_col_name)
+        if not isinstance(arr_t, ArrayType):
+            raise TypeError(f"arrayCol '{arr_c}' must be an ArrayType, got {arr_t}")
 
-        if not isinstance(array_type, ArrayType):
-            raise TypeError(
-                f"arrayCol '{array_col_name}' must be an ArrayType, got {array_type}"
-            )
+        if not isinstance(elem_t := arr_t.elementType, _NUMERIC_TYPES):
+            raise TypeError(f"arrayCol '{arr_c}' element must be numeric, got {elem_t}")
 
-        elem_type = array_type.elementType
-        if not isinstance(elem_type, _NUMERIC_TYPES):
-            raise TypeError(
-                f"arrayCol '{array_col_name}' element type must be numeric, "
-                f"got {elem_type}"
-            )
-
-        if not isinstance(value_type, _NUMERIC_TYPES):
-            raise TypeError(
-                f"valueCol '{value_col_name}' must be numeric, got {value_type}"
-            )
+        if not isinstance(val_t, _NUMERIC_TYPES):
+            raise TypeError(f"valueCol '{val_c}' must be numeric, got {val_t}")
 
         output_col = (
-            F.when(
-                F.array_contains(F.col(array_col_name), F.col(value_col_name)),
-                F.lit(1.0),
-            )
+            F.when(F.array_contains(F.col(arr_c), F.col(val_c)), F.lit(1.0))
             .otherwise(F.lit(0.0))
             .cast(DoubleType())
         )

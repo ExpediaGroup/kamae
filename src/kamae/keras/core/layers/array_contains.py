@@ -96,9 +96,8 @@ class ArrayContainsLayer(BaseLayer):
         where the value is found and `0.0` otherwise.
         """
         if len(inputs) != 2:
-            raise ValueError(
-                f"Expected 2 inputs, received {len(inputs)} inputs instead."
-            )
+            raise ValueError(f"Expected 2 inputs, got {len(inputs)} inputs instead.")
+
         array, value = inputs
         any_match = ops.any(ops.equal(array, value), axis=-1, keepdims=True)
         return ops.cast(any_match, "float32")

@@ -536,18 +536,15 @@ def test_all_layers_define_jit_compatible_and_supported_backends():
     all_layers = multi_backend_layers + tf_only_layers
 
     for layer_cls in all_layers:
-        assert "jit_compatible" in layer_cls.__dict__, (
-            f"{layer_cls.__name__} must define 'jit_compatible' directly (not"
-            " inherit it)"
-        )
-        assert isinstance(layer_cls.jit_compatible, bool), (
-            f"{layer_cls.__name__}.jit_compatible must be bool, got"
-            f" {type(layer_cls.jit_compatible)}"
-        )
-        assert "supported_backends" in layer_cls.__dict__, (
-            f"{layer_cls.__name__} must define 'supported_backends' directly (not"
-            " inherit it)"
-        )
+        assert (
+            "jit_compatible" in layer_cls.__dict__
+        ), f"{layer_cls.__name__} must define 'jit_compatible' directly (not inherit it)"
+        assert isinstance(
+            layer_cls.jit_compatible, bool
+        ), f"{layer_cls.__name__}.jit_compatible must be bool, got {type(layer_cls.jit_compatible)}"
+        assert (
+            "supported_backends" in layer_cls.__dict__
+        ), f"{layer_cls.__name__} must define 'supported_backends' directly (not inherit it)"
         assert isinstance(
             layer_cls.supported_backends, frozenset
         ), f"{layer_cls.__name__}.supported_backends must be frozenset"
