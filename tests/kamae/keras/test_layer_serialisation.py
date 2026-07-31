@@ -32,6 +32,7 @@ serialization_lib.enable_unsafe_deserialization()
 from kamae.keras.core.layers import (
     AbsoluteValueLayer,
     ArrayConcatenateLayer,
+    ArrayContainsLayer,
     ArrayCropLayer,
     ArrayReduceMaxLayer,
     ArraySplitLayer,
@@ -116,6 +117,12 @@ from kamae.keras.tensorflow.layers import (
             ArrayConcatenateLayer,
             [tf.random.normal((32, 10, 100, 3)), tf.random.normal((32, 10, 100, 3))],
             {"axis": -2},
+            False,
+        ),
+        (
+            ArrayContainsLayer,
+            [tf.random.normal((32, 1, 10)), tf.random.normal((32, 5, 1))],
+            None,
             False,
         ),
         (
