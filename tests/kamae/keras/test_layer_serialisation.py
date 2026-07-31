@@ -567,9 +567,7 @@ def test_layer_serialisation(
         # LambdaFunctionLayer cannot serialize/deserialize lambda functions that reference
         # external modules (like tf) - this is a fundamental limitation of Python lambda serialization
         pytest.skip(
-            reason=(
-                "LambdaFunctionLayer with module references cannot serialize in Keras 3"
-            )
+            reason="LambdaFunctionLayer with module references cannot serialize in Keras 3"
         )
     if kwargs is None:
         kwargs = {}
