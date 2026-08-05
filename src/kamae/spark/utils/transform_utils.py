@@ -11,9 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import pandas as pd
 from typing import Callable, List
 
+import pandas as pd
 import pyspark.sql.functions as F
 from pyspark.sql import Column
 from pyspark.sql.types import ArrayType, DataType
@@ -164,7 +164,6 @@ def _single_input_single_output_udf_transform(
 
     udf_func = F.udf(nested_lambda_func, udf_return_type)
     return udf_func(input_col)
-
 
 
 def single_input_single_output_scalar_udf_transform(
