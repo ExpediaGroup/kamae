@@ -86,9 +86,9 @@ class BaseEstimator(Estimator, SparkOperation):
             param_dict = {
                 param[0].name: param[1] for param in self.extractParamMap().items()
             }
-            raise e.__class__(
+            raise RuntimeError(
                 f"Error in estimator: {self.uid} with params: {param_dict}"
-            ).with_traceback(e.__traceback__)
+            ) from e
 
     def construct_layer_info(self) -> Dict[str, Any]:
         """
