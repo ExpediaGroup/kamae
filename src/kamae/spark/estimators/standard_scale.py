@@ -23,6 +23,7 @@ import pyspark.sql.functions as F
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
+from pyspark.storagelevel import StorageLevel
 
 from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.spark.params import (
@@ -113,43 +114,54 @@ class StandardScaleEstimator(
         else:
             input_col = F.col(self.getInputCol())
 
-        # Collect a single row to driver and get the length.
-        # We assume all subsequent rows have the same length.
-        array_size = np.array((dataset.select(input_col).first()[0])).shape[-1]
+        # Persist so the array-size probe and the moments aggregation reuse a
+        # materialised result instead of re-scanning the upstream lineage twice.
+        # Guarded so we do not double-persist data the caller already cached.
+        already_cached = dataset.storageLevel.useMemory or dataset.storageLevel.useDisk
+        if not already_cached:
+            dataset = dataset.persist(StorageLevel.MEMORY_AND_DISK)
 
-        element_struct = construct_nested_elements_for_scaling(
-            column=input_col,
-            column_datatype=input_column_type,
-            array_dim=array_size,
-        )
+        try:
+            # Collect a single row to driver and get the length.
+            # We assume all subsequent rows have the same length.
+            array_size = np.array((dataset.select(input_col).first()[0])).shape[-1]
 
-        mean_cols = [
-            F.mean(
-                F.when(
-                    F.col(f"element_struct.element_{i}")
-                    == F.lit(self.getMaskValue()),
-                    F.lit(None),
-                ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"mean_{i}")
-            for i in range(1, array_size + 1)
-        ]
+            element_struct = construct_nested_elements_for_scaling(
+                column=input_col,
+                column_datatype=input_column_type,
+                array_dim=array_size,
+            )
 
-        stddev_cols = [
-            F.stddev_pop(
-                F.when(
-                    F.col(f"element_struct.element_{i}")
-                    == F.lit(self.getMaskValue()),
-                    F.lit(None),
-                ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"stddev_{i}")
-            for i in range(1, array_size + 1)
-        ]
+            mean_cols = [
+                F.mean(
+                    F.when(
+                        F.col(f"element_struct.element_{i}")
+                        == F.lit(self.getMaskValue()),
+                        F.lit(None),
+                    ).otherwise(F.col(f"element_struct.element_{i}"))
+                ).alias(f"mean_{i}")
+                for i in range(1, array_size + 1)
+            ]
 
-        metric_cols = mean_cols + stddev_cols
+            stddev_cols = [
+                F.stddev_pop(
+                    F.when(
+                        F.col(f"element_struct.element_{i}")
+                        == F.lit(self.getMaskValue()),
+                        F.lit(None),
+                    ).otherwise(F.col(f"element_struct.element_{i}"))
+                ).alias(f"stddev_{i}")
+                for i in range(1, array_size + 1)
+            ]
 
-        mean_and_stddev_dict = (
-            dataset.select(element_struct).agg(*metric_cols).first().asDict()
-        )
+            metric_cols = mean_cols + stddev_cols
+
+            mean_and_stddev_dict = (
+                dataset.select(element_struct).agg(*metric_cols).first().asDict()
+            )
+        finally:
+            if not already_cached:
+                dataset.unpersist()
         mean = [mean_and_stddev_dict[f"mean_{i}"] for i in range(1, array_size + 1)]
         stddev = [mean_and_stddev_dict[f"stddev_{i}"] for i in range(1, array_size + 1)]
 

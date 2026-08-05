@@ -19,6 +19,7 @@ import pyspark.sql.functions as F
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
+from pyspark.storagelevel import StorageLevel
 
 from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.spark.params import (
@@ -113,34 +114,45 @@ class SingleFeatureArrayStandardScaleEstimator(
                         Got {input_column_type} instead."""
             )
 
-        # Collect a single row to driver and get the length.
-        # We assume all subsequent rows have the same length.
-        array_size = np.array(
-            (dataset.select(self.getInputCol()).first()[0])
-        ).shape[-1]
+        # Persist so the array-size probe and the moments aggregation reuse a
+        # materialised result instead of re-scanning the upstream lineage twice.
+        # Guarded so we do not double-persist data the caller already cached.
+        already_cached = dataset.storageLevel.useMemory or dataset.storageLevel.useDisk
+        if not already_cached:
+            dataset = dataset.persist(StorageLevel.MEMORY_AND_DISK)
 
-        # Flatten the array to a single array.
-        # Will do nothing if the array is not nested.
-        flattened_array_col = flatten_nested_arrays(
-            column=F.col(self.getInputCol()), column_data_type=input_column_type
-        )
+        try:
+            # Collect a single row to driver and get the length.
+            # We assume all subsequent rows have the same length.
+            array_size = np.array(
+                (dataset.select(self.getInputCol()).first()[0])
+            ).shape[-1]
 
-        mean_and_stddev_dict: Dict[str, float] = (
-            dataset.select(F.explode(flattened_array_col).alias(self.getInputCol()))
-            .withColumn(
-                "mask",
-                F.when(
-                    F.col(self.getInputCol()) == F.lit(self.getMaskValue()), 1
-                ).otherwise(0),
+            # Flatten the array to a single array.
+            # Will do nothing if the array is not nested.
+            flattened_array_col = flatten_nested_arrays(
+                column=F.col(self.getInputCol()), column_data_type=input_column_type
             )
-            .filter(F.col("mask") == F.lit(0))
-            .agg(
-                F.mean(self.getInputCol()).alias("mean"),
-                F.stddev_pop(self.getInputCol()).alias("stddev"),
+
+            mean_and_stddev_dict: Dict[str, float] = (
+                dataset.select(F.explode(flattened_array_col).alias(self.getInputCol()))
+                .withColumn(
+                    "mask",
+                    F.when(
+                        F.col(self.getInputCol()) == F.lit(self.getMaskValue()), 1
+                    ).otherwise(0),
+                )
+                .filter(F.col("mask") == F.lit(0))
+                .agg(
+                    F.mean(self.getInputCol()).alias("mean"),
+                    F.stddev_pop(self.getInputCol()).alias("stddev"),
+                )
+                .first()
+                .asDict()
             )
-            .first()
-            .asDict()
-        )
+        finally:
+            if not already_cached:
+                dataset.unpersist()
         mean: List[float] = [mean_and_stddev_dict["mean"] for _ in range(array_size)]
         stddev: List[float] = [
             mean_and_stddev_dict["stddev"] for _ in range(array_size)
