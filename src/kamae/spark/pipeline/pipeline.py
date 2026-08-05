@@ -40,53 +40,18 @@ class KamaeSparkPipeline(Pipeline):
     together BaseTransformers.
     It maintains the same functionality as pyspark.ml.Pipeline e.g. serialisation.
 
-    The `checkpointInterval` param optionally bounds the depth of the Spark
-    logical plan built up while fitting a multi-estimator pipeline. When set to a
-    positive integer it triggers a reliable `DataFrame.checkpoint(eager=True)`
-    every `checkpointInterval` stages (evaluated at estimator-fit action
-    boundaries), physically truncating the accumulated lineage. This is a
-    depth-bounding / reliability feature: it guards against deep-plan failures such
-    as "plan too large", 64KB codegen, and CodeCache-full errors, and avoids
-    re-executing the full upstream lineage on every estimator fit.
-
-    Reliable checkpointing writes the intermediate DataFrame to the checkpoint
-    directory configured via `spark.sparkContext.setCheckpointDir(<path>)`, which
-    must point at fault-tolerant storage (DFS/cloud storage). Unlike local
-    checkpointing it survives executor loss (e.g. autoscaling, spot reclaim, OOM),
-    at the cost of writing to remote storage rather than executor-local disk. A
-    checkpoint directory MUST be set before fitting with a positive interval. Its
-    throughput impact is data-dependent and NOT guaranteed positive (the full, wide
-    intermediate DataFrame is persisted with no column pruning), so benchmark before
-    relying on it for speed. The default of 0 disables checkpointing entirely,
-    leaving fit behaviour byte-for-byte unchanged.
-
-    The `cacheIntermediateData` param optionally persists the working DataFrame
-    (MEMORY_AND_DISK) at each estimator-fit boundary so that the estimator's fit
-    action - and any subsequent transforms - reuse a materialised result instead of
-    re-executing (and re-reading from source) the full upstream lineage on every
-    estimator. Only one intermediate frame is held at a time: each new persist
-    unpersists the one it supersedes, and the final frame is released before
-    returning. Unlike `checkpointInterval` it does not truncate the logical plan or
-    require a checkpoint directory; it is purely a re-scan-avoidance optimisation.
-    It preserves data exactly, so fitted results are identical to the default. The
-    default of False leaves fit behaviour unchanged.
-
-    The `pruneInputColumns` param optionally projects the input DataFrame down to
-    only the columns the pipeline reads before fitting, dropping columns no stage
-    consumes so they are not carried through every transform and materialisation.
-    The set of columns to keep is computed generously (see
-    `collect_required_input_columns`) to avoid dropping columns referenced via
-    params other than `inputCol(s)`. The default of False leaves fit behaviour
-    unchanged.
+    Three opt-in fit optimisations are available, all defaulting off (fit behaviour
+    unchanged): `checkpointInterval` reliably checkpoints every N stages to bound
+    logical-plan depth (requires a checkpoint dir); `cacheIntermediateData` persists
+    the working DataFrame at each estimator-fit boundary to avoid re-scanning the
+    upstream lineage; `pruneInputColumns` drops input columns no stage consumes.
     """
 
     checkpointInterval = Param(
         Params._dummy(),
         "checkpointInterval",
-        "Number of stages between reliable checkpoint(eager=True) calls during "
-        "fit, used to bound logical-plan depth. Requires a checkpoint directory set "
-        "via spark.sparkContext.setCheckpointDir. 0 (the default) disables "
-        "checkpointing and leaves fit behaviour exactly unchanged.",
+        "Stages between reliable checkpoint(eager=True) calls during fit, to bound "
+        "logical-plan depth. Requires a checkpoint dir. 0 (default) disables it.",
         typeConverter=TypeConverters.toInt,
     )
 
@@ -94,18 +59,16 @@ class KamaeSparkPipeline(Pipeline):
         Params._dummy(),
         "cacheIntermediateData",
         "If True, persist the working DataFrame (MEMORY_AND_DISK) at each "
-        "estimator-fit boundary so estimator fits reuse a materialised result "
-        "rather than re-scanning the upstream lineage from source. False (the "
-        "default) leaves fit behaviour exactly unchanged.",
+        "estimator-fit boundary to avoid re-scanning the upstream lineage. False "
+        "(default) disables it.",
         typeConverter=TypeConverters.toBoolean,
     )
 
     pruneInputColumns = Param(
         Params._dummy(),
         "pruneInputColumns",
-        "If True, project the input DataFrame down to only the columns the "
-        "pipeline reads before fitting, dropping columns no stage consumes. False "
-        "(the default) leaves fit behaviour exactly unchanged.",
+        "If True, drop input columns no stage consumes before fitting. False "
+        "(default) disables it.",
         typeConverter=TypeConverters.toBoolean,
     )
 
@@ -293,21 +256,10 @@ class KamaeSparkPipeline(Pipeline):
         """
         Collects every column potentially read by any stage in the pipeline.
 
-        A raw input-DataFrame column absent from this set is consumed by no stage
-        and can be dropped before fitting, so it is not carried through every
-        transform (and every materialisation) below.
-
-        This is deliberately generous: as well as the canonical inputs
-        (`inputCol`/`inputCols` from `get_layer_inputs_outputs`), it unions the
-        value(s) of every param whose name ends in `Col`/`Cols`. Some stages read
-        extra columns during fit through such params (e.g. `maskCols` and
-        `relevanceCol` on ConditionalStandardScaleEstimator, `queryIdCol` on
-        listwise transformers) that `inputCol(s)` does not capture. The name
-        convention holds across all estimators and transformers, so this
-        self-maintaining heuristic covers future aux column params without a
-        per-stage allowlist. Over-inclusion is harmless - a name that is not a real
-        input column simply never matches `dataset.columns` - whereas omitting a
-        referenced column would wrongly drop data the pipeline needs at fit time.
+        Generous by design: unions canonical inputs with the value(s) of every param
+        whose name ends in `Col`/`Cols`, so aux columns read during fit are not
+        missed. Over-inclusion is harmless (names not matching `dataset.columns` are
+        ignored); omission would wrongly drop data the pipeline needs.
 
         :param stages: List of pipeline stages.
         :returns: Set of column names potentially read by at least one stage.
@@ -338,12 +290,7 @@ class KamaeSparkPipeline(Pipeline):
         """
         Projects the input DataFrame down to only the columns the pipeline reads.
 
-        Columns produced by stages are created downstream via `withColumn`, so only
-        the pipeline's source columns need to be present up front. Pruning here
-        keeps the frame narrow before any expansion, reducing the cost of every
-        subsequent transform and materialisation. If no unused columns are found
-        (or the pipeline reads none of the DataFrame's columns) the DataFrame is
-        returned unchanged.
+        Returned unchanged if there are no unused columns to drop.
 
         :param dataset: Input DataFrame to prune.
         :param stages: Expanded pipeline stages.
@@ -355,6 +302,45 @@ class KamaeSparkPipeline(Pipeline):
             return dataset.select(*columns_to_keep)
         return dataset
 
+    @staticmethod
+    def _validate_stage_types(stages: List["KamaePipelineStage"]) -> None:
+        """
+        Ensures every expanded stage is a recognised estimator or transformer.
+
+        :param stages: Expanded pipeline stages.
+        :raises TypeError: If any stage is not a BaseEstimator or BaseTransformer.
+        """
+        for stage in stages:
+            if not isinstance(stage, (BaseEstimator, BaseTransformer)):
+                raise TypeError(
+                    "Cannot recognize a pipeline stage of type %s." % type(stage)
+                )
+
+    @staticmethod
+    def _resolve_checkpoint_enabled(
+        dataset: DataFrame, checkpoint_interval: Optional[int]
+    ) -> bool:
+        """
+        Determines whether checkpointing is enabled and validates its prerequisites.
+
+        Fails fast if enabled without a checkpoint dir, rather than raising mid-fit.
+
+        :param dataset: DataFrame whose SparkContext is checked for a checkpoint dir.
+        :param checkpoint_interval: Configured checkpoint interval (0/None disables).
+        :returns: True if checkpointing is enabled, False otherwise.
+        :raises ValueError: If enabled but no checkpoint directory has been set.
+        """
+        checkpoint_enabled = checkpoint_interval is not None and checkpoint_interval > 0
+        if (
+            checkpoint_enabled
+            and dataset.sparkSession.sparkContext.getCheckpointDir() is None
+        ):
+            raise ValueError(
+                "checkpointInterval > 0 requires a checkpoint directory. Set one via "
+                "spark.sparkContext.setCheckpointDir(<path>) before fitting."
+            )
+        return checkpoint_enabled
+
     def _fit(self, dataset: DataFrame) -> "KamaeSparkPipelineModel":
         """
         Fits the pipeline to the dataset. Returns a KamaeSparkPipelineModel object.
@@ -362,26 +348,9 @@ class KamaeSparkPipeline(Pipeline):
         Calls the super fit method of the pyspark.ml.Pipeline class and
         then constructs a KamaeSparkPipelineModel uses the stages from the fit pipeline.
 
-        If `pruneInputColumns` is True, the input DataFrame is projected down to
-        only the columns the pipeline reads (see `prune_unused_input_columns`)
-        before fitting, so columns no stage consumes are not carried through every
-        transform and materialisation. The default of False leaves fit behaviour
-        unchanged.
-
-        If `checkpointInterval` is a positive integer, the working DataFrame is
-        reliably checkpointed via `checkpoint(eager=True)` roughly every
-        `checkpointInterval` stages (at estimator-fit action boundaries) to bound
-        logical-plan depth. checkpoint(eager=True) preserves the data exactly and
-        only truncates lineage, so fitted results are numerically identical to the
-        default (interval=0) behaviour. A checkpoint directory must be configured via
-        `spark.sparkContext.setCheckpointDir` before fitting with a positive interval.
-        The default of 0 (or None) disables checkpointing entirely.
-
-        If `cacheIntermediateData` is True, the working DataFrame is persisted
-        (MEMORY_AND_DISK) at each estimator-fit boundary so the fit action and any
-        subsequent transform reuse a materialised result rather than re-scanning the
-        upstream lineage. Persistence preserves data exactly, so fitted results are
-        identical to the default (False) behaviour. The default of False disables it.
+        Optionally applies the opt-in fit optimisations (`pruneInputColumns`,
+        `checkpointInterval`, `cacheIntermediateData`); see the class docstring. All
+        preserve data exactly, so fitted results match the defaults-off behaviour.
 
         :param dataset: PySpark DataFrame to fit the pipeline to.
         :returns: KamaeSparkPipelineModel object.
@@ -389,18 +358,9 @@ class KamaeSparkPipeline(Pipeline):
         has been set on the SparkContext.
         """
         expanded_pipeline_stages = self.expand_pipeline_stages()
+        self._validate_stage_types(expanded_pipeline_stages)
 
-        for stage in expanded_pipeline_stages:
-            if not (
-                isinstance(stage, BaseEstimator) or isinstance(stage, BaseTransformer)
-            ):
-                raise TypeError(
-                    "Cannot recognize a pipeline stage of type %s." % type(stage)
-                )
-
-        # Optional, opt-in. Drop input columns no stage consumes before any
-        # expansion, so dead columns are not carried through every transform and
-        # materialisation below. Default False keeps behaviour unchanged.
+        # Opt-in: drop input columns no stage consumes. Default False = no change.
         if self.getPruneInputColumns():
             dataset = self.prune_unused_input_columns(dataset, expanded_pipeline_stages)
 
@@ -414,23 +374,14 @@ class KamaeSparkPipeline(Pipeline):
         estimator_parent_stages = self.collect_estimator_parents(
             expanded_pipeline_stages
         )
-        # Optional, opt-in plan-depth bounding. 0 (or None) keeps behaviour unchanged.
+        # Opt-in plan-depth bounding. 0 (or None) = no change.
         checkpoint_interval = self.getCheckpointInterval()
-        checkpoint_enabled = checkpoint_interval is not None and checkpoint_interval > 0
-        # Reliable checkpoint() requires a checkpoint directory; fail fast with a clear
-        # message rather than letting Spark raise mid-fit after work has been done.
-        if (
-            checkpoint_enabled
-            and dataset.sparkSession.sparkContext.getCheckpointDir() is None
-        ):
-            raise ValueError(
-                "checkpointInterval > 0 requires a checkpoint directory. Set one via "
-                "spark.sparkContext.setCheckpointDir(<path>) before fitting."
-            )
+        checkpoint_enabled = self._resolve_checkpoint_enabled(
+            dataset, checkpoint_interval
+        )
         cache_enabled = self.getCacheIntermediateData()
         last_checkpoint_index = 0
-        # Holds the single intermediate frame currently persisted (if any) so it can
-        # be unpersisted once superseded or once fitting completes.
+        # The single persisted frame (if any), unpersisted once superseded or done.
         cached_dataset: Optional[DataFrame] = None
         # Fit each stage, appending the transformer to the list of transformers
         # If the stage is a parent of an estimator, transform the dataset.
@@ -441,17 +392,16 @@ class KamaeSparkPipeline(Pipeline):
                 if stage in estimator_parent_stages:
                     dataset = stage.transform(dataset)
             else:
-                # Truncate the accumulated lineage just before the fit action so the
-                # plan is physically bounded. eager=True forces materialisation now.
+                # Truncate accumulated lineage before the fit action to bound plan
+                # depth. eager=True materialises now.
                 if (
                     checkpoint_enabled
                     and index - last_checkpoint_index >= checkpoint_interval
                 ):
                     dataset = dataset.checkpoint(eager=True)
                     last_checkpoint_index = index
-                # Persist the working frame so the fit action and any subsequent
-                # transform read a materialised result rather than re-scanning the
-                # upstream lineage from source. Only one frame is held at a time.
+                # Persist so the fit action and downstream transforms reuse a
+                # materialised frame instead of re-scanning. One frame held at a time.
                 if cache_enabled:
                     new_cached = dataset.persist(StorageLevel.MEMORY_AND_DISK)
                     if cached_dataset is not None:
