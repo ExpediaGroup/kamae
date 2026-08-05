@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+import tempfile
 from shutil import rmtree
 from unittest.mock import patch
 
@@ -46,8 +46,7 @@ class TestPipeline:
 
     @pytest.fixture
     def test_dir(self):
-        path = "./tmp_test"
-        os.makedirs(path, exist_ok=True)
+        path = tempfile.mkdtemp()
         yield path
         rmtree(path)
 
