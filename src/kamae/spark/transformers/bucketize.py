@@ -49,7 +49,7 @@ class BucketizeParams(Params):
     )
 
     @staticmethod
-    def check_splits_sorted(splits: List[float]):
+    def check_splits_sorted(splits: List[float]) -> None:
         """
         Checks that the splits parameter is sorted.
 
