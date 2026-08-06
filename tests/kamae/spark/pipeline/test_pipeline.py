@@ -12,14 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+import tempfile
 from shutil import rmtree
+from unittest.mock import patch
 
 import pytest
 import tensorflow as tf
+from pyspark.sql import DataFrame
 from pyspark.sql.types import DoubleType
 
-from kamae.spark.estimators import StandardScaleEstimator, StringIndexEstimator
+from kamae.spark.estimators import (
+    ConditionalStandardScaleEstimator,
+    StandardScaleEstimator,
+    StringIndexEstimator,
+)
 from kamae.spark.pipeline import KamaeSparkPipeline, KamaeSparkPipelineModel
 from kamae.spark.transformers import (
     ArrayConcatenateTransformer,
@@ -27,6 +33,7 @@ from kamae.spark.transformers import (
     BucketizeTransformer,
     HashIndexTransformer,
     IdentityTransformer,
+    ListMeanTransformer,
     LogTransformer,
     SubtractTransformer,
 )
@@ -39,8 +46,7 @@ class TestPipeline:
 
     @pytest.fixture
     def test_dir(self):
-        path = "./tmp_test"
-        os.makedirs(path, exist_ok=True)
+        path = tempfile.mkdtemp()
         yield path
         rmtree(path)
 
@@ -551,6 +557,274 @@ class TestPipeline:
         transformed_df = pipeline_model.transform(example_dataframe)
         diff = transformed_df.exceptAll(request.getfixturevalue(expected_dataframe))
         assert diff.isEmpty(), f"PipelineKeras output is not the same as expected."
+
+    @pytest.mark.parametrize(
+        "stages",
+        [
+            "valid_stages_1",
+            "valid_stages_2",
+        ],
+    )
+    def test_spark_pipeline_checkpoint_is_transparent(
+        self, stages, example_dataframe, request
+    ):
+        """
+        checkpoint(eager=True) only truncates lineage, so fitting with a positive
+        checkpointInterval must yield results identical to the default of 0.
+        """
+        stages = request.getfixturevalue(stages)
+
+        baseline_model = KamaeSparkPipeline(stages=stages, checkpointInterval=0).fit(
+            example_dataframe
+        )
+        checkpointed_model = KamaeSparkPipeline(
+            stages=stages, checkpointInterval=2
+        ).fit(example_dataframe)
+
+        baseline_df = baseline_model.transform(example_dataframe)
+        checkpointed_df = checkpointed_model.transform(example_dataframe)
+
+        assert baseline_df.schema == checkpointed_df.schema
+        assert baseline_df.exceptAll(checkpointed_df).isEmpty()
+        assert checkpointed_df.exceptAll(baseline_df).isEmpty()
+
+    def test_spark_pipeline_checkpoint_invocation(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        checkpoint must be invoked during fit only when checkpointInterval > 0.
+        """
+        original_checkpoint = DataFrame.checkpoint
+
+        with patch.object(
+            DataFrame,
+            "checkpoint",
+            autospec=True,
+            side_effect=original_checkpoint,
+        ) as mock_checkpoint:
+            KamaeSparkPipeline(stages=valid_stages_1, checkpointInterval=0).fit(
+                example_dataframe
+            )
+            assert mock_checkpoint.call_count == 0
+
+            mock_checkpoint.reset_mock()
+            KamaeSparkPipeline(stages=valid_stages_1, checkpointInterval=2).fit(
+                example_dataframe
+            )
+            assert mock_checkpoint.call_count > 0
+
+    def test_spark_pipeline_checkpoint_bounds_plan_depth(self, spark_session):
+        """
+        The point of checkpointInterval is to bound logical-plan depth. We build a
+        deep, linearly-dependent pipeline (every stage is an ancestor of the next, so
+        the working DataFrame is advanced at every fit and lineage keeps growing) and
+        capture the logical-plan size of the DataFrame handed to each estimator fit.
+        With a positive interval the plan must stay markedly smaller than the default.
+        """
+        df = spark_session.createDataFrame(
+            [(1.0,), (4.0,), (7.0,), (2.0,), (9.0,)],
+            ["col0"],
+        )
+
+        num_blocks = 4
+        transforms_per_block = 4
+
+        def build_stages():
+            stages = []
+            prev = "col0"
+            for b in range(num_blocks):
+                for t in range(transforms_per_block):
+                    out = f"t_{b}_{t}"
+                    stages.append(
+                        SubtractTransformer(
+                            inputCol=prev, outputCol=out, mathFloatConstant=1.0
+                        )
+                    )
+                    prev = out
+                out = f"s_{b}"
+                stages.append(StandardScaleEstimator(inputCol=prev, outputCol=out))
+                prev = out
+            return stages
+
+        def max_fit_plan_length(interval):
+            plan_lengths = []
+            original_fit = StandardScaleEstimator.fit
+
+            def spy_fit(estimator, dataset, *args, **kwargs):
+                plan = dataset._jdf.queryExecution().logical().toString()
+                plan_lengths.append(len(plan))
+                return original_fit(estimator, dataset, *args, **kwargs)
+
+            with patch.object(StandardScaleEstimator, "fit", spy_fit):
+                KamaeSparkPipeline(
+                    stages=build_stages(), checkpointInterval=interval
+                ).fit(df)
+            return max(plan_lengths)
+
+        baseline_max = max_fit_plan_length(0)
+        checkpointed_max = max_fit_plan_length(transforms_per_block + 1)
+
+        # Checkpointing must keep the deepest fit-time plan well below the un-bounded
+        # baseline. A strict 2x margin is robust to Spark-version plan-string changes.
+        assert checkpointed_max * 2 < baseline_max, (
+            f"plan not bounded: baseline_max={baseline_max}, "
+            f"checkpointed_max={checkpointed_max}"
+        )
+
+    def test_spark_pipeline_prunes_unused_input_columns(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        prune_unused_input_columns must keep the columns the pipeline reads
+        (col1/col2/col3 via ArrayConcatenate, col4 via StringIndex) and drop the
+        unused col5 and col1_col2_col3, while preserving every row.
+        """
+        pipeline = KamaeSparkPipeline(stages=valid_stages_1)
+
+        # The required set is generous (a superset), so assert containment rather
+        # than equality - it also carries output/param strings that harmlessly do
+        # not match any input-DataFrame column.
+        required = pipeline.collect_required_input_columns(valid_stages_1)
+        assert {"col1", "col2", "col3", "col4"}.issubset(required)
+
+        pruned = pipeline.prune_unused_input_columns(example_dataframe, valid_stages_1)
+
+        assert pruned.columns == ["col1", "col2", "col3", "col4"]
+        assert pruned.exceptAll(
+            example_dataframe.select("col1", "col2", "col3", "col4")
+        ).isEmpty()
+
+    def test_collect_required_input_columns_includes_aux_columns(self):
+        """
+        Aux columns read at fit time via params other than inputCol(s) - here
+        maskCols and relevanceCol on ConditionalStandardScaleEstimator, and
+        queryIdCol on a listwise transformer - must be reported by the collector so
+        pruning does not drop them. No Spark session needed.
+        """
+        stages = [
+            ConditionalStandardScaleEstimator(
+                inputCol="x",
+                outputCol="x_scaled",
+                maskCols=["m"],
+                relevanceCol="r",
+            ),
+            ListMeanTransformer(
+                inputCol="p",
+                outputCol="p_list_mean",
+                queryIdCol="q",
+            ),
+        ]
+
+        required = KamaeSparkPipeline.collect_required_input_columns(stages)
+
+        assert {"x", "m", "r", "p", "q"} <= required
+
+    def test_collect_required_input_columns_plain_estimator(self):
+        """
+        A stage with no aux column params must still report its inputCol and must
+        not gain spurious columns - confirms the aux sweep does not regress the
+        simple case.
+        """
+        stages = [StandardScaleEstimator(inputCol="x", outputCol="x_scaled")]
+
+        required = KamaeSparkPipeline.collect_required_input_columns(stages)
+
+        assert "x" in required
+
+    def test_spark_pipeline_prune_input_columns_is_opt_in(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        Pruning must only happen when pruneInputColumns is True. With the default
+        (False) the input DataFrame is not projected during fit.
+        """
+        with patch.object(
+            KamaeSparkPipeline,
+            "prune_unused_input_columns",
+            autospec=True,
+            side_effect=KamaeSparkPipeline.prune_unused_input_columns,
+        ) as mock_prune:
+            KamaeSparkPipeline(stages=valid_stages_1).fit(example_dataframe)
+            assert mock_prune.call_count == 0
+
+            mock_prune.reset_mock()
+            KamaeSparkPipeline(stages=valid_stages_1, pruneInputColumns=True).fit(
+                example_dataframe
+            )
+            assert mock_prune.call_count == 1
+
+    def test_spark_pipeline_prune_keeps_aux_fit_columns(self, spark_session):
+        """
+        Regression: pruning must not drop columns an estimator reads at fit time
+        through params other than inputCol (here maskCols). The fit must not raise,
+        the genuinely-unused column must be pruned, and the fitted moments must be
+        identical to a prune-disabled baseline (numerically transparent).
+        """
+        df = spark_session.createDataFrame(
+            [(1.0, 1, 3.0, 99.0), (2.0, 0, 1.0, 99.0), (3.0, 1, 2.0, 99.0)],
+            ["x", "m", "r", "junk"],
+        )
+
+        def build_pipeline(prune):
+            return KamaeSparkPipeline(
+                stages=[
+                    ConditionalStandardScaleEstimator(
+                        inputCol="x",
+                        outputCol="x_scaled",
+                        maskCols=["m"],
+                        maskOperators=["eq"],
+                        maskValues=[1.0],
+                        relevanceCol="r",
+                    ),
+                ],
+                pruneInputColumns=prune,
+            )
+
+        pruned_pipeline = build_pipeline(prune=True)
+
+        # Aux fit columns kept, genuinely-unused column dropped.
+        required = pruned_pipeline.collect_required_input_columns(
+            pruned_pipeline.getStages()
+        )
+        assert {"x", "m", "r"} <= required
+        assert "junk" not in required
+
+        # Must NOT raise UNRESOLVED_COLUMN / "Mask column m not found".
+        pruned_model = pruned_pipeline.fit(df)
+        baseline_model = build_pipeline(prune=False).fit(df)
+
+        pruned_scaler = pruned_model.stages[-1]
+        baseline_scaler = baseline_model.stages[-1]
+
+        assert pruned_scaler.getMean() == baseline_scaler.getMean()
+        assert pruned_scaler.getStddev() == baseline_scaler.getStddev()
+
+    def test_spark_pipeline_prune_is_transparent_to_fit(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        Pruning drops only columns no stage reads, so a fitted model - and its
+        transform output - must be identical whether or not the input carries an
+        extra unused column when pruneInputColumns is enabled.
+        """
+        with_extra = example_dataframe.withColumn(
+            "unused", example_dataframe["col1"] * 100.0
+        )
+
+        baseline_out = (
+            KamaeSparkPipeline(stages=valid_stages_1, pruneInputColumns=True)
+            .fit(example_dataframe)
+            .transform(example_dataframe)
+        )
+        with_extra_out = (
+            KamaeSparkPipeline(stages=valid_stages_1, pruneInputColumns=True)
+            .fit(with_extra)
+            .transform(example_dataframe)
+        )
+
+        assert baseline_out.schema == with_extra_out.schema
+        assert baseline_out.exceptAll(with_extra_out).isEmpty()
+        assert with_extra_out.exceptAll(baseline_out).isEmpty()
 
     @pytest.mark.parametrize(
         "stages, input_col, original_dtype",

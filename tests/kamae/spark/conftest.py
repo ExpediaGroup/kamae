@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import tempfile
 from typing import List, Optional
 
 import pytest
@@ -43,8 +44,10 @@ def spark_session():
         .config("spark.driver.memory", "2g")
         .getOrCreate()
     )
-    yield spark
-    spark.stop()
+    with tempfile.TemporaryDirectory() as checkpoint_dir:
+        spark.sparkContext.setCheckpointDir(checkpoint_dir)
+        yield spark
+        spark.stop()
 
 
 @pytest.fixture(scope="module")
