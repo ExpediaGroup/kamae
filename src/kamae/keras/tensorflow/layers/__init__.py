@@ -37,6 +37,7 @@ from .list_median import ListMedianLayer  # noqa: F401
 from .list_min import ListMinLayer  # noqa: F401
 from .list_rank import ListRankLayer  # noqa: F401
 from .list_std_dev import ListStdDevLayer  # noqa: F401
+from .list_sum import ListSumLayer  # noqa: F401
 from .min_hash_index import MinHashIndexLayer  # noqa: F401
 from .one_hot_encode import OneHotEncodeLayer  # noqa: F401
 from .ordinal_array_encode import OrdinalArrayEncodeLayer  # noqa: F401
@@ -75,6 +76,7 @@ __all__ = [
     "ListMinLayer",
     "ListRankLayer",
     "ListStdDevLayer",
+    "ListSumLayer",
     "MinHashIndexLayer",
     "OneHotEncodeLayer",
     "OrdinalArrayEncodeLayer",
