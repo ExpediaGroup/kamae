@@ -570,11 +570,11 @@ class TestPipeline:
     ):
         """
         checkpoint(eager=True) only truncates lineage, so fitting with a positive
-        checkpointInterval must yield results identical to the default of 0.
+        checkpointInterval must yield results identical to the default (None).
         """
         stages = request.getfixturevalue(stages)
 
-        baseline_model = KamaeSparkPipeline(stages=stages, checkpointInterval=0).fit(
+        baseline_model = KamaeSparkPipeline(stages=stages, checkpointInterval=None).fit(
             example_dataframe
         )
         checkpointed_model = KamaeSparkPipeline(
@@ -602,7 +602,7 @@ class TestPipeline:
             autospec=True,
             side_effect=original_checkpoint,
         ) as mock_checkpoint:
-            KamaeSparkPipeline(stages=valid_stages_1, checkpointInterval=0).fit(
+            KamaeSparkPipeline(stages=valid_stages_1, checkpointInterval=None).fit(
                 example_dataframe
             )
             assert mock_checkpoint.call_count == 0
@@ -612,6 +612,14 @@ class TestPipeline:
                 example_dataframe
             )
             assert mock_checkpoint.call_count > 0
+
+    @pytest.mark.parametrize("bad_value", [0, -1, -5])
+    def test_spark_pipeline_checkpoint_interval_rejects_non_positive(self, bad_value):
+        """
+        checkpointInterval must be a positive integer or None; 0 and negatives raise.
+        """
+        with pytest.raises(ValueError):
+            KamaeSparkPipeline(checkpointInterval=bad_value)
 
     def test_spark_pipeline_checkpoint_bounds_plan_depth(self, spark_session):
         """
@@ -661,7 +669,7 @@ class TestPipeline:
                 ).fit(df)
             return max(plan_lengths)
 
-        baseline_max = max_fit_plan_length(0)
+        baseline_max = max_fit_plan_length(None)
         checkpointed_max = max_fit_plan_length(transforms_per_block + 1)
 
         # Checkpointing must keep the deepest fit-time plan well below the un-bounded

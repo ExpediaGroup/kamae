@@ -51,7 +51,7 @@ class KamaeSparkPipeline(Pipeline):
         Params._dummy(),
         "checkpointInterval",
         "Stages between reliable checkpoint(eager=True) calls during fit, to bound "
-        "logical-plan depth. Requires a checkpoint dir. 0 (default) disables it.",
+        "logical-plan depth. Requires a checkpoint dir. None (default) disables it.",
         typeConverter=TypeConverters.toInt,
     )
 
@@ -77,7 +77,7 @@ class KamaeSparkPipeline(Pipeline):
         self,
         *,
         stages: Optional[List["KamaePipelineStage"]] = None,
-        checkpointInterval: int = 0,
+        checkpointInterval: Optional[int] = None,
         cacheIntermediateData: bool = False,
         pruneInputColumns: bool = False,
     ) -> None:
@@ -86,7 +86,7 @@ class KamaeSparkPipeline(Pipeline):
 
         :param stages: List of LayerTransformers to chain together.
         :param checkpointInterval: Number of stages between reliable
-        checkpoint(eager=True) calls during fit. 0 (default) disables it.
+        checkpoint(eager=True) calls during fit. None (default) disables it.
         :param cacheIntermediateData: If True, persist the working DataFrame at
         each estimator-fit boundary to avoid re-scanning the upstream lineage.
         False (default) disables it.
@@ -95,9 +95,9 @@ class KamaeSparkPipeline(Pipeline):
         :returns: None - class instantiated.
         """
         kwargs = self._input_kwargs
-        super().__init__()
+        super().__init__(stages=stages)
         self._setDefault(
-            checkpointInterval=0,
+            checkpointInterval=None,
             cacheIntermediateData=False,
             pruneInputColumns=False,
         )
@@ -120,17 +120,23 @@ class KamaeSparkPipeline(Pipeline):
         """
         return self.getOrDefault("stages")
 
-    def setCheckpointInterval(self, value: int) -> "KamaeSparkPipeline":
+    def setCheckpointInterval(self, value: Optional[int]) -> "KamaeSparkPipeline":
         """
         Sets the `checkpointInterval` parameter.
 
-        :param value: Number of stages between reliable checkpoint calls during
-        fit. 0 (or None) disables checkpointing.
+        :param value: Positive number of stages between reliable checkpoint calls
+        during fit. None disables checkpointing.
         :returns: KamaeSparkPipeline object with checkpointInterval set.
+        :raises ValueError: If value is not None and not a positive integer.
         """
+        if value is not None and value < 1:
+            raise ValueError(
+                "checkpointInterval must be a positive integer or None, got "
+                f"{value}."
+            )
         return self._set(checkpointInterval=value)
 
-    def getCheckpointInterval(self) -> int:
+    def getCheckpointInterval(self) -> Optional[int]:
         """
         Gets the value of the `checkpointInterval` parameter.
 
@@ -178,24 +184,29 @@ class KamaeSparkPipeline(Pipeline):
         self,
         *,
         stages: Optional["KamaePipelineStage"] = None,
-        checkpointInterval: int = 0,
+        checkpointInterval: Optional[int] = None,
         cacheIntermediateData: bool = False,
         pruneInputColumns: bool = False,
     ) -> "KamaeSparkPipeline":
         """
         Sets the keyword arguments of the pipeline.
 
+        Routes each supplied param through its setter so setter-level validation
+        (e.g. checkpointInterval) runs.
+
         :param stages: List of pipeline stages.
         :param checkpointInterval: Number of stages between reliable
-        checkpoint(eager=True) calls during fit. 0 (default) disables it.
+        checkpoint(eager=True) calls during fit. None (default) disables it.
         :param cacheIntermediateData: If True, persist the working DataFrame at
         each estimator-fit boundary. False (default) disables it.
         :param pruneInputColumns: If True, drop input columns no stage consumes
         before fitting. False (default) disables it.
         :returns: KamaeSparkPipeline object with params set.
         """
-        kwargs = self._input_kwargs
-        return self._set(**kwargs)
+        for param_name, param_value in self._input_kwargs.items():
+            setter = getattr(self, f"set{param_name[0].upper()}{param_name[1:]}")
+            setter(param_value)
+        return self
 
     def expand_pipeline_stages(self) -> List["KamaePipelineStage"]:
         """
@@ -257,9 +268,10 @@ class KamaeSparkPipeline(Pipeline):
         Collects every column potentially read by any stage in the pipeline.
 
         Generous by design: unions canonical inputs with the value(s) of every param
-        whose name ends in `Col`/`Cols`, so aux columns read during fit are not
-        missed. Over-inclusion is harmless (names not matching `dataset.columns` are
-        ignored); omission would wrongly drop data the pipeline needs.
+        whose name ends in `Col`/`Cols`, so aux columns read during fit (e.g.
+        maskCols, relevanceCol, queryIdCol) are not missed. Over-inclusion is
+        harmless (names not matching `dataset.columns` are ignored); omission would
+        wrongly drop data the pipeline needs at fit time.
 
         :param stages: List of pipeline stages.
         :returns: Set of column names potentially read by at least one stage.
@@ -298,7 +310,7 @@ class KamaeSparkPipeline(Pipeline):
         """
         required_input_columns = self.collect_required_input_columns(stages)
         columns_to_keep = [c for c in dataset.columns if c in required_input_columns]
-        if columns_to_keep and len(columns_to_keep) < len(dataset.columns):
+        if columns_to_keep:
             return dataset.select(*columns_to_keep)
         return dataset
 
