@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 import pytest
 import tensorflow as tf
 
@@ -791,3 +792,36 @@ class TestListMax:
             output_tensor.shape == expected_output.shape
         ), "Output tensor shape is not the same as expected tensor shape"
         tf.debugging.assert_equal(output_tensor, expected_output)
+
+    @pytest.mark.parametrize(
+        "dtype, nan_fill_value, expected_fill",
+        [
+            (tf.float64, 0.1, 0.1),
+            (tf.float64, 123.456, 123.456),
+            (tf.float32, 0.1, np.float32(0.1)),
+            (tf.int64, 7.0, 7),
+            (tf.int32, 7.0, 7),
+        ],
+    )
+    def test_listwise_max_nan_fill_value_dtype(
+        self, dtype, nan_fill_value, expected_fill
+    ):
+        """The fill value applied to a segment emptied by min_filter_value must
+        keep full precision on float dtypes and be usable on integer dtypes."""
+        # given, a segment whose values are all removed by the filter
+        values = tf.constant([[[1], [1], [9]]], dtype=dtype)
+        segments = tf.constant([[[1], [2], [2]]], dtype=dtype)
+        layer = ListMaxLayer(
+            name="listwise_max_nan_fill_test",
+            min_filter_value=5,
+            with_segment=True,
+            nan_fill_value=nan_fill_value,
+            input_dtype=dtype.name,
+            output_dtype=dtype.name,
+        )
+        # when
+        output_tensor = layer([values, segments])
+        # then
+        assert (
+            output_tensor.numpy().flatten()[0] == expected_fill
+        ), "Emptied segment was not filled with the exact nan_fill_value"
