@@ -108,6 +108,10 @@ class ListMaxLayer(BaseLayer):
             "float16",
             "float32",
             "float64",
+            "int8",
+            "int16",
+            "int32",
+            "int64",
             "string",
         ]
 
@@ -167,7 +171,9 @@ class ListMaxLayer(BaseLayer):
             listwise_max = tf.broadcast_to(listwise_max, output_shape)
 
         if self.min_filter_value is not None:
-            fill_val = tf.constant(self.nan_fill_value, dtype=listwise_max.dtype)
+            # tf.cast rather than tf.constant(..., dtype=...): nan_fill_value is a
+            # Python float, which cannot be converted directly to an integer dtype.
+            fill_val = tf.cast(self.nan_fill_value, listwise_max.dtype)
             listwise_max = tf.where(listwise_max != neg_inf, listwise_max, fill_val)
 
         return listwise_max

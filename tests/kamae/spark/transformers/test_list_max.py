@@ -664,6 +664,152 @@ class TestListMax:
                 "double",
                 "float",
             ),
+            # Integer values with segmentation
+            (
+                3,
+                tf.constant(
+                    [
+                        [1],
+                        [1],
+                        [1],
+                        [2],
+                        [2],
+                        [2],
+                    ],
+                    dtype=tf.int64,
+                ),
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [1],
+                            [1],
+                            [4],
+                            [5],
+                            [5],
+                            [20],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                    # segment
+                    tf.constant(
+                        [
+                            [1],
+                            [1],
+                            [2],
+                            [1],
+                            [1],
+                            [2],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                ],
+                None,
+                True,
+                None,
+                "bigint",
+                "bigint",
+            ),
+            # Integer values with segmentation & filter
+            (
+                3,
+                tf.constant(
+                    [
+                        [1],
+                        [1],
+                        [1],
+                        [2],
+                        [2],
+                        [2],
+                    ],
+                    dtype=tf.int64,
+                ),
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [1],
+                            [1],
+                            [4],
+                            [5],
+                            [5],
+                            [20],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                    # segment
+                    tf.constant(
+                        [
+                            [1],
+                            [1],
+                            [2],
+                            [1],
+                            [1],
+                            [2],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                ],
+                2,
+                True,
+                None,
+                "bigint",
+                "bigint",
+            ),
+            # Remaining integer widths, with segmentation & filter, to check
+            # Spark/Keras parity for every integer dtype the transformer accepts.
+            *[
+                (
+                    3,
+                    tf.constant(
+                        [
+                            [1],
+                            [1],
+                            [1],
+                            [2],
+                            [2],
+                            [2],
+                        ],
+                        dtype=tf_dtype,
+                    ),
+                    [
+                        # values
+                        tf.constant(
+                            [
+                                [1],
+                                [1],
+                                [4],
+                                [5],
+                                [5],
+                                [20],
+                            ],
+                            dtype=tf_dtype,
+                        ),
+                        # segment
+                        tf.constant(
+                            [
+                                [1],
+                                [1],
+                                [2],
+                                [1],
+                                [1],
+                                [2],
+                            ],
+                            dtype=tf_dtype,
+                        ),
+                    ],
+                    2,
+                    True,
+                    None,
+                    spark_dtype,
+                    spark_dtype,
+                )
+                for tf_dtype, spark_dtype in [
+                    (tf.int8, "tinyint"),
+                    (tf.int16, "smallint"),
+                    (tf.int32, "int"),
+                ]
+            ],
         ],
     )
     def test_list_max_transform_spark_tf_parity(

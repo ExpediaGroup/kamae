@@ -576,6 +576,186 @@ class TestListMax:
                     dtype=tf.float32,
                 ),
             ),
+            # Integer values with segmentation
+            (
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [
+                                [1],
+                                [5],
+                                [3],
+                            ],
+                            [
+                                [7],
+                                [2],
+                                [9],
+                            ],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                    # segment
+                    tf.constant(
+                        [
+                            [
+                                [1],
+                                [1],
+                                [2],
+                            ],
+                            [
+                                [1],
+                                [1],
+                                [2],
+                            ],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                ],
+                None,
+                None,
+                True,
+                "asc",
+                "int64",
+                "int64",
+                tf.constant(
+                    [
+                        [
+                            [5],
+                            [5],
+                            [3],
+                        ],
+                        [
+                            [7],
+                            [7],
+                            [9],
+                        ],
+                    ],
+                    dtype=tf.int64,
+                ),
+            ),
+            # Integer values with segmentation and min_filter_value, where the
+            # filter empties a segment entirely and nan_fill_value is applied.
+            (
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [
+                                [1],
+                                [1],
+                                [9],
+                            ],
+                            [
+                                [5],
+                                [1],
+                                [9],
+                            ],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                    # segment
+                    tf.constant(
+                        [
+                            [
+                                [1],
+                                [2],
+                                [2],
+                            ],
+                            [
+                                [1],
+                                [2],
+                                [2],
+                            ],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                ],
+                2,
+                None,
+                True,
+                "asc",
+                "int64",
+                "int64",
+                tf.constant(
+                    [
+                        [
+                            [0],
+                            [9],
+                            [9],
+                        ],
+                        [
+                            [5],
+                            [9],
+                            [9],
+                        ],
+                    ],
+                    dtype=tf.int64,
+                ),
+            ),
+            # Remaining integer widths, exercising segmentation together with
+            # min_filter_value emptying a segment, so that nan_fill_value is
+            # applied for every integer dtype the layer accepts.
+            *[
+                (
+                    [
+                        # values
+                        tf.constant(
+                            [
+                                [
+                                    [1],
+                                    [1],
+                                    [9],
+                                ],
+                                [
+                                    [5],
+                                    [1],
+                                    [9],
+                                ],
+                            ],
+                            dtype=int_dtype,
+                        ),
+                        # segment
+                        tf.constant(
+                            [
+                                [
+                                    [1],
+                                    [2],
+                                    [2],
+                                ],
+                                [
+                                    [1],
+                                    [2],
+                                    [2],
+                                ],
+                            ],
+                            dtype=int_dtype,
+                        ),
+                    ],
+                    2,
+                    None,
+                    True,
+                    "asc",
+                    int_dtype.name,
+                    int_dtype.name,
+                    tf.constant(
+                        [
+                            [
+                                [0],
+                                [9],
+                                [9],
+                            ],
+                            [
+                                [5],
+                                [9],
+                                [9],
+                            ],
+                        ],
+                        dtype=int_dtype,
+                    ),
+                )
+                for int_dtype in [tf.int8, tf.int16, tf.int32]
+            ],
         ],
     )
     def test_listwise_max(
