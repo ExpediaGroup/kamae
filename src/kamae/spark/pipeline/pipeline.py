@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import TYPE_CHECKING, List, Optional, Set, Type
 
 import networkx as nx
@@ -40,11 +41,14 @@ class KamaeSparkPipeline(Pipeline):
     together BaseTransformers.
     It maintains the same functionality as pyspark.ml.Pipeline e.g. serialisation.
 
-    Three opt-in fit optimisations are available, all defaulting off (fit behaviour
+    Four opt-in fit optimisations are available, all defaulting off (fit behaviour
     unchanged): `checkpointInterval` reliably checkpoints every N stages to bound
     logical-plan depth (requires a checkpoint dir); `cacheIntermediateData` persists
     the working DataFrame at each estimator-fit boundary to avoid re-scanning the
-    upstream lineage; `pruneInputColumns` drops input columns no stage consumes.
+    upstream lineage; `pruneInputColumns` drops input columns no stage consumes;
+    `cacheEstimatorInput` projects to the columns still read downstream at the first
+    estimator boundary and persists that narrow frame once, so independent sibling
+    estimators reuse it instead of re-scanning the wide input.
     """
 
     checkpointInterval = Param(
@@ -72,6 +76,16 @@ class KamaeSparkPipeline(Pipeline):
         typeConverter=TypeConverters.toBoolean,
     )
 
+    cacheEstimatorInput = Param(
+        Params._dummy(),
+        "cacheEstimatorInput",
+        "If True, at the first estimator-fit boundary project the working DataFrame "
+        "to the columns still read downstream and persist (MEMORY_AND_DISK) that "
+        "narrow frame once, reused by all subsequent estimators. Competes with "
+        "cacheIntermediateData; enable at most one. False (default) disables it.",
+        typeConverter=TypeConverters.toBoolean,
+    )
+
     @keyword_only
     def __init__(
         self,
@@ -80,6 +94,7 @@ class KamaeSparkPipeline(Pipeline):
         checkpointInterval: Optional[int] = None,
         cacheIntermediateData: bool = False,
         pruneInputColumns: bool = False,
+        cacheEstimatorInput: bool = False,
     ) -> None:
         """
         Initialises the KamaeSparkPipeline object.
@@ -92,6 +107,9 @@ class KamaeSparkPipeline(Pipeline):
         False (default) disables it.
         :param pruneInputColumns: If True, drop input columns no stage consumes
         before fitting. False (default) disables it.
+        :param cacheEstimatorInput: If True, project to the columns still read
+        downstream at the first estimator boundary and persist that narrow frame
+        once for reuse by subsequent estimators. False (default) disables it.
         :returns: None - class instantiated.
         """
         kwargs = self._input_kwargs
@@ -100,6 +118,7 @@ class KamaeSparkPipeline(Pipeline):
             checkpointInterval=None,
             cacheIntermediateData=False,
             pruneInputColumns=False,
+            cacheEstimatorInput=False,
         )
         self.setParams(**kwargs)
 
@@ -179,6 +198,24 @@ class KamaeSparkPipeline(Pipeline):
         """
         return self.getOrDefault(self.pruneInputColumns)
 
+    def setCacheEstimatorInput(self, value: bool) -> "KamaeSparkPipeline":
+        """
+        Sets the `cacheEstimatorInput` parameter.
+
+        :param value: Whether to project and persist a narrow estimator-input
+        frame once at the first estimator boundary during fit.
+        :returns: KamaeSparkPipeline object with cacheEstimatorInput set.
+        """
+        return self._set(cacheEstimatorInput=value)
+
+    def getCacheEstimatorInput(self) -> bool:
+        """
+        Gets the value of the `cacheEstimatorInput` parameter.
+
+        :returns: The cacheEstimatorInput value.
+        """
+        return self.getOrDefault(self.cacheEstimatorInput)
+
     @keyword_only
     def setParams(
         self,
@@ -187,6 +224,7 @@ class KamaeSparkPipeline(Pipeline):
         checkpointInterval: Optional[int] = None,
         cacheIntermediateData: bool = False,
         pruneInputColumns: bool = False,
+        cacheEstimatorInput: bool = False,
     ) -> "KamaeSparkPipeline":
         """
         Sets the keyword arguments of the pipeline.
@@ -201,6 +239,9 @@ class KamaeSparkPipeline(Pipeline):
         each estimator-fit boundary. False (default) disables it.
         :param pruneInputColumns: If True, drop input columns no stage consumes
         before fitting. False (default) disables it.
+        :param cacheEstimatorInput: If True, project to the columns still read
+        downstream at the first estimator boundary and persist that narrow frame
+        once for reuse by subsequent estimators. False (default) disables it.
         :returns: KamaeSparkPipeline object with params set.
         """
         for param_name, param_value in self._input_kwargs.items():
@@ -361,8 +402,14 @@ class KamaeSparkPipeline(Pipeline):
         then constructs a KamaeSparkPipelineModel uses the stages from the fit pipeline.
 
         Optionally applies the opt-in fit optimisations (`pruneInputColumns`,
-        `checkpointInterval`, `cacheIntermediateData`); see the class docstring. All
-        preserve data exactly, so fitted results match the defaults-off behaviour.
+        `checkpointInterval`, `cacheIntermediateData`, `cacheEstimatorInput`); see the
+        class docstring. All preserve data exactly, so fitted results match the
+        defaults-off behaviour.
+
+        If both `cacheIntermediateData` and `cacheEstimatorInput` are enabled,
+        `cacheEstimatorInput` takes precedence (a warning is emitted) and
+        `cacheIntermediateData` is ignored, since the narrow frame is a strictly
+        smaller cache and the intermediate cache would evict it.
 
         :param dataset: PySpark DataFrame to fit the pipeline to.
         :returns: KamaeSparkPipelineModel object.
@@ -392,9 +439,24 @@ class KamaeSparkPipeline(Pipeline):
             dataset, checkpoint_interval
         )
         cache_enabled = self.getCacheIntermediateData()
+        cache_estimator_input = self.getCacheEstimatorInput()
+        # Competing caching strategies - both would persist the wide frame, and the
+        # intermediate cache's per-boundary unpersist would evict the narrow frame.
+        # cacheEstimatorInput wins: it persists a strictly narrower frame once.
+        if cache_enabled and cache_estimator_input:
+            warnings.warn(
+                "cacheIntermediateData and cacheEstimatorInput are competing "
+                "caching strategies; cacheEstimatorInput takes precedence and "
+                "cacheIntermediateData is ignored.",
+                stacklevel=2,
+            )
+            cache_enabled = False
         last_checkpoint_index = 0
         # The single persisted frame (if any), unpersisted once superseded or done.
         cached_dataset: Optional[DataFrame] = None
+        # The narrow estimator-input frame (if any), persisted once and reused.
+        estimator_input_cache: Optional[DataFrame] = None
+        estimator_input_cached = False
         # Fit each stage, appending the transformer to the list of transformers
         # If the stage is a parent of an estimator, transform the dataset.
         transformers: List[BaseTransformer] = []
@@ -404,6 +466,22 @@ class KamaeSparkPipeline(Pipeline):
                 if stage in estimator_parent_stages:
                     dataset = stage.transform(dataset)
             else:
+                # Opt-in: at the first estimator boundary, project to the columns
+                # still read downstream and persist that narrow frame once.
+                # Independent sibling estimators then fit against the cached narrow
+                # frame instead of re-scanning the wide input. The persist sits
+                # below each estimator's in-fit sample, so sampling is unchanged.
+                if cache_estimator_input and not estimator_input_cached:
+                    estimator_input_cached = True
+                    live_columns = self.collect_required_input_columns(
+                        expanded_pipeline_stages[index:]
+                    )
+                    keep_columns = [c for c in dataset.columns if c in live_columns]
+                    if keep_columns and len(keep_columns) < len(dataset.columns):
+                        estimator_input_cache = dataset.select(*keep_columns).persist(
+                            StorageLevel.MEMORY_AND_DISK
+                        )
+                        dataset = estimator_input_cache
                 # Truncate accumulated lineage before the fit action to bound plan
                 # depth. eager=True materialises now.
                 if (
@@ -426,6 +504,8 @@ class KamaeSparkPipeline(Pipeline):
                     dataset = model.transform(dataset)
         if cached_dataset is not None:
             cached_dataset.unpersist()
+        if estimator_input_cache is not None:
+            estimator_input_cache.unpersist()
         return KamaeSparkPipelineModel(transformers)
 
     def copy(self, extra: Optional["ParamMap"] = None) -> "KamaeSparkPipeline":

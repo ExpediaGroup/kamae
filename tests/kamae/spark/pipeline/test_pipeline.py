@@ -834,6 +834,86 @@ class TestPipeline:
         assert baseline_out.exceptAll(with_extra_out).isEmpty()
         assert with_extra_out.exceptAll(baseline_out).isEmpty()
 
+    def test_spark_pipeline_cache_estimator_input_is_transparent_to_fit(
+        self, spark_session
+    ):
+        """
+        cacheEstimatorInput projects to still-needed columns and persists that
+        narrow frame once; independent sibling estimators must fit to byte-identical
+        params whether it is on or off, with the genuinely-unused column dropped.
+        """
+        df = spark_session.createDataFrame(
+            [
+                (1.0, 2.0, 3.0, 99.0),
+                (2.0, 4.0, 6.0, 99.0),
+                (3.0, 6.0, 9.0, 99.0),
+                (4.0, 8.0, 12.0, 99.0),
+            ],
+            ["x1", "x2", "x3", "junk"],
+        )
+
+        def build_pipeline(cache):
+            return KamaeSparkPipeline(
+                stages=[
+                    StandardScaleEstimator(inputCol="x1", outputCol="x1_scaled"),
+                    StandardScaleEstimator(inputCol="x2", outputCol="x2_scaled"),
+                    StandardScaleEstimator(inputCol="x3", outputCol="x3_scaled"),
+                ],
+                cacheEstimatorInput=cache,
+            )
+
+        cached_model = build_pipeline(cache=True).fit(df)
+        baseline_model = build_pipeline(cache=False).fit(df)
+
+        for cached_scaler, baseline_scaler in zip(
+            cached_model.stages, baseline_model.stages
+        ):
+            assert cached_scaler.getMean() == baseline_scaler.getMean()
+            assert cached_scaler.getStddev() == baseline_scaler.getStddev()
+
+    def test_spark_pipeline_cache_estimator_input_is_opt_in(self, spark_session):
+        """
+        The narrow-cache projection (which computes the live keep-set via
+        collect_required_input_columns) must only run when cacheEstimatorInput is
+        True. Pruning is left off so the collector is not called for that reason.
+        """
+        df = spark_session.createDataFrame(
+            [(1.0, 2.0, 99.0), (2.0, 4.0, 99.0), (3.0, 6.0, 99.0)],
+            ["x1", "x2", "junk"],
+        )
+        stages = [
+            StandardScaleEstimator(inputCol="x1", outputCol="x1_scaled"),
+            StandardScaleEstimator(inputCol="x2", outputCol="x2_scaled"),
+        ]
+
+        with patch.object(
+            KamaeSparkPipeline,
+            "collect_required_input_columns",
+            wraps=KamaeSparkPipeline.collect_required_input_columns,
+        ) as mock_collect:
+            KamaeSparkPipeline(stages=stages).fit(df)
+            assert mock_collect.call_count == 0
+
+            mock_collect.reset_mock()
+            KamaeSparkPipeline(stages=stages, cacheEstimatorInput=True).fit(df)
+            assert mock_collect.call_count == 1
+
+    def test_spark_pipeline_cache_estimator_input_mutually_exclusive(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        cacheEstimatorInput and cacheIntermediateData are competing strategies;
+        enabling both warns, prefers cacheEstimatorInput, and still fits.
+        """
+        pipeline = KamaeSparkPipeline(
+            stages=valid_stages_1,
+            cacheIntermediateData=True,
+            cacheEstimatorInput=True,
+        )
+        with pytest.warns(UserWarning, match="takes precedence"):
+            pipeline_model = pipeline.fit(example_dataframe)
+        assert pipeline_model is not None
+
     @pytest.mark.parametrize(
         "stages, input_col, original_dtype",
         [
