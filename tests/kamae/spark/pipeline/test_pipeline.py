@@ -914,6 +914,134 @@ class TestPipeline:
             pipeline_model = pipeline.fit(example_dataframe)
         assert pipeline_model is not None
 
+    def test_spark_pipeline_fit_sample_fraction_none_is_unchanged(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        With fitSampleFraction=None (the default), fit is unchanged: a smoke fit
+        succeeds and the resulting model transforms the full dataset.
+        """
+        model = KamaeSparkPipeline(stages=valid_stages_1, fitSampleFraction=None).fit(
+            example_dataframe
+        )
+        assert isinstance(model, KamaeSparkPipelineModel)
+        # The model still applies to the full dataset at transform time.
+        assert model.transform(example_dataframe).count() == example_dataframe.count()
+
+    def test_spark_pipeline_fit_sample_fraction_matches_full_within_tolerance(
+        self, spark_session
+    ):
+        """
+        fitSampleFraction fits sample-robust estimators (ConditionalStandardScale)
+        from a single shared sample; on enough seeded data the fitted mean/stddev
+        must stay within a loose statistical tolerance of a full-data fit.
+        """
+        from pyspark.sql import functions as F
+
+        df = (
+            spark_session.range(0, 40000)
+            .withColumn("x1", F.randn(seed=42))
+            .withColumn("x2", 5.0 + 2.0 * F.randn(seed=7))
+            .select("x1", "x2")
+        ).persist()
+        df.count()
+
+        def build(fraction):
+            return KamaeSparkPipeline(
+                stages=[
+                    ConditionalStandardScaleEstimator(
+                        inputCol="x1", outputCol="x1_scaled"
+                    ),
+                    ConditionalStandardScaleEstimator(
+                        inputCol="x2", outputCol="x2_scaled"
+                    ),
+                ],
+                fitSampleFraction=fraction,
+                fitSampleSeed=13,
+            )
+
+        full_model = build(None).fit(df)
+        with pytest.warns(UserWarning):
+            sampled_model = build(0.2).fit(df)
+
+        for full_stage, sampled_stage in zip(full_model.stages, sampled_model.stages):
+            assert abs(full_stage.getMean()[0] - sampled_stage.getMean()[0]) < 0.15
+            assert abs(full_stage.getStddev()[0] - sampled_stage.getStddev()[0]) < 0.15
+        df.unpersist()
+
+    def test_spark_pipeline_fit_sample_fraction_scans_source_once(self, spark_session):
+        """
+        fitSampleFraction materialises one shared sample, so the source is scanned
+        exactly once regardless of how many estimators fit from it - unlike the
+        default, where each independent estimator rescans the source.
+        """
+        from pyspark.sql import functions as F
+        from pyspark.sql.types import DoubleType as SparkDoubleType
+
+        n_rows = 500
+        source = (
+            spark_session.range(0, n_rows)
+            .select(F.col("id").cast("double").alias("raw"))
+            .persist()
+        )
+        source.count()
+
+        def counting_column(accumulator):
+            def _count(value):
+                accumulator.add(1)
+                return value
+
+            udf = F.udf(_count, SparkDoubleType()).asNondeterministic()
+            return source.withColumn("x", udf(F.col("raw"))).drop("raw")
+
+        def estimators():
+            return [
+                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_a"),
+                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_b"),
+                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_c"),
+            ]
+
+        sampled_accum = spark_session.sparkContext.accumulator(0)
+        with pytest.warns(UserWarning):
+            KamaeSparkPipeline(
+                stages=estimators(), fitSampleFraction=1.0, fitSampleSeed=1
+            ).fit(counting_column(sampled_accum))
+        # One shared-sample materialisation => exactly one pass over the source.
+        assert sampled_accum.value == n_rows
+
+        baseline_accum = spark_session.sparkContext.accumulator(0)
+        KamaeSparkPipeline(stages=estimators()).fit(counting_column(baseline_accum))
+        # Default: each of the three estimators rescans the source.
+        assert baseline_accum.value > n_rows
+
+        source.unpersist()
+
+    def test_spark_pipeline_fit_sample_fraction_disables_caching(self, spark_session):
+        """
+        fitSampleFraction persists a tiny sample instead of the wide frame, so it is
+        incompatible with cacheEstimatorInput: enabling both must warn and disable
+        the cache (its narrow-projection path never runs).
+        """
+        df = spark_session.createDataFrame([(1.0,), (2.0,), (3.0,), (4.0,)], ["x"])
+        pipeline = KamaeSparkPipeline(
+            stages=[
+                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_scaled")
+            ],
+            cacheEstimatorInput=True,
+            fitSampleFraction=1.0,
+            fitSampleSeed=1,
+        )
+        with patch.object(
+            KamaeSparkPipeline,
+            "collect_required_input_columns",
+            wraps=KamaeSparkPipeline.collect_required_input_columns,
+        ) as mock_collect:
+            with pytest.warns(UserWarning, match="incompatible"):
+                model = pipeline.fit(df)
+        # cacheEstimatorInput disabled => its keep-set collector is never called.
+        assert mock_collect.call_count == 0
+        assert model is not None
+
     @pytest.mark.parametrize(
         "stages, input_col, original_dtype",
         [
