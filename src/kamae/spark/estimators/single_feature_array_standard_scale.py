@@ -62,6 +62,7 @@ class SingleFeatureArrayStandardScaleEstimator(
         layerName: Optional[str] = None,
         maskValue: Optional[float] = None,
         sampleFraction: Optional[float] = None,
+        useFitSample: bool = False,
     ) -> None:
         """
         Initializes a SingleFeatureArrayStandardScaleEstimator estimator.
@@ -77,10 +78,12 @@ class SingleFeatureArrayStandardScaleEstimator(
          in the keras model. If not set, we use the uid of the Spark transformer.
         :param sampleFraction: Fraction of data to sample for statistics
          estimation (exclusive 0.0-1.0). Default None (no sampling).
+        :param useFitSample: If True, fit on the enclosing pipeline's shared sample
+         when fitSampleFraction is set. Default False.
         :returns: None - class instantiated.
         """
         super().__init__()
-        self._setDefault(maskValue=None, sampleFraction=None)
+        self._setDefault(maskValue=None, sampleFraction=None, useFitSample=False)
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
 

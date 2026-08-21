@@ -932,9 +932,10 @@ class TestPipeline:
         self, spark_session
     ):
         """
-        fitSampleFraction fits sample-robust estimators (ConditionalStandardScale)
-        from a single shared sample; on enough seeded data the fitted mean/stddev
-        must stay within a loose statistical tolerance of a full-data fit.
+        fitSampleFraction fits the opted-in sample-robust estimators
+        (ConditionalStandardScale, with useFitSample=True) from a single
+        shared sample; on enough seeded data the fitted mean/stddev must stay within
+        a loose statistical tolerance of a full-data fit.
         """
         from pyspark.sql import functions as F
 
@@ -947,13 +948,16 @@ class TestPipeline:
         df.count()
 
         def build(fraction):
+            # useFitSample=True opts each estimator in to the shared sample. The
+            # full-data reference leaves it off so it is a genuine full fit.
+            opt_in = {"useFitSample": True} if fraction is not None else {}
             return KamaeSparkPipeline(
                 stages=[
                     ConditionalStandardScaleEstimator(
-                        inputCol="x1", outputCol="x1_scaled"
+                        inputCol="x1", outputCol="x1_scaled", **opt_in
                     ),
                     ConditionalStandardScaleEstimator(
-                        inputCol="x2", outputCol="x2_scaled"
+                        inputCol="x2", outputCol="x2_scaled", **opt_in
                     ),
                 ],
                 fitSampleFraction=fraction,
@@ -994,19 +998,22 @@ class TestPipeline:
             udf = F.udf(_count, SparkDoubleType()).asNondeterministic()
             return source.withColumn("x", udf(F.col("raw"))).drop("raw")
 
-        def estimators():
+        def estimators(opt_in=False):
+            # useFitSample=True opts the estimator in to the shared sample.
+            kw = {"useFitSample": True} if opt_in else {}
             return [
-                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_a"),
-                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_b"),
-                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_c"),
+                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_a", **kw),
+                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_b", **kw),
+                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_c", **kw),
             ]
 
         sampled_accum = spark_session.sparkContext.accumulator(0)
         with pytest.warns(UserWarning):
             KamaeSparkPipeline(
-                stages=estimators(), fitSampleFraction=1.0, fitSampleSeed=1
+                stages=estimators(opt_in=True), fitSampleFraction=1.0, fitSampleSeed=1
             ).fit(counting_column(sampled_accum))
-        # One shared-sample materialisation => exactly one pass over the source.
+        # One shared-sample materialisation, reused by all three opted-in estimators
+        # => exactly one pass over the source.
         assert sampled_accum.value == n_rows
 
         baseline_accum = spark_session.sparkContext.accumulator(0)
@@ -1025,7 +1032,9 @@ class TestPipeline:
         df = spark_session.createDataFrame([(1.0,), (2.0,), (3.0,), (4.0,)], ["x"])
         pipeline = KamaeSparkPipeline(
             stages=[
-                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_scaled")
+                ConditionalStandardScaleEstimator(
+                    inputCol="x", outputCol="x_scaled", useFitSample=True
+                )
             ],
             cacheEstimatorInput=True,
             fitSampleFraction=1.0,
@@ -1040,6 +1049,118 @@ class TestPipeline:
                 model = pipeline.fit(df)
         # cacheEstimatorInput disabled => its keep-set collector is never called.
         assert mock_collect.call_count == 0
+        assert model is not None
+
+    def test_spark_pipeline_fit_sample_fraction_non_opted_in_reads_full(
+        self, spark_session
+    ):
+        """
+        Only estimators with useFitSample=True fit on the shared sample;
+        an estimator without it still fits on the full input. With fraction=1.0 the
+        sample is materialised once (n_rows) and reused by the opted-in estimator,
+        while the non-opted estimator triggers its own full scan => 2 * n_rows.
+        """
+        from pyspark.sql import functions as F
+        from pyspark.sql.types import DoubleType as SparkDoubleType
+
+        n_rows = 400
+        source = (
+            spark_session.range(0, n_rows)
+            .select(F.col("id").cast("double").alias("raw"))
+            .persist()
+        )
+        source.count()
+
+        accum = spark_session.sparkContext.accumulator(0)
+
+        def _count(value):
+            accum.add(1)
+            return value
+
+        udf = F.udf(_count, SparkDoubleType()).asNondeterministic()
+        counting = source.withColumn("x", udf(F.col("raw"))).drop("raw")
+
+        with pytest.warns(UserWarning):
+            KamaeSparkPipeline(
+                stages=[
+                    # Opts in: reads the shared sample.
+                    ConditionalStandardScaleEstimator(
+                        inputCol="x", outputCol="x_sampled", useFitSample=True
+                    ),
+                    # No useFitSample: reads the full input.
+                    ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_full"),
+                ],
+                fitSampleFraction=1.0,
+                fitSampleSeed=1,
+            ).fit(counting)
+
+        # One materialisation of the shared sample (n_rows), reused by the opted-in
+        # estimator, plus one full scan by the non-opted estimator.
+        assert accum.value == 2 * n_rows
+        source.unpersist()
+
+    def test_spark_pipeline_fit_sample_fraction_without_opt_in_is_noop(
+        self, spark_session
+    ):
+        """
+        fitSampleFraction with no estimator opting in (none has useFitSample=True)
+        warns that it has no effect and fits exactly as a full fit would.
+        """
+        df = spark_session.createDataFrame([(1.0,), (2.0,), (3.0,), (4.0,)], ["x"])
+        stage = ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_scaled")
+
+        full_model = KamaeSparkPipeline(stages=[stage]).fit(df)
+        with pytest.warns(UserWarning, match="no effect"):
+            noop_model = KamaeSparkPipeline(
+                stages=[stage], fitSampleFraction=0.5, fitSampleSeed=1
+            ).fit(df)
+
+        assert noop_model.stages[0].getMean() == full_model.stages[0].getMean()
+        assert noop_model.stages[0].getStddev() == full_model.stages[0].getStddev()
+
+    def test_spark_pipeline_fit_sample_fraction_overrides_estimator_sample_fraction(
+        self, spark_session
+    ):
+        """
+        An estimator that sets both useFitSample=True and its own sampleFraction warns
+        that the shared pipeline sample wins and its sampleFraction is ignored.
+        """
+        df = spark_session.createDataFrame([(1.0,), (2.0,), (3.0,), (4.0,)], ["x"])
+        pipeline = KamaeSparkPipeline(
+            stages=[
+                ConditionalStandardScaleEstimator(
+                    inputCol="x",
+                    outputCol="x_scaled",
+                    useFitSample=True,
+                    sampleFraction=0.5,
+                )
+            ],
+            fitSampleFraction=1.0,
+            fitSampleSeed=1,
+        )
+        with pytest.warns(UserWarning, match="sampleFraction is ignored"):
+            model = pipeline.fit(df)
+        assert model is not None
+        # The estimator's own sampleFraction is restored after the fit.
+        assert pipeline.getStages()[0].getSampleFraction() == 0.5
+
+    def test_spark_pipeline_fit_sample_fraction_opt_in_without_pipeline_sample_warns(
+        self, spark_session
+    ):
+        """
+        useFitSample=True with no pipeline fitSampleFraction has no shared sample to
+        fit on, so it warns that useFitSample has no effect.
+        """
+        df = spark_session.createDataFrame([(1.0,), (2.0,), (3.0,), (4.0,)], ["x"])
+        pipeline = KamaeSparkPipeline(
+            stages=[
+                ConditionalStandardScaleEstimator(
+                    inputCol="x", outputCol="x_scaled", useFitSample=True
+                )
+            ]
+        )
+        with pytest.warns(UserWarning, match="useFitSample has no effect"):
+            model = pipeline.fit(df)
         assert model is not None
 
     @pytest.mark.parametrize(

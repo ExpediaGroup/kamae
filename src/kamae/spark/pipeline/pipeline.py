@@ -49,8 +49,9 @@ class KamaeSparkPipeline(Pipeline):
     `cacheEstimatorInput` projects to the columns still read downstream at the first
     estimator boundary and persists that narrow frame once, so independent sibling
     estimators reuse it instead of re-scanning the wide input; `fitSampleFraction`
-    draws a single persisted sample of the input up-front and fits every estimator
-    from it (see its param docstring for the correctness caveat).
+    draws a single persisted sample of the input up-front and fits the estimators
+    that opt in (those with `useFitSample=True`) from that shared sample, while
+    estimators without it keep fitting on the full input.
     """
 
     checkpointInterval = Param(
@@ -92,14 +93,15 @@ class KamaeSparkPipeline(Pipeline):
         Params._dummy(),
         "fitSampleFraction",
         "If set to a float in (0, 1], draw a single sample of the input up-front, "
-        "persist (MEMORY_AND_DISK) and materialise it once, and fit every estimator "
-        "from that shared sample (each estimator's own sampleFraction is ignored for "
-        "the fit). Avoids re-scanning or persisting the wide source once per "
-        "estimator. ONLY correct when every estimator computes sample-robust "
-        "statistics (mean/std/quantiles, e.g. ConditionalStandardScale); vocabulary "
-        "builders (StringIndexer/OneHot), min/max scalers and distinct counts need "
-        "exact/global statistics and will be inaccurate on a sample. Disables "
-        "cacheIntermediateData and cacheEstimatorInput. None (default) disables it.",
+        "persist (MEMORY_AND_DISK) and materialise it once, and fit the estimators "
+        "that opt in from that shared sample. An estimator opts in by setting its "
+        "boolean useFitSample param to True. Estimators without useFitSample fit on "
+        "the full input, so leave it False for estimators needing exact/global "
+        "statistics (vocabulary builders like StringIndexer/OneHot, min/max scalers, "
+        "distinct counts) and set it True on sample-robust estimators (mean/std/"
+        "quantiles, e.g. ConditionalStandardScale). Avoids re-scanning or persisting "
+        "the wide source once per opted-in estimator. Disables cacheIntermediateData "
+        "and cacheEstimatorInput. None (default) disables it.",
         typeConverter=TypeConverters.toFloat,
     )
 
@@ -137,9 +139,10 @@ class KamaeSparkPipeline(Pipeline):
         :param cacheEstimatorInput: If True, project to the columns still read
         downstream at the first estimator boundary and persist that narrow frame
         once for reuse by subsequent estimators. False (default) disables it.
-        :param fitSampleFraction: If set to a float in (0, 1], fit every estimator
-        from a single up-front persisted sample of the input. Only correct when all
-        estimators compute sample-robust statistics. None (default) disables it.
+        :param fitSampleFraction: If set to a float in (0, 1], fit the estimators
+        that opt in (those with useFitSample=True) from a single up-front persisted
+        sample of the input; estimators without useFitSample fit on the full input.
+        None (default) disables it.
         :param fitSampleSeed: Optional integer seed for the fitSampleFraction
         sample. None (default) leaves it unseeded.
         :returns: None - class instantiated.
@@ -494,11 +497,12 @@ class KamaeSparkPipeline(Pipeline):
         smaller cache and the intermediate cache would evict it.
 
         If `fitSampleFraction` is set, the input is sampled once, persisted and
-        materialised, and every estimator is fit from that shared sample with its
-        own `sampleFraction` temporarily disabled; `cacheIntermediateData` and
-        `cacheEstimatorInput` are disabled (with a warning) as they persist frames
-        this option avoids. Only correct for sample-robust estimators (a runtime
-        warning is emitted); see the `fitSampleFraction` param docstring.
+        materialised, and the estimators that opt in (those with `useFitSample=True`)
+        are fit from that shared sample with any `sampleFraction` they also set
+        temporarily disabled; every other estimator still fits on the full input.
+        `cacheIntermediateData` and `cacheEstimatorInput` are disabled (with a
+        warning) as they persist frames this option avoids; a warning also names the
+        opted-in estimators. See the `fitSampleFraction` param docstring.
 
         :param dataset: PySpark DataFrame to fit the pipeline to.
         :returns: KamaeSparkPipelineModel object.
@@ -541,56 +545,98 @@ class KamaeSparkPipeline(Pipeline):
             )
             cache_enabled = False
 
-        # Opt-in: fit every estimator from one shared sample drawn up-front, instead
-        # of re-scanning or persisting the wide source once per estimator.
+        # Opt-in: draw one shared sample up-front and fit only the estimators that
+        # opt in against it, instead of each re-scanning or persisting the wide
+        # source. An estimator opts in via its boolean `useFitSample` param.
+        # Estimators without it set still fit on the full input, so exact/global-
+        # statistic estimators (vocabulary builders, min/max) stay correct.
         fit_sample_fraction = self.getFitSampleFraction()
         sampled_dataset: Optional[DataFrame] = None
-        # (stage, param, was_explicitly_set, original_value) for restoration.
-        overridden_sample_fractions: List[Tuple[Any, Any, bool, Any]] = []
+        # (stage, param, original_value) for restoration of overridden sampleFractions.
+        overridden_sample_fractions: List[Tuple[Any, Any, Any]] = []
+        # Identities of the estimators that fit on the shared sample.
+        use_sample_stage_ids: Set[int] = set()
         if fit_sample_fraction is not None:
-            warnings.warn(
-                "fitSampleFraction fits every estimator on one shared sample of the "
-                "input. This is only correct when all estimators compute "
-                "sample-robust statistics (mean/std/quantiles, e.g. "
-                "ConditionalStandardScale). Vocabulary builders "
-                "(StringIndexer/OneHot), min/max scalers and distinct counts require "
-                "exact/global statistics and will be inaccurate on a sample. It also "
-                "replaces the independent per-estimator samples with one shared "
-                "sample.",
-                stacklevel=2,
-            )
-            # fitSampleFraction persists a tiny sample instead of the wide frame, so
-            # the caching strategies it supersedes are turned off.
-            if cache_enabled or cache_estimator_input:
+            sampling_estimators = [
+                stage
+                for stage in expanded_pipeline_stages
+                if isinstance(stage, BaseEstimator)
+                and stage.hasParam("useFitSample")
+                and stage.getUseFitSample()
+            ]
+            if not sampling_estimators:
                 warnings.warn(
-                    "fitSampleFraction is incompatible with cacheIntermediateData "
-                    "and cacheEstimatorInput (which persist frames this option "
-                    "avoids); the caching options are disabled.",
+                    "fitSampleFraction is set but no estimator has useFitSample=True, "
+                    "so nothing opts in to the shared sample and fitSampleFraction "
+                    "has no effect. Set useFitSample=True on the estimators that "
+                    "should fit on the sample.",
                     stacklevel=2,
                 )
-                cache_enabled = False
-                cache_estimator_input = False
-            sampled_dataset = dataset.sample(
-                fraction=fit_sample_fraction, seed=self.getFitSampleSeed()
-            ).persist(StorageLevel.MEMORY_AND_DISK)
-            # Force one materialisation so the sample is computed exactly once and
-            # every estimator fit reads the cached rows instead of re-scanning.
-            sampled_dataset.count()
-            dataset = sampled_dataset
-            # The shared sample is already drawn, so each estimator must not sample
-            # again (fraction-of-a-fraction would leave far too few rows). Disable
-            # each estimator's sampleFraction for this fit, restoring it in finally.
-            for stage in expanded_pipeline_stages:
-                if isinstance(stage, BaseEstimator) and stage.hasParam(
-                    "sampleFraction"
-                ):
-                    param = stage.getParam("sampleFraction")
-                    was_set = stage.isSet(param)
-                    original = stage.getOrDefault(param) if was_set else None
-                    overridden_sample_fractions.append(
-                        (stage, param, was_set, original)
+            else:
+                warnings.warn(
+                    "fitSampleFraction fits "
+                    f"{sorted({type(s).__name__ for s in sampling_estimators})} on "
+                    "one shared pipeline sample (useFitSample=True). Estimators "
+                    "without useFitSample set fit on the full input.",
+                    stacklevel=2,
+                )
+                # fitSampleFraction persists a tiny sample instead of the wide frame,
+                # so the caching strategies it supersedes are turned off.
+                if cache_enabled or cache_estimator_input:
+                    warnings.warn(
+                        "fitSampleFraction is incompatible with cacheIntermediateData "
+                        "and cacheEstimatorInput (which persist frames this option "
+                        "avoids); the caching options are disabled.",
+                        stacklevel=2,
                     )
-                    stage.set(param, None)
+                    cache_enabled = False
+                    cache_estimator_input = False
+                sampled_dataset = dataset.sample(
+                    fraction=fit_sample_fraction, seed=self.getFitSampleSeed()
+                ).persist(StorageLevel.MEMORY_AND_DISK)
+                # Force one materialisation so the sample is computed exactly once and
+                # every opted-in estimator reads the cached rows instead of rescanning.
+                sampled_dataset.count()
+                # The shared sample is already drawn, so opted-in estimators must not
+                # sample again (fraction-of-a-fraction would leave far too few rows).
+                # Disable any sampleFraction they also set, restoring it in finally.
+                for stage in sampling_estimators:
+                    use_sample_stage_ids.add(id(stage))
+                    param = stage.getParam("sampleFraction")
+                    if stage.isSet(param):
+                        overridden_sample_fractions.append(
+                            (stage, param, stage.getOrDefault(param))
+                        )
+                        stage.set(param, None)
+                overridden_names = sorted(
+                    {type(s).__name__ for s, _, _ in overridden_sample_fractions}
+                )
+                if overridden_names:
+                    warnings.warn(
+                        f"{overridden_names} set both useFitSample=True and their own "
+                        "sampleFraction. The shared pipeline sample wins, so their "
+                        "sampleFraction is ignored for this fit. Unset one to silence "
+                        "this warning.",
+                        stacklevel=2,
+                    )
+        else:
+            opted_in_without_sample = sorted(
+                {
+                    type(stage).__name__
+                    for stage in expanded_pipeline_stages
+                    if isinstance(stage, BaseEstimator)
+                    and stage.hasParam("useFitSample")
+                    and stage.getUseFitSample()
+                }
+            )
+            if opted_in_without_sample:
+                warnings.warn(
+                    f"{opted_in_without_sample} set useFitSample=True but the pipeline "
+                    "has no fitSampleFraction, so there is no shared sample to fit on "
+                    "and useFitSample has no effect. Set fitSampleFraction on the "
+                    "pipeline to enable sampled fitting.",
+                    stacklevel=2,
+                )
 
         # Fit each stage, appending the transformer to the list of transformers.
         # If the stage is a parent of an estimator, transform the dataset.
@@ -599,6 +645,8 @@ class KamaeSparkPipeline(Pipeline):
             fitted_pipeline_model = self._run_fit_loop(
                 expanded_pipeline_stages=expanded_pipeline_stages,
                 dataset=dataset,
+                sampled_dataset=sampled_dataset,
+                use_sample_stage_ids=use_sample_stage_ids,
                 estimator_parent_stages=estimator_parent_stages,
                 transformers=transformers,
                 checkpoint_enabled=checkpoint_enabled,
@@ -607,13 +655,10 @@ class KamaeSparkPipeline(Pipeline):
                 cache_estimator_input=cache_estimator_input,
             )
         finally:
-            # Restore each estimator's original sampleFraction and release the
-            # shared sample, whether or not the fit succeeded.
-            for stage, param, was_set, original in overridden_sample_fractions:
-                if was_set:
-                    stage.set(param, original)
-                else:
-                    stage.clear(param)
+            # Restore each opted-in estimator's original sampleFraction and release
+            # the shared sample, whether or not the fit succeeded.
+            for stage, param, original in overridden_sample_fractions:
+                stage.set(param, original)
             if sampled_dataset is not None:
                 sampled_dataset.unpersist()
         return fitted_pipeline_model
@@ -623,6 +668,8 @@ class KamaeSparkPipeline(Pipeline):
         *,
         expanded_pipeline_stages: List["KamaePipelineStage"],
         dataset: DataFrame,
+        sampled_dataset: Optional[DataFrame],
+        use_sample_stage_ids: Set[int],
         estimator_parent_stages: List["KamaePipelineStage"],
         transformers: List[BaseTransformer],
         checkpoint_enabled: bool,
@@ -635,16 +682,27 @@ class KamaeSparkPipeline(Pipeline):
 
         Extracted from `_fit` so the loop can run inside a try/finally that restores
         estimator sampling and releases the shared sample when fitSampleFraction is
-        used. Behaviour is identical to the previous inline loop.
+        used. With fitSampleFraction off (`sampled_dataset is None`) behaviour is
+        identical to the previous inline loop.
+
+        When fitSampleFraction is active, two lineages are carried in parallel: the
+        full-data lineage and a shared-sample lineage. Every transformer that feeds an
+        estimator is applied to both, so an estimator can fit on whichever it opted
+        in to - estimators in `use_sample_stage_ids` fit on the sample, all others on
+        the full input. The caching options are mutually exclusive with
+        fitSampleFraction (disabled in `_fit`), so they only ever act on the full
+        lineage when no sample is present.
 
         `cacheIntermediateData` and `cacheEstimatorInput` are mutually exclusive (see
         `_fit`), so a single `persisted_frame` handle tracks whichever frame is
-        persisted. It is kept separate from `dataset` because `dataset` is reassigned
-        by `model.transform(...)` between boundaries; the handle is what lets us
-        unpersist the actual persisted frame at the end.
+        persisted. It is kept separate from the lineage variable because that variable
+        is reassigned by `model.transform(...)` between boundaries; the handle is what
+        lets us unpersist the actual persisted frame at the end.
 
         :param expanded_pipeline_stages: Flattened pipeline stages to fit.
-        :param dataset: DataFrame (possibly sampled) to fit the stages against.
+        :param dataset: Full-data DataFrame to fit non-sampled stages against.
+        :param sampled_dataset: Shared sample (or None when fitSampleFraction is off).
+        :param use_sample_stage_ids: `id()`s of estimators that fit on the sample.
         :param estimator_parent_stages: Stages whose output an estimator consumes.
         :param transformers: Accumulator list the fitted stages are appended to.
         :param checkpoint_enabled: Whether reliable checkpointing is enabled.
@@ -658,11 +716,18 @@ class KamaeSparkPipeline(Pipeline):
         # Only one of the mutually-exclusive cache strategies ever populates it.
         persisted_frame: Optional[DataFrame] = None
         estimator_input_cached = False
+        # Full-data lineage and, when fitSampleFraction is active, a parallel
+        # shared-sample lineage kept in lock-step through the estimator-feeding
+        # transforms.
+        full_dataset = dataset
+        sample_dataset = sampled_dataset
         for index, stage in enumerate(expanded_pipeline_stages):
             if isinstance(stage, BaseTransformer):
                 transformers.append(stage)
                 if stage in estimator_parent_stages:
-                    dataset = stage.transform(dataset)
+                    full_dataset = stage.transform(full_dataset)
+                    if sample_dataset is not None:
+                        sample_dataset = stage.transform(sample_dataset)
             else:
                 # cacheEstimatorInput: at the first estimator boundary, project to
                 # the columns still read downstream and persist that narrow frame
@@ -674,19 +739,23 @@ class KamaeSparkPipeline(Pipeline):
                     live_columns = self.collect_required_input_columns(
                         expanded_pipeline_stages[index:]
                     )
-                    keep_columns = [c for c in dataset.columns if c in live_columns]
-                    if keep_columns and len(keep_columns) < len(dataset.columns):
-                        dataset = dataset.select(*keep_columns).persist(
+                    keep_columns = [
+                        c for c in full_dataset.columns if c in live_columns
+                    ]
+                    if keep_columns and len(keep_columns) < len(full_dataset.columns):
+                        full_dataset = full_dataset.select(*keep_columns).persist(
                             StorageLevel.MEMORY_AND_DISK
                         )
-                        persisted_frame = dataset
+                        persisted_frame = full_dataset
                 # Truncate accumulated lineage before the fit action to bound plan
                 # depth. eager=True materialises now.
                 if (
                     checkpoint_enabled
                     and index - last_checkpoint_index >= checkpoint_interval
                 ):
-                    dataset = dataset.checkpoint(eager=True)
+                    full_dataset = full_dataset.checkpoint(eager=True)
+                    if sample_dataset is not None:
+                        sample_dataset = sample_dataset.checkpoint(eager=True)
                     last_checkpoint_index = index
                 # cacheIntermediateData: persist so the fit action and downstream
                 # transforms reuse a materialised frame instead of re-scanning,
@@ -694,12 +763,19 @@ class KamaeSparkPipeline(Pipeline):
                 if cache_enabled:
                     if persisted_frame is not None:
                         persisted_frame.unpersist()
-                    dataset = dataset.persist(StorageLevel.MEMORY_AND_DISK)
-                    persisted_frame = dataset
-                model = stage.fit(dataset)
+                    full_dataset = full_dataset.persist(StorageLevel.MEMORY_AND_DISK)
+                    persisted_frame = full_dataset
+                fit_dataset = (
+                    sample_dataset
+                    if sample_dataset is not None and id(stage) in use_sample_stage_ids
+                    else full_dataset
+                )
+                model = stage.fit(fit_dataset)
                 transformers.append(model)
                 if stage in estimator_parent_stages:
-                    dataset = model.transform(dataset)
+                    full_dataset = model.transform(full_dataset)
+                    if sample_dataset is not None:
+                        sample_dataset = model.transform(sample_dataset)
         if persisted_frame is not None:
             persisted_frame.unpersist()
         return KamaeSparkPipelineModel(transformers)
