@@ -475,6 +475,31 @@ class TestPipeline:
         pipeline_loaded = KamaeSparkPipeline.load(f"{test_dir}/pipeline")
         assert pipeline.stages == pipeline_loaded.stages
 
+    def test_spark_read_write_pipeline_preserves_fit_params(self, test_dir, request):
+        """
+        Non-default pipeline-level fit params must survive a save/load round-trip;
+        the base pipeline writer only persists stage uids and would drop them.
+        """
+        stages = request.getfixturevalue("valid_stages_0")
+        pipeline = KamaeSparkPipeline(
+            stages=stages,
+            checkpointInterval=3,
+            cacheIntermediateData=True,
+            pruneInputColumns=False,
+            cacheEstimatorInput=True,
+            fitSampleFraction=0.25,
+            fitSampleSeed=7,
+        )
+        pipeline.save(f"{test_dir}/pipeline_params")
+        loaded = KamaeSparkPipeline.load(f"{test_dir}/pipeline_params")
+
+        assert loaded.getCheckpointInterval() == 3
+        assert loaded.getCacheIntermediateData() is True
+        assert loaded.getPruneInputColumns() is False
+        assert loaded.getCacheEstimatorInput() is True
+        assert loaded.getFitSampleFraction() == 0.25
+        assert loaded.getFitSampleSeed() == 7
+
     @pytest.mark.parametrize(
         "stages, expanded_stages",
         [

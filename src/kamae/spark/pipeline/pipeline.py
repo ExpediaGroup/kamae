@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import warnings
 from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Type
 
@@ -20,7 +21,7 @@ from pyspark import keyword_only
 from pyspark.ml import Pipeline
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.ml.pipeline import PipelineReader, PipelineSharedReadWrite, PipelineWriter
-from pyspark.ml.util import DefaultParamsReader, MLWriter
+from pyspark.ml.util import DefaultParamsReader, DefaultParamsWriter, MLWriter
 from pyspark.sql import DataFrame
 from pyspark.storagelevel import StorageLevel
 
@@ -830,7 +831,15 @@ class KamaeSparkPipelineReader(PipelineReader):
         """
         metadata = DefaultParamsReader.loadMetadata(path, self.sc)
         uid, stages = PipelineSharedReadWrite.load(metadata, self.sc, path)
-        return KamaeSparkPipeline(stages=stages)._resetUid(uid)
+        pipeline = KamaeSparkPipeline(stages=stages)._resetUid(uid)
+        # The base pipeline writer only persists stage uids, so the pipeline-level
+        # fit params (checkpointInterval, cache/prune flags, fitSampleFraction, ...)
+        # would reset to defaults. Restore any that were saved by the writer.
+        saved_params = metadata.get("kamaePipelineParams", {})
+        for name, value in saved_params.items():
+            if pipeline.hasParam(name):
+                pipeline.set(pipeline.getParam(name), value)
+        return pipeline
 
 
 class KamaeSparkPipelineWriter(PipelineWriter):
@@ -840,3 +849,43 @@ class KamaeSparkPipelineWriter(PipelineWriter):
 
     def __init__(self, instance: KamaeSparkPipeline) -> None:
         super().__init__(instance=instance)
+
+    def saveImpl(self, path: str) -> None:
+        """
+        Saves the pipeline to the given path.
+
+        Mirrors PipelineSharedReadWrite.saveImpl (metadata + stage uids + stages) but
+        additionally persists the pipeline-level fit params (which the base writer
+        drops) so they survive a save/load round-trip.
+
+        :param path: Path to store the pipeline at.
+        :returns: None.
+        """
+        stages = self.instance.getStages()
+        PipelineSharedReadWrite.validateStages(stages)
+
+        json_params = {
+            "stageUids": [stage.uid for stage in stages],
+            "language": "Python",
+        }
+        # Only the explicitly-set, non-stages params; defaults stay implicit so
+        # older saves (without this metadata) still load with correct defaults.
+        pipeline_params = {
+            p.name: self.instance.getOrDefault(p)
+            for p in self.instance.params
+            if p.name != "stages" and self.instance.isSet(p)
+        }
+        DefaultParamsWriter.saveMetadata(
+            self.instance,
+            path,
+            self.sc,
+            extraMetadata={"kamaePipelineParams": pipeline_params},
+            paramMap=json_params,
+        )
+        stages_dir = os.path.join(path, "stages")
+        for index, stage in enumerate(stages):
+            stage.write().save(
+                PipelineSharedReadWrite.getStagePath(
+                    stage.uid, index, len(stages), stages_dir
+                )
+            )

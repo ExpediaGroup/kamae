@@ -157,6 +157,13 @@ def _single_input_single_output_udf_transform(
     if not isinstance(input_col_datatype, ArrayType):
 
         def _vectorized_func(series: pd.Series) -> pd.Series:
+            # Arrow delivers Spark NULLs as NaN/pd.NA for numeric series rather than
+            # Python None, which would bypass the `is None` null/OOV guards in the
+            # element funcs (e.g. indexer/hash UDFs). Restore None so the vectorized
+            # path matches the plain UDF. Guarded by hasnans to keep the null-free
+            # fast path (the common case) untouched.
+            if series.hasnans:
+                series = series.astype(object).where(series.notna(), None)
             return series.map(nested_lambda_func)
 
         udf_func = F.pandas_udf(_vectorized_func, udf_return_type)
