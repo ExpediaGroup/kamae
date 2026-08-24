@@ -21,12 +21,16 @@ from pyspark import keyword_only
 from pyspark.ml import Pipeline
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.ml.pipeline import PipelineReader, PipelineSharedReadWrite, PipelineWriter
-from pyspark.ml.util import DefaultParamsReader, DefaultParamsWriter, MLWriter
+from pyspark.ml.util import MLWriter
 from pyspark.sql import DataFrame
 from pyspark.storagelevel import StorageLevel
 
 from kamae.graph import PipelineGraph
 from kamae.spark.estimators import BaseEstimator
+from kamae.spark.params.default_read_write import (
+    KamaeDefaultParamsReader,
+    KamaeDefaultParamsWriter,
+)
 from kamae.spark.pipeline import KamaeSparkPipelineModel
 from kamae.spark.transformers import BaseTransformer
 
@@ -829,7 +833,7 @@ class KamaeSparkPipelineReader(PipelineReader):
         :param path: Path to stored pipeline.
         :returns: KamaeSparkPipeline object.
         """
-        metadata = DefaultParamsReader.loadMetadata(path, self.sc)
+        metadata = KamaeDefaultParamsReader.loadMetadata(path, self.sc)
         uid, stages = PipelineSharedReadWrite.load(metadata, self.sc, path)
         pipeline = KamaeSparkPipeline(stages=stages)._resetUid(uid)
         # The base pipeline writer only persists stage uids, so the pipeline-level
@@ -875,7 +879,7 @@ class KamaeSparkPipelineWriter(PipelineWriter):
             for p in self.instance.params
             if p.name != "stages" and self.instance.isSet(p)
         }
-        DefaultParamsWriter.saveMetadata(
+        KamaeDefaultParamsWriter.saveMetadata(
             self.instance,
             path,
             self.sc,
