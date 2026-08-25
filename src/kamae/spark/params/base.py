@@ -144,6 +144,15 @@ class SampleFractionParams(Params):
         "Default None (no sampling).",
     )
 
+    useFitSample = Param(
+        Params._dummy(),
+        "useFitSample",
+        "If True, and the enclosing KamaeSparkPipeline has fitSampleFraction set, fit "
+        "this estimator on the pipeline's shared sample instead of the full input. "
+        "Provides opt-in per estimator without a second fraction value. Default False.",
+        typeConverter=TypeConverters.toBoolean,
+    )
+
     def setSampleFraction(self, value: float) -> "SampleFractionParams":
         """
         Sets the parameter sampleFraction to the given float value.
@@ -166,6 +175,24 @@ class SampleFractionParams(Params):
         :returns: Float representing the sample fraction, or None if not set.
         """
         return self.getOrDefault(self.sampleFraction)
+
+    def setUseFitSample(self, value: bool) -> "SampleFractionParams":
+        """
+        Sets the parameter useFitSample to the given boolean value.
+
+        :param value: Whether to fit this estimator on the pipeline's shared sample
+        when fitSampleFraction is set.
+        :returns: Instance of class mixed in.
+        """
+        return self._set(useFitSample=value)
+
+    def getUseFitSample(self) -> bool:
+        """
+        Gets the value of the useFitSample parameter.
+
+        :returns: Whether this estimator opts in to the pipeline's shared sample.
+        """
+        return self.getOrDefault(self.useFitSample)
 
 
 class SingleInputParams(HasInputCol):
