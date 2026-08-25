@@ -14,7 +14,7 @@
 
 from kamae import __version__
 
-semantic_release_version = "3.1.0"
+semantic_release_version = "3.2.0"
 
 
 def test_version():

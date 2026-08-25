@@ -19,7 +19,7 @@ kamae is a Python package comprising a set of reusable Keras
 transformation layers.
 """
 
-__version__ = "3.1.0"
+__version__ = "3.2.0"
 __name__ = "kamae"
 
 from .discovery import (  # noqa: F401

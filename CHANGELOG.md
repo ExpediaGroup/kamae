@@ -2,6 +2,183 @@
 
 
 
+## v3.2.0 (2026-08-25)
+
+### Feature
+
+* feat: opt-in pipeline fit optimisations, native bucketize, and sampled fitting support with caching (#69)
+
+* Added localCheckPointInterval
+
+Plans are too slow to materialise - this is our attempt to speed it up
+
+* Update pipeline.py
+
+* Update single_feature_array_standard_scale.py
+
+* Update standard_scale.py
+
+* Update conditional_standard_scale.py
+
+* Update base.py
+
+* Update bucketize.py
+
+* Update bucketize.py
+
+* Update conditional_standard_scale.py
+
+* Update single_feature_array_standard_scale.py
+
+* Update standard_scale.py
+
+* Update bucketize.py
+
+* Update base.py
+
+* Update pipeline.py
+
+* Update pipeline.py
+
+* Update standard_scale.py
+
+* Update single_feature_array_standard_scale.py
+
+* Update conditional_standard_scale.py
+
+* Update transform_utils.py
+
+* Update pyproject.toml
+
+* Update pipeline.py
+
+* Update pipeline.py
+
+* perf: persist during scaler fit and add pipeline fit-optimisation tests
+
+Wrap the moments aggregation in StandardScale, SingleFeatureArrayStandardScale
+and ConditionalStandardScale estimators in a guarded persist/unpersist so the
+array-size probe and the aggregation reuse a materialised result instead of
+re-scanning the upstream lineage twice. Repair the incomplete persist edit in
+ConditionalStandardScale._fit.
+
+Add checkpointInterval / pruneInputColumns coverage to the pipeline tests and a
+checkpoint directory to the spark_session fixture. Surface estimator fit errors
+as RuntimeError chained from the original exception.
+
+Co-Authored-By: Claude Opus 4.7 &lt;noreply@anthropic.com&gt;
+
+* Patch black
+
+* Patch error
+
+* Patch test case
+
+* Remove complexity, remove comments
+
+* Patch for lint
+
+* Patch for linter
+
+* refactor: address PR review feedback on pipeline fit optimisations
+
+- Restore stages=stages in __init__ super call
+- checkpointInterval defaults to None; reject non-positive via setter
+- Route setParams through setter methods so validation runs
+- Drop redundant length check in prune_unused_input_columns
+- Regenerate uv.lock to include pyarrow (required by pandas_udf)
+
+Retains the aux-column sweep in collect_required_input_columns: it is
+load-bearing for pruning correctness (maskCols/relevanceCol/queryIdCol are
+not returned by get_layer_inputs_outputs) and defended by regression tests.
+
+Co-Authored-By: Claude Opus 4.7 &lt;noreply@anthropic.com&gt;
+
+* refactor: annotate bucketize get_keras_layer return as tf.keras.layers.Layer
+
+BucketizeLayer is TensorFlow-only, so the tf-specific return type is accurate.
+
+Co-Authored-By: Claude Opus 4.7 &lt;noreply@anthropic.com&gt;
+
+* feat: add opt-in cacheEstimatorInput fit optimisation to KamaeSparkPipeline
+
+Adds a default-off boolean pipeline param that, at the first estimator-fit
+boundary, projects the working frame to the columns still read downstream and
+persists (MEMORY_AND_DISK) that narrow frame once, reused by all subsequent
+estimators. This collapses repeated full scans of a wide input across
+independent sibling estimators into a single populating scan plus in-RAM reuse.
+
+When both cacheIntermediateData and cacheEstimatorInput are enabled,
+cacheEstimatorInput takes precedence (with a warning) since it is a strictly
+narrower cache and the intermediate cache would evict it.
+
+Co-Authored-By: Claude Opus 4.7 &lt;noreply@anthropic.com&gt;
+
+* feat: add opt-in fitSampleFraction fit optimisation to KamaeSparkPipeline
+
+Adds a default-None float param (0, 1] that draws a single sample of the input
+up-front, persists (MEMORY_AND_DISK) and materialises it once, and fits every
+estimator from that shared sample with each estimator&#39;s own sampleFraction
+temporarily disabled and restored afterwards. This collapses the N independent
+per-estimator Bernoulli scans of a wide source (which spilled and GC-thrashed at
+scale) into a single populating scan plus in-RAM reuse. fitSampleSeed makes the
+sample reproducible.
+
+fitSampleFraction is incompatible with cacheIntermediateData/cacheEstimatorInput
+(which persist frames it is designed to avoid), so enabling it warns and disables
+them. It only computes correct statistics for sample-robust estimators
+(mean/std/quantiles); a runtime warning documents that vocabulary builders,
+min/max scalers and distinct counts need exact statistics.
+
+Also addresses review feedback on the cache bookkeeping: since the two cache
+strategies are mutually exclusive, collapse the separate cached_dataset /
+estimator_input_cache / new_cached handles into a single persisted_frame kept
+distinct from dataset (which model.transform reassigns), with one unpersist.
+
+Co-Authored-By: Claude Opus 4.7 &lt;noreply@anthropic.com&gt;
+
+* feat: make fitSampleFraction per-estimator opt-in via useFitSample
+
+Replace the all-estimators sampling behaviour of fitSampleFraction with a
+per-estimator opt-in boolean (useFitSample) on SampleFractionParams. Only
+estimators with useFitSample=True fit on the shared pipeline sample; all
+others fit on the full input, so vocabulary builders and min/max scalers
+that need exact/global statistics stay correct.
+
+Warn on the two conflicting configurations: an estimator that sets both
+useFitSample=True and its own sampleFraction (shared sample wins), and
+useFitSample=True with no pipeline fitSampleFraction (no-op).
+
+Co-Authored-By: Claude Opus 4.7 &lt;noreply@anthropic.com&gt;
+
+* fix: preserve null semantics in vectorized UDF and pipeline params on load
+
+The scalar pandas_udf path let Arrow deliver Spark NULLs as NaN/pd.NA for
+numeric series, bypassing the `is None` null/OOV guards in element funcs.
+Restore Python None before mapping, guarded by hasnans so the null-free
+fast path (the common case) keeps its speedup.
+
+Also persist the pipeline-level fit params (checkpointInterval, cache/prune
+flags, fitSampleFraction/Seed) in the pipeline writer&#39;s metadata and restore
+them in the reader, so non-default values survive a save/load round-trip
+instead of silently resetting to defaults.
+
+Co-Authored-By: Claude Opus 4.7 &lt;noreply@anthropic.com&gt;
+
+* refactor: use Kamae metadata read/write in pipeline save/load
+
+Swap DefaultParamsReader/DefaultParamsWriter for the Kamae variants so
+pipeline metadata read/write uses the Databricks fast-path workaround the
+rest of kamae already relies on, keeping the write and read sides consistent.
+
+Co-Authored-By: Claude Opus 4.7 &lt;noreply@anthropic.com&gt;
+
+---------
+
+Co-authored-by: cworthington &lt;cworthington@expediagroup.com&gt;
+Co-authored-by: Claude Opus 4.7 &lt;noreply@anthropic.com&gt; ([`d581c6c`](https://github.com/ExpediaGroup/kamae/commit/d581c6c4791f90878fb9757566264d96a7f6ee5c))
+
+
 ## v3.1.0 (2026-07-30)
 
 ### Build
