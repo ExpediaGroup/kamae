@@ -18,7 +18,16 @@ import pyspark.sql.functions as F
 import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DataType, DoubleType, FloatType, StringType
+from pyspark.sql.types import (
+    ByteType,
+    DataType,
+    DoubleType,
+    FloatType,
+    IntegerType,
+    LongType,
+    ShortType,
+    StringType,
+)
 
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import ListMaxLayer
@@ -124,6 +133,10 @@ class ListMaxTransformer(
         return [
             FloatType(),
             DoubleType(),
+            ByteType(),
+            ShortType(),
+            IntegerType(),
+            LongType(),
             StringType(),
         ]
 
