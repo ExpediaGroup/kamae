@@ -35,10 +35,12 @@ class ListSumLayer(BaseLayer):
     - If inputCols is set,
         - If with_segment = True: the layer calculates the sum of the first tensor
         segmented by values of the second tensor.
+
         Example: calculate the sum price of hotels within star ratings
 
         - If with_segment = False: the layer calculates the sum of the first tensor
-    based on second tensor's topN items in the same given axis dimension.
+        based on second tensor's topN items in the same given axis dimension.
+
     By using the topN items to calculate the statistics, we can better approximate
     the real statistics in production. It is suggested to use a large enough topN to
     get a good approximation of the statistics, and an important feature to sort on,
@@ -77,11 +79,12 @@ class ListSumLayer(BaseLayer):
         :param output_dtype: The dtype to cast the output to. Defaults to `None`.
         :param top_n: The number of top items to consider when calculating the sum.
         :param sort_order: The order to sort the second tensor by. Defaults to `asc`.
-        :param with_segment: Whether the second tensor should be used for segmentation (True)
-        or sorting (False). Defaults to False.
+        :param with_segment: Whether the second tensor should be used for
+        segmentation (True) or sorting (False). Defaults to False.
         :param min_filter_value: The minimum filter value to ignore values during
         calculation. Defaults to None (no filter).
-        :param nan_fill_value: The value to fill NaNs results with. Defaults to 0.
+        :param nan_fill_value: The value to fill empty results with, i.e. when the
+        min filter leaves no values to sum. Defaults to 0.
         :param axis: The axis to calculate the statistics across. Defaults to 1.
         """
         super().__init__(
@@ -151,6 +154,7 @@ class ListSumLayer(BaseLayer):
         if self.min_filter_value is not None:
             mask = tf.greater_equal(val_tensor, self.min_filter_value)
             val_tensor = tf.where(mask, val_tensor, tf.zeros_like(val_tensor))
+            kept = tf.cast(mask, tf.int32)
 
         # Apply segmented calculation
         if self.with_segment:
@@ -166,6 +170,33 @@ class ListSumLayer(BaseLayer):
         else:
             listwise_sum = tf.reduce_sum(val_tensor, axis=self.axis, keepdims=True)
             listwise_sum = tf.broadcast_to(listwise_sum, output_shape)
+
+        if self.min_filter_value is not None:
+            # Summing zero surviving values gives 0, which is indistinguishable from a
+            # genuine zero sum. Spark yields null there and fills it with nanFillValue,
+            # so the same substitution is needed here to keep the two in parity.
+            if self.with_segment:
+                any_kept = map_fn_w_axis(
+                    elems=[kept, segment_tensor],
+                    fn=lambda x: segmented_operation(x, tf.math.unsorted_segment_max),
+                    axis=self.axis,
+                    fn_output_signature=tf.TensorSpec(
+                        shape=kept.shape[self.axis :], dtype=kept.dtype
+                    ),
+                )
+                any_kept = tf.ensure_shape(any_kept, kept.shape)
+            else:
+                any_kept = tf.reduce_max(kept, axis=self.axis, keepdims=True)
+                any_kept = tf.broadcast_to(any_kept, output_shape)
+
+            # nan_fill_value is a Python float, which tf.constant cannot convert
+            # directly to an integer dtype. Narrowing via numpy first handles the
+            # integer dtypes while preserving full precision for the float ones.
+            fill_val = tf.constant(
+                listwise_sum.dtype.as_numpy_dtype(self.nan_fill_value),
+                dtype=listwise_sum.dtype,
+            )
+            listwise_sum = tf.where(any_kept > 0, listwise_sum, fill_val)
 
         return listwise_sum
 

@@ -54,18 +54,21 @@ class ListSumTransformer(
     - If inputCol is set, the transformer calculates the sum of the input column
     based on all the items with the same query id column value.
     - If inputCols is set, behaviour depends on the value of withSegment:
-        - If withSegment = True: the transformer calculates the sum of the first column
-        with the same query id column value, segmented by values of the second column.
+        - If withSegment = True: the transformer calculates the sum of the first
+        column with the same query id column value, segmented by values of the
+        second column.
 
-        Example: calculate the sum price of hotels within star ratings, in the same query.
+        Example: calculate the sum price of hotels within star ratings, in the
+        same query.
 
-        - If withSegment = False: the transformer calculates the sum of the first column
-        with the same query id column value, based on second column's topN items.
-        When using the second input as sorting column, topN must be provided.
-        By using the topN items to calculate the statistics, we can better approximate
-        the real statistics in production. A large enough topN should be used, to obtain a
-        good approximation of the statistics, and an important feature to sort on, such as
-        item's production.
+        - If withSegment = False: the transformer calculates the sum of the first
+        column with the same query id column value, based on second column's topN
+        items. When using the second input as sorting column, topN must be provided.
+
+        By using the topN items to calculate the statistics, we can better
+        approximate the real statistics in production. A large enough topN should
+        be used, to obtain a good approximation of the statistics, and an important
+        feature to sort on, such as item's production.
 
         Example: calculate the sum price in the same query, based on the top N
         items sorted by descending production.
@@ -73,22 +76,24 @@ class ListSumTransformer(
     :param inputCol: Value column, on which to calculate the sum.
     :param inputCols: Input column names.
     - The first is the value column, on which to calculate the sum.
-    - The second is the sort or segment column. The role of the second input is governed
-    by the value of withSegment as described above.
+    - The second is the sort or segment column. The role of the second input is
+    governed by the value of withSegment as described above.
     :param outputCol: Name of output col.
     :param inputDtype: Data Type of input.
     :param outputDtype: Data Type of output.
     :param layerName: The name of the transformer, which typically
     should be the name of the produced feature.
     :param queryIdCol: Name of column to aggregate upon. It is required.
-    :param topN: Filter for limiting the items to calculate the statistics. Not used when withSegment = True.
+    :param topN: Filter for limiting the items to calculate the statistics.
+    Not used when withSegment = True.
     :param sortOrder: Option of 'asc' or 'desc' which defines order
     for listwise operation. Default is 'asc'. Not used when withSegment = True.
-    :param withSegment: Whether to use the second input column to partition the statistic
-    calculation. Defaults to False.
+    :param withSegment: Whether to use the second input column to partition the
+    statistic calculation. Defaults to False.
     :param minFilterValue: Minimum value to remove padded values
     defaults to >= 0.
-    :nanFillValue: Value to fill NaNs results with. Defaults to 0.
+    :param nanFillValue: Value to fill empty results with, i.e. when the min filter
+    leaves no values to sum. Defaults to 0.
     """
 
     jit_compatible = True

@@ -739,3 +739,147 @@ class TestListSum:
             decimal=6,
             err_msg="Spark and Tensorflow transform outputs are not equal",
         )
+
+    @pytest.mark.parametrize(
+        "list_size, qid_tensor, input_tensors, min_filter_value, nan_fill_value, with_segment",
+        [
+            # The filter empties the whole of the second query
+            (
+                3,
+                tf.constant(
+                    [
+                        [1.0],
+                        [1.0],
+                        [1.0],
+                        [2.0],
+                        [2.0],
+                        [2.0],
+                    ],
+                    dtype=tf.float32,
+                ),
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [1.0],
+                            [2.0],
+                            [3.0],
+                            [-999.0],
+                            [-999.0],
+                            [-999.0],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                ],
+                0.0,
+                -1.0,
+                False,
+            ),
+            # The filter empties one segment of the first query
+            (
+                3,
+                tf.constant(
+                    [
+                        [1.0],
+                        [1.0],
+                        [1.0],
+                        [2.0],
+                        [2.0],
+                        [2.0],
+                    ],
+                    dtype=tf.float32,
+                ),
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [1.0],
+                            [4.0],
+                            [-999.0],
+                            [5.0],
+                            [5.0],
+                            [20.0],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                    # segment
+                    tf.constant(
+                        [
+                            [1.0],
+                            [1.0],
+                            [2.0],
+                            [1.0],
+                            [1.0],
+                            [2.0],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                ],
+                0.0,
+                -1.0,
+                True,
+            ),
+        ],
+    )
+    def test_list_sum_transform_spark_tf_parity_with_nan_fill_value(
+        self,
+        spark_session,
+        list_size,
+        qid_tensor,
+        input_tensors,
+        min_filter_value,
+        nan_fill_value,
+        with_segment,
+    ):
+        col_names = [f"input{i}" for i in range(len(input_tensors))]
+        # given
+        transformer = ListSumTransformer(
+            inputCol=col_names[0] if len(col_names) == 1 else None,
+            inputCols=col_names if len(col_names) > 1 else None,
+            outputCol="output",
+            inputDtype="double",
+            outputDtype="float",
+            queryIdCol="search_id",
+            minFilterValue=min_filter_value,
+            nanFillValue=nan_fill_value,
+            withSegment=with_segment,
+            sortOrder="asc",
+        )
+        # when
+        qid_inputs_tensors = [qid_tensor] + input_tensors
+        qid_col_names = ["search_id"] + col_names
+        spark_df = spark_session.createDataFrame(
+            [
+                tuple([tensor_to_python_type(ti) for ti in t])
+                for t in zip(*qid_inputs_tensors)
+            ],
+            qid_col_names,
+        )
+
+        spark_values = (
+            transformer.transform(spark_df)
+            .select("output")
+            .rdd.map(lambda r: r[0])
+            .collect()
+        )
+
+        # reshape the input tensors to match the expected shape based on list size
+        input_tensors = [tf.reshape(t, (-1, list_size, 1)) for t in input_tensors]
+        tensorflow_values = np.reshape(
+            [
+                np.squeeze(v)
+                for v in transformer.get_keras_layer()(input_tensors).numpy().tolist()
+            ],
+            -1,
+        )
+
+        # then
+        assert (
+            nan_fill_value in spark_values
+        ), "Expected the emptied list to fall back to nanFillValue"
+        np.testing.assert_almost_equal(
+            spark_values,
+            tensorflow_values,
+            decimal=6,
+            err_msg="Spark and Tensorflow transform outputs are not equal",
+        )

@@ -613,6 +613,101 @@ class TestListSum:
         ), "Output tensor shape is not the same as expected tensor shape"
         tf.debugging.assert_equal(output_tensor, expected_output)
 
+    @pytest.mark.parametrize(
+        "inputs, min_filter_value, nan_fill_value, with_segment, expected_output",
+        [
+            # Nothing survives the filter, so the second list has nothing to sum
+            (
+                [
+                    tf.constant(
+                        [
+                            [[1.0], [2.0], [3.0]],
+                            [[-999.0], [-999.0], [-999.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                ],
+                0.0,
+                -1.0,
+                False,
+                tf.constant(
+                    [
+                        [[6.0], [6.0], [6.0]],
+                        [[-1.0], [-1.0], [-1.0]],
+                    ],
+                    dtype=tf.float32,
+                ),
+            ),
+            # The default fill value leaves the empty sum at zero
+            (
+                [
+                    tf.constant(
+                        [
+                            [[1.0], [2.0], [3.0]],
+                            [[-999.0], [-999.0], [-999.0]],
+                        ],
+                        dtype=tf.float32,
+                    ),
+                ],
+                0.0,
+                0.0,
+                False,
+                tf.constant(
+                    [
+                        [[6.0], [6.0], [6.0]],
+                        [[0.0], [0.0], [0.0]],
+                    ],
+                    dtype=tf.float32,
+                ),
+            ),
+            # A list that genuinely sums to zero keeps its zero
+            (
+                [
+                    tf.constant([[[0.0], [0.0], [0.0]]], dtype=tf.float32),
+                ],
+                0.0,
+                -1.0,
+                False,
+                tf.constant([[[0.0], [0.0], [0.0]]], dtype=tf.float32),
+            ),
+            # The filter empties one segment but not the other
+            (
+                [
+                    # values
+                    tf.constant([[[1.0], [4.0], [-999.0]]], dtype=tf.float32),
+                    # segment
+                    tf.constant([[[1.0], [1.0], [2.0]]], dtype=tf.float32),
+                ],
+                0.0,
+                -1.0,
+                True,
+                tf.constant([[[5.0], [5.0], [-1.0]]], dtype=tf.float32),
+            ),
+        ],
+    )
+    def test_listwise_sum_nan_fill_value(
+        self,
+        inputs,
+        min_filter_value,
+        nan_fill_value,
+        with_segment,
+        expected_output,
+    ):
+        # given
+        layer = ListSumLayer(
+            name="listwise_sum_nan_fill_value",
+            min_filter_value=min_filter_value,
+            nan_fill_value=nan_fill_value,
+            with_segment=with_segment,
+        )
+        # when
+        output_tensor = layer(inputs if len(inputs) > 1 else inputs[0])
+        # then
+        assert (
+            output_tensor.shape == expected_output.shape
+        ), "Output tensor shape is not the same as expected tensor shape"
+        tf.debugging.assert_equal(output_tensor, expected_output)
+
     def test_listwise_sum_raises_without_top_n_when_sorting(self):
         # given
         layer = ListSumLayer(name="listwise_sum_no_top_n", with_segment=False)

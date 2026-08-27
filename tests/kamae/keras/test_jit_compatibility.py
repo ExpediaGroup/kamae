@@ -271,6 +271,11 @@ JIT_COMPATIBLE_LAYERS = [
         },
     ),
     (ListSumLayer, [tf.random.normal((100, 10, 5))], None),
+    (
+        ListSumLayer,
+        [tf.random.normal((100, 10, 5))],
+        {"min_filter_value": 0.0, "nan_fill_value": -1.0},
+    ),
 ]
 
 
