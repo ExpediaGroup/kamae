@@ -22,7 +22,11 @@ import kamae
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.core.base import BaseLayer
 from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
-from kamae.keras.tensorflow.utils.list_utils import get_top_n, segmented_operation
+from kamae.keras.tensorflow.utils.list_utils import (
+    get_top_n,
+    min_filter_mask,
+    segmented_operation,
+)
 from kamae.keras.tensorflow.utils.transform_utils import map_fn_w_axis
 
 
@@ -149,11 +153,12 @@ class ListMaxLayer(BaseLayer):
 
         # Apply the mask to filter out elements less than or equal to the threshold
         if self.min_filter_value is not None:
-            mask = tf.greater_equal(val_tensor, self.min_filter_value)
-            neg_inf = val_tensor.dtype.min
-            val_tensor = tf.where(mask, val_tensor, neg_inf)
-        else:
-            val_tensor = val_tensor
+            mask = min_filter_mask(val_tensor, self.min_filter_value)
+            # The dtype minimum is only a neutral element for the reduction here: a
+            # real value equal to it still wins the max, so substituting it for the
+            # filtered entries cannot change the result.
+            val_tensor = tf.where(mask, val_tensor, val_tensor.dtype.min)
+            kept = tf.cast(mask, tf.int32)
 
         # Apply segmented calculation
         if self.with_segment:
@@ -171,6 +176,24 @@ class ListMaxLayer(BaseLayer):
             listwise_max = tf.broadcast_to(listwise_max, output_shape)
 
         if self.min_filter_value is not None:
+            # Whether anything survived the filter is read from the mask rather than
+            # by testing the result against the sentinel. dtype.min is a legitimate
+            # value for the narrow integer dtypes (-128 for int8), so a sentinel test
+            # would silently overwrite real data with nan_fill_value.
+            if self.with_segment:
+                any_kept = map_fn_w_axis(
+                    elems=[kept, segment_tensor],
+                    fn=lambda x: segmented_operation(x, tf.math.unsorted_segment_max),
+                    axis=self.axis,
+                    fn_output_signature=tf.TensorSpec(
+                        shape=kept.shape[self.axis :], dtype=kept.dtype
+                    ),
+                )
+                any_kept = tf.ensure_shape(any_kept, kept.shape)
+            else:
+                any_kept = tf.reduce_max(kept, axis=self.axis, keepdims=True)
+                any_kept = tf.broadcast_to(any_kept, output_shape)
+
             # nan_fill_value is a Python float, which tf.constant cannot convert
             # directly to an integer dtype. Narrowing via numpy first handles the
             # integer dtypes while preserving full precision for the float ones.
@@ -178,7 +201,7 @@ class ListMaxLayer(BaseLayer):
                 listwise_max.dtype.as_numpy_dtype(self.nan_fill_value),
                 dtype=listwise_max.dtype,
             )
-            listwise_max = tf.where(listwise_max != neg_inf, listwise_max, fill_val)
+            listwise_max = tf.where(any_kept > 0, listwise_max, fill_val)
 
         return listwise_max
 

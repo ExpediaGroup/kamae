@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import math
 from typing import Any, Callable, List, Union
 
 import numpy as np
@@ -68,6 +69,31 @@ def get_top_n(
         batch_dims=axis,
         axis=axis,
     )
+
+
+def min_filter_mask(val_tensor: Tensor, min_filter_value: float) -> Tensor:
+    """
+    Build the mask of the entries that meet a minimum value threshold.
+
+    TensorFlow will not compare an integer tensor against a float threshold, so for
+    those the threshold is rounded up, which is equivalent under >= on integers.
+    A threshold beyond the bounds of the dtype cannot be narrowed at all, since the
+    cast would wrap around silently, so those two cases are answered directly.
+    Floats need neither adjustment because they saturate to +/-inf rather than wrap.
+
+    :param val_tensor: Value tensor to filter.
+    :param min_filter_value: Minimum value an entry must meet to be kept.
+    :returns: Boolean tensor that is True wherever the entry is kept.
+    """
+    if not val_tensor.dtype.is_integer:
+        return tf.greater_equal(val_tensor, min_filter_value)
+
+    threshold = math.ceil(min_filter_value)
+    if threshold <= val_tensor.dtype.min:
+        return tf.ones_like(val_tensor, dtype=tf.bool)
+    if threshold > val_tensor.dtype.max:
+        return tf.zeros_like(val_tensor, dtype=tf.bool)
+    return tf.greater_equal(val_tensor, tf.cast(threshold, val_tensor.dtype))
 
 
 def listify_tensors(x: Union[tf.Tensor, np.ndarray, List[Any]]) -> List[Any]:

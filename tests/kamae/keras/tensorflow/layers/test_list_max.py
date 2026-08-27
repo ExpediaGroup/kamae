@@ -825,3 +825,84 @@ class TestListMax:
         assert (
             output_tensor.numpy().flatten()[0] == expected_fill
         ), "Emptied segment was not filled with the exact nan_fill_value"
+
+    @pytest.mark.parametrize("with_segment", [False, True])
+    @pytest.mark.parametrize("dtype", [tf.int8, tf.int16, tf.int32, tf.int64])
+    def test_listwise_max_dtype_minimum_is_a_valid_value(self, dtype, with_segment):
+        """The dtype minimum is ordinary data on the narrow integer types, -128 for
+        int8, so a list whose genuine maximum is that value must be returned as-is
+        rather than mistaken for a list emptied by the filter."""
+        # given, a list whose real maximum is the dtype minimum, kept by the filter
+        dtype_min = dtype.min
+        values = tf.constant([[[dtype_min], [dtype_min], [dtype_min]]], dtype=dtype)
+        layer = ListMaxLayer(
+            name="listwise_max_dtype_min_test",
+            min_filter_value=dtype_min,
+            nan_fill_value=0.0,
+            with_segment=with_segment,
+            input_dtype=dtype.name,
+            output_dtype=dtype.name,
+        )
+        inputs = values
+        if with_segment:
+            inputs = [values, tf.constant([[[1], [1], [2]]], dtype=dtype)]
+        # when
+        output_tensor = layer(inputs)
+        # then
+        tf.debugging.assert_equal(
+            output_tensor,
+            tf.constant([[[dtype_min], [dtype_min], [dtype_min]]], dtype=dtype),
+        )
+
+    @pytest.mark.parametrize(
+        "min_filter_value, expected",
+        [
+            (-200.0, 3),
+            (-129.0, 3),
+            (-128.0, 3),
+            (127.0, 0),
+            (128.0, 0),
+            (200.0, 0),
+        ],
+    )
+    def test_listwise_max_min_filter_value_outside_integer_dtype_range(
+        self, min_filter_value, expected
+    ):
+        """Narrowing a threshold that falls outside the value dtype wraps around, so
+        the out-of-range cases are decided directly: below the dtype minimum keeps
+        every value, above the dtype maximum keeps none of them."""
+        # given, int8 values of 1, 2 and 3 against thresholds beyond the int8 bounds
+        values = tf.constant([[[1], [2], [3]]], dtype=tf.int8)
+        layer = ListMaxLayer(
+            name="listwise_max_out_of_range_filter_test",
+            min_filter_value=min_filter_value,
+            nan_fill_value=0.0,
+            input_dtype="int8",
+            output_dtype="int8",
+        )
+        # when
+        output_tensor = layer(values)
+        # then
+        tf.debugging.assert_equal(
+            output_tensor, tf.constant([[[expected]] * 3], dtype=tf.int8)
+        )
+
+    @pytest.mark.parametrize("dtype", [tf.int8, tf.int16, tf.int32, tf.int64])
+    def test_listwise_max_float_min_filter_value_on_integer_input(self, dtype):
+        """min_filter_value is declared as a float, so passing one against an
+        integer input column must work rather than fail the dtype comparison."""
+        # given
+        values = tf.constant([[[1], [2], [3]]], dtype=dtype)
+        layer = ListMaxLayer(
+            name="listwise_max_float_filter_test",
+            min_filter_value=0.0,
+            nan_fill_value=-1.0,
+            input_dtype=dtype.name,
+            output_dtype=dtype.name,
+        )
+        # when
+        output_tensor = layer(values)
+        # then
+        tf.debugging.assert_equal(
+            output_tensor, tf.constant([[[3], [3], [3]]], dtype=dtype)
+        )
