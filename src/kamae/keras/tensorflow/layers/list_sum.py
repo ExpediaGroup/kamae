@@ -1,0 +1,221 @@
+# Copyright [2024] Expedia, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from typing import Any, Dict, Iterable, List, Optional
+
+import keras
+import tensorflow as tf
+from keras import KerasTensor
+
+import kamae
+from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.core.base import BaseLayer
+from kamae.keras.core.utils.input_utils import allow_single_or_multiple_tensor_input
+from kamae.keras.tensorflow.utils.list_utils import get_top_n, segmented_operation
+from kamae.keras.tensorflow.utils.transform_utils import map_fn_w_axis
+
+
+@tf.keras.utils.register_keras_serializable(package=kamae.__name__)
+class ListSumLayer(BaseLayer):
+    """
+    Calculate the sum across the axis dimension.
+    - If one tensor is passed, the transformer calculates the sum of the tensor
+    based on all the items in the given axis dimension.
+    - If inputCols is set,
+        - If with_segment = True: the layer calculates the sum of the first tensor
+        segmented by values of the second tensor.
+
+        Example: calculate the sum price of hotels within star ratings
+
+        - If with_segment = False: the layer calculates the sum of the first tensor
+        based on second tensor's topN items in the same given axis dimension.
+
+    By using the topN items to calculate the statistics, we can better approximate
+    the real statistics in production. It is suggested to use a large enough topN to
+    get a good approximation of the statistics, and an important feature to sort on,
+    such as item's past production.
+
+    Example: calculate the sum price in the same query, based only on the top N
+    items sorted by descending production.
+    """
+
+    supported_backends = TENSORFLOW_ONLY
+    jit_compatible = True
+
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        input_dtype: Optional[str] = None,
+        output_dtype: Optional[str] = None,
+        top_n: Optional[int] = None,
+        sort_order: str = "asc",
+        with_segment: bool = False,
+        min_filter_value: Optional[float] = None,
+        nan_fill_value: float = 0.0,
+        axis: int = 1,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Initializes the Listwise Sum layer.
+
+        WARNING: The code is fully tested for axis=1 only. Further testing is needed.
+
+        WARNING: The code can be affected by the value of the padding items. Always
+        make sure to filter out the padding items value with min_filter_value.
+
+        :param name: Name of the layer, defaults to `None`.
+        :param input_dtype: The dtype to cast the input to. Defaults to `None`.
+        :param output_dtype: The dtype to cast the output to. Defaults to `None`.
+        :param top_n: The number of top items to consider when calculating the sum.
+        :param sort_order: The order to sort the second tensor by. Defaults to `asc`.
+        :param with_segment: Whether the second tensor should be used for
+        segmentation (True) or sorting (False). Defaults to False.
+        :param min_filter_value: The minimum filter value to ignore values during
+        calculation. Defaults to None (no filter).
+        :param nan_fill_value: The value to fill empty results with, i.e. when the
+        min filter leaves no values to sum. Defaults to 0.
+        :param axis: The axis to calculate the statistics across. Defaults to 1.
+        """
+        super().__init__(
+            name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
+        )
+        self.top_n = top_n
+        self.sort_order = sort_order
+        self.min_filter_value = min_filter_value
+        self.nan_fill_value = nan_fill_value
+        self.axis = axis
+        self.with_segment = with_segment
+
+    @property
+    def compatible_dtypes(self) -> Optional[List[str]]:
+        """
+        Returns the compatible dtypes of the layer.
+
+        :returns: The compatible dtypes of the layer.
+        """
+        return [
+            "bfloat16",
+            "float16",
+            "float32",
+            "float64",
+            "int8",
+            "int16",
+            "int32",
+            "int64",
+            "string",
+        ]
+
+    @allow_single_or_multiple_tensor_input
+    def _call(self, inputs: Iterable[KerasTensor], **kwargs: Any) -> KerasTensor:
+        """
+        Calculate the listwise sum, optionally sorting and
+        filtering based on the second input tensor, or segmenting
+        based on the second input tensor. Behaviour is set by with_segment.
+
+        :param inputs: The iterable tensor for the feature.
+        :returns: The new tensor result column.
+        """
+        val_tensor = inputs[0]
+        output_shape = tf.shape(val_tensor)
+
+        # Define use of second input
+        if len(inputs) == 2:
+            if self.with_segment:
+                segment_tensor = inputs[1]
+            else:
+                sort_tensor = inputs[1]
+                if self.top_n is None:
+                    raise ValueError("topN must be specified when using a sort column.")
+                val_tensor = get_top_n(
+                    val_tensor=val_tensor,
+                    axis=self.axis,
+                    sort_tensor=sort_tensor,
+                    sort_order=self.sort_order,
+                    top_n=self.top_n,
+                )
+        else:
+            if self.with_segment:
+                raise ValueError("with_segment set to True, expected two inputs.")
+
+        # Values excluded by the min filter contribute 0 to the sum.
+        # Kept int/string-safe (no float-only ops), mirroring ListMaxLayer, so
+        # integer value columns and string segment columns both work.
+        if self.min_filter_value is not None:
+            mask = tf.greater_equal(val_tensor, self.min_filter_value)
+            val_tensor = tf.where(mask, val_tensor, tf.zeros_like(val_tensor))
+            kept = tf.cast(mask, tf.int32)
+
+        # Apply segmented calculation
+        if self.with_segment:
+            listwise_sum = map_fn_w_axis(
+                elems=[val_tensor, segment_tensor],
+                fn=lambda x: segmented_operation(x, tf.math.unsorted_segment_sum),
+                axis=self.axis,
+                fn_output_signature=tf.TensorSpec(
+                    shape=val_tensor.shape[self.axis :], dtype=val_tensor.dtype
+                ),
+            )
+            listwise_sum = tf.ensure_shape(listwise_sum, val_tensor.shape)
+        else:
+            listwise_sum = tf.reduce_sum(val_tensor, axis=self.axis, keepdims=True)
+            listwise_sum = tf.broadcast_to(listwise_sum, output_shape)
+
+        if self.min_filter_value is not None:
+            # Summing zero surviving values gives 0, which is indistinguishable from a
+            # genuine zero sum. Spark yields null there and fills it with nanFillValue,
+            # so the same substitution is needed here to keep the two in parity.
+            if self.with_segment:
+                any_kept = map_fn_w_axis(
+                    elems=[kept, segment_tensor],
+                    fn=lambda x: segmented_operation(x, tf.math.unsorted_segment_max),
+                    axis=self.axis,
+                    fn_output_signature=tf.TensorSpec(
+                        shape=kept.shape[self.axis :], dtype=kept.dtype
+                    ),
+                )
+                any_kept = tf.ensure_shape(any_kept, kept.shape)
+            else:
+                any_kept = tf.reduce_max(kept, axis=self.axis, keepdims=True)
+                any_kept = tf.broadcast_to(any_kept, output_shape)
+
+            # nan_fill_value is a Python float, which tf.constant cannot convert
+            # directly to an integer dtype. Narrowing via numpy first handles the
+            # integer dtypes while preserving full precision for the float ones.
+            fill_val = tf.constant(
+                listwise_sum.dtype.as_numpy_dtype(self.nan_fill_value),
+                dtype=listwise_sum.dtype,
+            )
+            listwise_sum = tf.where(any_kept > 0, listwise_sum, fill_val)
+
+        return listwise_sum
+
+    def get_config(self) -> Dict[str, Any]:
+        """
+        Gets the configuration of the layer.
+        Used for saving and loading from a model.
+
+        :returns: Dictionary of the configuration of the layer.
+        """
+        config = super().get_config()
+        config.update(
+            {
+                "top_n": self.top_n,
+                "sort_order": self.sort_order,
+                "min_filter_value": self.min_filter_value,
+                "nan_fill_value": self.nan_fill_value,
+                "axis": self.axis,
+                "with_segment": self.with_segment,
+            }
+        )
+        return config

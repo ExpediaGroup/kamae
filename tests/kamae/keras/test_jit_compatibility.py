@@ -78,6 +78,7 @@ from kamae.keras.tensorflow.layers import (
     ListMinLayer,
     ListRankLayer,
     ListStdDevLayer,
+    ListSumLayer,
     MinHashIndexLayer,
     OneHotEncodeLayer,
     OrdinalArrayEncodeLayer,
@@ -268,6 +269,12 @@ JIT_COMPATIBLE_LAYERS = [
             "nan_fill_value": 0,
             "min_filter_value": 0,
         },
+    ),
+    (ListSumLayer, [tf.random.normal((100, 10, 5))], None),
+    (
+        ListSumLayer,
+        [tf.random.normal((100, 10, 5))],
+        {"min_filter_value": 0.0, "nan_fill_value": -1.0},
     ),
 ]
 

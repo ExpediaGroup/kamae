@@ -85,6 +85,7 @@ from kamae.keras.tensorflow.layers import (
     ListMinLayer,
     ListRankLayer,
     ListStdDevLayer,
+    ListSumLayer,
     MinHashIndexLayer,
     OneHotEncodeLayer,
     OrdinalArrayEncodeLayer,
@@ -251,6 +252,7 @@ from kamae.keras.tensorflow.layers import (
         (ListMaxLayer, [tf.random.normal((100, 10, 5))], None, False),
         (ListMeanLayer, [tf.random.normal((100, 10, 5))], None, False),
         (ListMinLayer, [tf.random.normal((100, 10, 5))], None, False),
+        (ListSumLayer, [tf.random.normal((100, 10, 5))], None, False),
         (
             IfStatementLayer,
             [tf.random.normal((100, 10, 5)), tf.random.normal((100, 10, 5))],
@@ -418,6 +420,18 @@ from kamae.keras.tensorflow.layers import (
             [tf.constant([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])],
             {
                 "axis": -1,
+                "top_n": 5,
+                "sort_order": "descending",
+                "nan_fill_value": 0,
+                "min_filter_value": 0,
+            },
+            False,
+        ),
+        (
+            ListSumLayer,
+            [tf.constant([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])],
+            {
+                "axis": 1,
                 "top_n": 5,
                 "sort_order": "descending",
                 "nan_fill_value": 0,
