@@ -12,14 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+import tempfile
 from shutil import rmtree
+from unittest.mock import patch
 
 import pytest
 import tensorflow as tf
+from pyspark.sql import DataFrame
 from pyspark.sql.types import DoubleType
 
-from kamae.spark.estimators import StandardScaleEstimator, StringIndexEstimator
+from kamae.spark.estimators import (
+    ConditionalStandardScaleEstimator,
+    StandardScaleEstimator,
+    StringIndexEstimator,
+)
 from kamae.spark.pipeline import KamaeSparkPipeline, KamaeSparkPipelineModel
 from kamae.spark.transformers import (
     ArrayConcatenateTransformer,
@@ -27,6 +33,7 @@ from kamae.spark.transformers import (
     BucketizeTransformer,
     HashIndexTransformer,
     IdentityTransformer,
+    ListMeanTransformer,
     LogTransformer,
     SubtractTransformer,
 )
@@ -39,8 +46,7 @@ class TestPipeline:
 
     @pytest.fixture
     def test_dir(self):
-        path = "./tmp_test"
-        os.makedirs(path, exist_ok=True)
+        path = tempfile.mkdtemp()
         yield path
         rmtree(path)
 
@@ -469,6 +475,31 @@ class TestPipeline:
         pipeline_loaded = KamaeSparkPipeline.load(f"{test_dir}/pipeline")
         assert pipeline.stages == pipeline_loaded.stages
 
+    def test_spark_read_write_pipeline_preserves_fit_params(self, test_dir, request):
+        """
+        Non-default pipeline-level fit params must survive a save/load round-trip;
+        the base pipeline writer only persists stage uids and would drop them.
+        """
+        stages = request.getfixturevalue("valid_stages_0")
+        pipeline = KamaeSparkPipeline(
+            stages=stages,
+            checkpointInterval=3,
+            cacheIntermediateData=True,
+            pruneInputColumns=False,
+            cacheEstimatorInput=True,
+            fitSampleFraction=0.25,
+            fitSampleSeed=7,
+        )
+        pipeline.save(f"{test_dir}/pipeline_params")
+        loaded = KamaeSparkPipeline.load(f"{test_dir}/pipeline_params")
+
+        assert loaded.getCheckpointInterval() == 3
+        assert loaded.getCacheIntermediateData() is True
+        assert loaded.getPruneInputColumns() is False
+        assert loaded.getCacheEstimatorInput() is True
+        assert loaded.getFitSampleFraction() == 0.25
+        assert loaded.getFitSampleSeed() == 7
+
     @pytest.mark.parametrize(
         "stages, expanded_stages",
         [
@@ -551,6 +582,611 @@ class TestPipeline:
         transformed_df = pipeline_model.transform(example_dataframe)
         diff = transformed_df.exceptAll(request.getfixturevalue(expected_dataframe))
         assert diff.isEmpty(), f"PipelineKeras output is not the same as expected."
+
+    @pytest.mark.parametrize(
+        "stages",
+        [
+            "valid_stages_1",
+            "valid_stages_2",
+        ],
+    )
+    def test_spark_pipeline_checkpoint_is_transparent(
+        self, stages, example_dataframe, request
+    ):
+        """
+        checkpoint(eager=True) only truncates lineage, so fitting with a positive
+        checkpointInterval must yield results identical to the default (None).
+        """
+        stages = request.getfixturevalue(stages)
+
+        baseline_model = KamaeSparkPipeline(stages=stages, checkpointInterval=None).fit(
+            example_dataframe
+        )
+        checkpointed_model = KamaeSparkPipeline(
+            stages=stages, checkpointInterval=2
+        ).fit(example_dataframe)
+
+        baseline_df = baseline_model.transform(example_dataframe)
+        checkpointed_df = checkpointed_model.transform(example_dataframe)
+
+        assert baseline_df.schema == checkpointed_df.schema
+        assert baseline_df.exceptAll(checkpointed_df).isEmpty()
+        assert checkpointed_df.exceptAll(baseline_df).isEmpty()
+
+    def test_spark_pipeline_checkpoint_invocation(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        checkpoint must be invoked during fit only when checkpointInterval > 0.
+        """
+        original_checkpoint = DataFrame.checkpoint
+
+        with patch.object(
+            DataFrame,
+            "checkpoint",
+            autospec=True,
+            side_effect=original_checkpoint,
+        ) as mock_checkpoint:
+            KamaeSparkPipeline(stages=valid_stages_1, checkpointInterval=None).fit(
+                example_dataframe
+            )
+            assert mock_checkpoint.call_count == 0
+
+            mock_checkpoint.reset_mock()
+            KamaeSparkPipeline(stages=valid_stages_1, checkpointInterval=2).fit(
+                example_dataframe
+            )
+            assert mock_checkpoint.call_count > 0
+
+    @pytest.mark.parametrize("bad_value", [0, -1, -5])
+    def test_spark_pipeline_checkpoint_interval_rejects_non_positive(self, bad_value):
+        """
+        checkpointInterval must be a positive integer or None; 0 and negatives raise.
+        """
+        with pytest.raises(ValueError):
+            KamaeSparkPipeline(checkpointInterval=bad_value)
+
+    def test_spark_pipeline_checkpoint_bounds_plan_depth(self, spark_session):
+        """
+        The point of checkpointInterval is to bound logical-plan depth. We build a
+        deep, linearly-dependent pipeline (every stage is an ancestor of the next, so
+        the working DataFrame is advanced at every fit and lineage keeps growing) and
+        capture the logical-plan size of the DataFrame handed to each estimator fit.
+        With a positive interval the plan must stay markedly smaller than the default.
+        """
+        df = spark_session.createDataFrame(
+            [(1.0,), (4.0,), (7.0,), (2.0,), (9.0,)],
+            ["col0"],
+        )
+
+        num_blocks = 4
+        transforms_per_block = 4
+
+        def build_stages():
+            stages = []
+            prev = "col0"
+            for b in range(num_blocks):
+                for t in range(transforms_per_block):
+                    out = f"t_{b}_{t}"
+                    stages.append(
+                        SubtractTransformer(
+                            inputCol=prev, outputCol=out, mathFloatConstant=1.0
+                        )
+                    )
+                    prev = out
+                out = f"s_{b}"
+                stages.append(StandardScaleEstimator(inputCol=prev, outputCol=out))
+                prev = out
+            return stages
+
+        def max_fit_plan_length(interval):
+            plan_lengths = []
+            original_fit = StandardScaleEstimator.fit
+
+            def spy_fit(estimator, dataset, *args, **kwargs):
+                plan = dataset._jdf.queryExecution().logical().toString()
+                plan_lengths.append(len(plan))
+                return original_fit(estimator, dataset, *args, **kwargs)
+
+            with patch.object(StandardScaleEstimator, "fit", spy_fit):
+                KamaeSparkPipeline(
+                    stages=build_stages(), checkpointInterval=interval
+                ).fit(df)
+            return max(plan_lengths)
+
+        baseline_max = max_fit_plan_length(None)
+        checkpointed_max = max_fit_plan_length(transforms_per_block + 1)
+
+        # Checkpointing must keep the deepest fit-time plan well below the un-bounded
+        # baseline. A strict 2x margin is robust to Spark-version plan-string changes.
+        assert checkpointed_max * 2 < baseline_max, (
+            f"plan not bounded: baseline_max={baseline_max}, "
+            f"checkpointed_max={checkpointed_max}"
+        )
+
+    def test_spark_pipeline_prunes_unused_input_columns(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        prune_unused_input_columns must keep the columns the pipeline reads
+        (col1/col2/col3 via ArrayConcatenate, col4 via StringIndex) and drop the
+        unused col5 and col1_col2_col3, while preserving every row.
+        """
+        pipeline = KamaeSparkPipeline(stages=valid_stages_1)
+
+        # The required set is generous (a superset), so assert containment rather
+        # than equality - it also carries output/param strings that harmlessly do
+        # not match any input-DataFrame column.
+        required = pipeline.collect_required_input_columns(valid_stages_1)
+        assert {"col1", "col2", "col3", "col4"}.issubset(required)
+
+        pruned = pipeline.prune_unused_input_columns(example_dataframe, valid_stages_1)
+
+        assert pruned.columns == ["col1", "col2", "col3", "col4"]
+        assert pruned.exceptAll(
+            example_dataframe.select("col1", "col2", "col3", "col4")
+        ).isEmpty()
+
+    def test_collect_required_input_columns_includes_aux_columns(self):
+        """
+        Aux columns read at fit time via params other than inputCol(s) - here
+        maskCols and relevanceCol on ConditionalStandardScaleEstimator, and
+        queryIdCol on a listwise transformer - must be reported by the collector so
+        pruning does not drop them. No Spark session needed.
+        """
+        stages = [
+            ConditionalStandardScaleEstimator(
+                inputCol="x",
+                outputCol="x_scaled",
+                maskCols=["m"],
+                relevanceCol="r",
+            ),
+            ListMeanTransformer(
+                inputCol="p",
+                outputCol="p_list_mean",
+                queryIdCol="q",
+            ),
+        ]
+
+        required = KamaeSparkPipeline.collect_required_input_columns(stages)
+
+        assert {"x", "m", "r", "p", "q"} <= required
+
+    def test_collect_required_input_columns_plain_estimator(self):
+        """
+        A stage with no aux column params must still report its inputCol and must
+        not gain spurious columns - confirms the aux sweep does not regress the
+        simple case.
+        """
+        stages = [StandardScaleEstimator(inputCol="x", outputCol="x_scaled")]
+
+        required = KamaeSparkPipeline.collect_required_input_columns(stages)
+
+        assert "x" in required
+
+    def test_spark_pipeline_prune_input_columns_is_opt_in(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        Pruning must only happen when pruneInputColumns is True. With the default
+        (False) the input DataFrame is not projected during fit.
+        """
+        with patch.object(
+            KamaeSparkPipeline,
+            "prune_unused_input_columns",
+            autospec=True,
+            side_effect=KamaeSparkPipeline.prune_unused_input_columns,
+        ) as mock_prune:
+            KamaeSparkPipeline(stages=valid_stages_1).fit(example_dataframe)
+            assert mock_prune.call_count == 0
+
+            mock_prune.reset_mock()
+            KamaeSparkPipeline(stages=valid_stages_1, pruneInputColumns=True).fit(
+                example_dataframe
+            )
+            assert mock_prune.call_count == 1
+
+    def test_spark_pipeline_prune_keeps_aux_fit_columns(self, spark_session):
+        """
+        Regression: pruning must not drop columns an estimator reads at fit time
+        through params other than inputCol (here maskCols). The fit must not raise,
+        the genuinely-unused column must be pruned, and the fitted moments must be
+        identical to a prune-disabled baseline (numerically transparent).
+        """
+        df = spark_session.createDataFrame(
+            [(1.0, 1, 3.0, 99.0), (2.0, 0, 1.0, 99.0), (3.0, 1, 2.0, 99.0)],
+            ["x", "m", "r", "junk"],
+        )
+
+        def build_pipeline(prune):
+            return KamaeSparkPipeline(
+                stages=[
+                    ConditionalStandardScaleEstimator(
+                        inputCol="x",
+                        outputCol="x_scaled",
+                        maskCols=["m"],
+                        maskOperators=["eq"],
+                        maskValues=[1.0],
+                        relevanceCol="r",
+                    ),
+                ],
+                pruneInputColumns=prune,
+            )
+
+        pruned_pipeline = build_pipeline(prune=True)
+
+        # Aux fit columns kept, genuinely-unused column dropped.
+        required = pruned_pipeline.collect_required_input_columns(
+            pruned_pipeline.getStages()
+        )
+        assert {"x", "m", "r"} <= required
+        assert "junk" not in required
+
+        # Must NOT raise UNRESOLVED_COLUMN / "Mask column m not found".
+        pruned_model = pruned_pipeline.fit(df)
+        baseline_model = build_pipeline(prune=False).fit(df)
+
+        pruned_scaler = pruned_model.stages[-1]
+        baseline_scaler = baseline_model.stages[-1]
+
+        assert pruned_scaler.getMean() == baseline_scaler.getMean()
+        assert pruned_scaler.getStddev() == baseline_scaler.getStddev()
+
+    def test_spark_pipeline_prune_is_transparent_to_fit(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        Pruning drops only columns no stage reads, so a fitted model - and its
+        transform output - must be identical whether or not the input carries an
+        extra unused column when pruneInputColumns is enabled.
+        """
+        with_extra = example_dataframe.withColumn(
+            "unused", example_dataframe["col1"] * 100.0
+        )
+
+        baseline_out = (
+            KamaeSparkPipeline(stages=valid_stages_1, pruneInputColumns=True)
+            .fit(example_dataframe)
+            .transform(example_dataframe)
+        )
+        with_extra_out = (
+            KamaeSparkPipeline(stages=valid_stages_1, pruneInputColumns=True)
+            .fit(with_extra)
+            .transform(example_dataframe)
+        )
+
+        assert baseline_out.schema == with_extra_out.schema
+        assert baseline_out.exceptAll(with_extra_out).isEmpty()
+        assert with_extra_out.exceptAll(baseline_out).isEmpty()
+
+    def test_spark_pipeline_cache_estimator_input_is_transparent_to_fit(
+        self, spark_session
+    ):
+        """
+        cacheEstimatorInput projects to still-needed columns and persists that
+        narrow frame once; independent sibling estimators must fit to byte-identical
+        params whether it is on or off, with the genuinely-unused column dropped.
+        """
+        df = spark_session.createDataFrame(
+            [
+                (1.0, 2.0, 3.0, 99.0),
+                (2.0, 4.0, 6.0, 99.0),
+                (3.0, 6.0, 9.0, 99.0),
+                (4.0, 8.0, 12.0, 99.0),
+            ],
+            ["x1", "x2", "x3", "junk"],
+        )
+
+        def build_pipeline(cache):
+            return KamaeSparkPipeline(
+                stages=[
+                    StandardScaleEstimator(inputCol="x1", outputCol="x1_scaled"),
+                    StandardScaleEstimator(inputCol="x2", outputCol="x2_scaled"),
+                    StandardScaleEstimator(inputCol="x3", outputCol="x3_scaled"),
+                ],
+                cacheEstimatorInput=cache,
+            )
+
+        cached_model = build_pipeline(cache=True).fit(df)
+        baseline_model = build_pipeline(cache=False).fit(df)
+
+        for cached_scaler, baseline_scaler in zip(
+            cached_model.stages, baseline_model.stages
+        ):
+            assert cached_scaler.getMean() == baseline_scaler.getMean()
+            assert cached_scaler.getStddev() == baseline_scaler.getStddev()
+
+    def test_spark_pipeline_cache_estimator_input_is_opt_in(self, spark_session):
+        """
+        The narrow-cache projection (which computes the live keep-set via
+        collect_required_input_columns) must only run when cacheEstimatorInput is
+        True. Pruning is left off so the collector is not called for that reason.
+        """
+        df = spark_session.createDataFrame(
+            [(1.0, 2.0, 99.0), (2.0, 4.0, 99.0), (3.0, 6.0, 99.0)],
+            ["x1", "x2", "junk"],
+        )
+        stages = [
+            StandardScaleEstimator(inputCol="x1", outputCol="x1_scaled"),
+            StandardScaleEstimator(inputCol="x2", outputCol="x2_scaled"),
+        ]
+
+        with patch.object(
+            KamaeSparkPipeline,
+            "collect_required_input_columns",
+            wraps=KamaeSparkPipeline.collect_required_input_columns,
+        ) as mock_collect:
+            KamaeSparkPipeline(stages=stages).fit(df)
+            assert mock_collect.call_count == 0
+
+            mock_collect.reset_mock()
+            KamaeSparkPipeline(stages=stages, cacheEstimatorInput=True).fit(df)
+            assert mock_collect.call_count == 1
+
+    def test_spark_pipeline_cache_estimator_input_mutually_exclusive(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        cacheEstimatorInput and cacheIntermediateData are competing strategies;
+        enabling both warns, prefers cacheEstimatorInput, and still fits.
+        """
+        pipeline = KamaeSparkPipeline(
+            stages=valid_stages_1,
+            cacheIntermediateData=True,
+            cacheEstimatorInput=True,
+        )
+        with pytest.warns(UserWarning, match="takes precedence"):
+            pipeline_model = pipeline.fit(example_dataframe)
+        assert pipeline_model is not None
+
+    def test_spark_pipeline_fit_sample_fraction_none_is_unchanged(
+        self, valid_stages_1, example_dataframe
+    ):
+        """
+        With fitSampleFraction=None (the default), fit is unchanged: a smoke fit
+        succeeds and the resulting model transforms the full dataset.
+        """
+        model = KamaeSparkPipeline(stages=valid_stages_1, fitSampleFraction=None).fit(
+            example_dataframe
+        )
+        assert isinstance(model, KamaeSparkPipelineModel)
+        # The model still applies to the full dataset at transform time.
+        assert model.transform(example_dataframe).count() == example_dataframe.count()
+
+    def test_spark_pipeline_fit_sample_fraction_matches_full_within_tolerance(
+        self, spark_session
+    ):
+        """
+        fitSampleFraction fits the opted-in sample-robust estimators
+        (ConditionalStandardScale, with useFitSample=True) from a single
+        shared sample; on enough seeded data the fitted mean/stddev must stay within
+        a loose statistical tolerance of a full-data fit.
+        """
+        from pyspark.sql import functions as F
+
+        df = (
+            spark_session.range(0, 40000)
+            .withColumn("x1", F.randn(seed=42))
+            .withColumn("x2", 5.0 + 2.0 * F.randn(seed=7))
+            .select("x1", "x2")
+        ).persist()
+        df.count()
+
+        def build(fraction):
+            # useFitSample=True opts each estimator in to the shared sample. The
+            # full-data reference leaves it off so it is a genuine full fit.
+            opt_in = {"useFitSample": True} if fraction is not None else {}
+            return KamaeSparkPipeline(
+                stages=[
+                    ConditionalStandardScaleEstimator(
+                        inputCol="x1", outputCol="x1_scaled", **opt_in
+                    ),
+                    ConditionalStandardScaleEstimator(
+                        inputCol="x2", outputCol="x2_scaled", **opt_in
+                    ),
+                ],
+                fitSampleFraction=fraction,
+                fitSampleSeed=13,
+            )
+
+        full_model = build(None).fit(df)
+        with pytest.warns(UserWarning):
+            sampled_model = build(0.2).fit(df)
+
+        for full_stage, sampled_stage in zip(full_model.stages, sampled_model.stages):
+            assert abs(full_stage.getMean()[0] - sampled_stage.getMean()[0]) < 0.15
+            assert abs(full_stage.getStddev()[0] - sampled_stage.getStddev()[0]) < 0.15
+        df.unpersist()
+
+    def test_spark_pipeline_fit_sample_fraction_scans_source_once(self, spark_session):
+        """
+        fitSampleFraction materialises one shared sample, so the source is scanned
+        exactly once regardless of how many estimators fit from it - unlike the
+        default, where each independent estimator rescans the source.
+        """
+        from pyspark.sql import functions as F
+        from pyspark.sql.types import DoubleType as SparkDoubleType
+
+        n_rows = 500
+        source = (
+            spark_session.range(0, n_rows)
+            .select(F.col("id").cast("double").alias("raw"))
+            .persist()
+        )
+        source.count()
+
+        def counting_column(accumulator):
+            def _count(value):
+                accumulator.add(1)
+                return value
+
+            udf = F.udf(_count, SparkDoubleType()).asNondeterministic()
+            return source.withColumn("x", udf(F.col("raw"))).drop("raw")
+
+        def estimators(opt_in=False):
+            # useFitSample=True opts the estimator in to the shared sample.
+            kw = {"useFitSample": True} if opt_in else {}
+            return [
+                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_a", **kw),
+                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_b", **kw),
+                ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_c", **kw),
+            ]
+
+        sampled_accum = spark_session.sparkContext.accumulator(0)
+        with pytest.warns(UserWarning):
+            KamaeSparkPipeline(
+                stages=estimators(opt_in=True), fitSampleFraction=1.0, fitSampleSeed=1
+            ).fit(counting_column(sampled_accum))
+        # One shared-sample materialisation, reused by all three opted-in estimators
+        # => exactly one pass over the source.
+        assert sampled_accum.value == n_rows
+
+        baseline_accum = spark_session.sparkContext.accumulator(0)
+        KamaeSparkPipeline(stages=estimators()).fit(counting_column(baseline_accum))
+        # Default: each of the three estimators rescans the source.
+        assert baseline_accum.value > n_rows
+
+        source.unpersist()
+
+    def test_spark_pipeline_fit_sample_fraction_disables_caching(self, spark_session):
+        """
+        fitSampleFraction persists a tiny sample instead of the wide frame, so it is
+        incompatible with cacheEstimatorInput: enabling both must warn and disable
+        the cache (its narrow-projection path never runs).
+        """
+        df = spark_session.createDataFrame([(1.0,), (2.0,), (3.0,), (4.0,)], ["x"])
+        pipeline = KamaeSparkPipeline(
+            stages=[
+                ConditionalStandardScaleEstimator(
+                    inputCol="x", outputCol="x_scaled", useFitSample=True
+                )
+            ],
+            cacheEstimatorInput=True,
+            fitSampleFraction=1.0,
+            fitSampleSeed=1,
+        )
+        with patch.object(
+            KamaeSparkPipeline,
+            "collect_required_input_columns",
+            wraps=KamaeSparkPipeline.collect_required_input_columns,
+        ) as mock_collect:
+            with pytest.warns(UserWarning, match="incompatible"):
+                model = pipeline.fit(df)
+        # cacheEstimatorInput disabled => its keep-set collector is never called.
+        assert mock_collect.call_count == 0
+        assert model is not None
+
+    def test_spark_pipeline_fit_sample_fraction_non_opted_in_reads_full(
+        self, spark_session
+    ):
+        """
+        Only estimators with useFitSample=True fit on the shared sample;
+        an estimator without it still fits on the full input. With fraction=1.0 the
+        sample is materialised once (n_rows) and reused by the opted-in estimator,
+        while the non-opted estimator triggers its own full scan => 2 * n_rows.
+        """
+        from pyspark.sql import functions as F
+        from pyspark.sql.types import DoubleType as SparkDoubleType
+
+        n_rows = 400
+        source = (
+            spark_session.range(0, n_rows)
+            .select(F.col("id").cast("double").alias("raw"))
+            .persist()
+        )
+        source.count()
+
+        accum = spark_session.sparkContext.accumulator(0)
+
+        def _count(value):
+            accum.add(1)
+            return value
+
+        udf = F.udf(_count, SparkDoubleType()).asNondeterministic()
+        counting = source.withColumn("x", udf(F.col("raw"))).drop("raw")
+
+        with pytest.warns(UserWarning):
+            KamaeSparkPipeline(
+                stages=[
+                    # Opts in: reads the shared sample.
+                    ConditionalStandardScaleEstimator(
+                        inputCol="x", outputCol="x_sampled", useFitSample=True
+                    ),
+                    # No useFitSample: reads the full input.
+                    ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_full"),
+                ],
+                fitSampleFraction=1.0,
+                fitSampleSeed=1,
+            ).fit(counting)
+
+        # One materialisation of the shared sample (n_rows), reused by the opted-in
+        # estimator, plus one full scan by the non-opted estimator.
+        assert accum.value == 2 * n_rows
+        source.unpersist()
+
+    def test_spark_pipeline_fit_sample_fraction_without_opt_in_is_noop(
+        self, spark_session
+    ):
+        """
+        fitSampleFraction with no estimator opting in (none has useFitSample=True)
+        warns that it has no effect and fits exactly as a full fit would.
+        """
+        df = spark_session.createDataFrame([(1.0,), (2.0,), (3.0,), (4.0,)], ["x"])
+        stage = ConditionalStandardScaleEstimator(inputCol="x", outputCol="x_scaled")
+
+        full_model = KamaeSparkPipeline(stages=[stage]).fit(df)
+        with pytest.warns(UserWarning, match="no effect"):
+            noop_model = KamaeSparkPipeline(
+                stages=[stage], fitSampleFraction=0.5, fitSampleSeed=1
+            ).fit(df)
+
+        assert noop_model.stages[0].getMean() == full_model.stages[0].getMean()
+        assert noop_model.stages[0].getStddev() == full_model.stages[0].getStddev()
+
+    def test_spark_pipeline_fit_sample_fraction_overrides_estimator_sample_fraction(
+        self, spark_session
+    ):
+        """
+        An estimator that sets both useFitSample=True and its own sampleFraction warns
+        that the shared pipeline sample wins and its sampleFraction is ignored.
+        """
+        df = spark_session.createDataFrame([(1.0,), (2.0,), (3.0,), (4.0,)], ["x"])
+        pipeline = KamaeSparkPipeline(
+            stages=[
+                ConditionalStandardScaleEstimator(
+                    inputCol="x",
+                    outputCol="x_scaled",
+                    useFitSample=True,
+                    sampleFraction=0.5,
+                )
+            ],
+            fitSampleFraction=1.0,
+            fitSampleSeed=1,
+        )
+        with pytest.warns(UserWarning, match="sampleFraction is ignored"):
+            model = pipeline.fit(df)
+        assert model is not None
+        # The estimator's own sampleFraction is restored after the fit.
+        assert pipeline.getStages()[0].getSampleFraction() == 0.5
+
+    def test_spark_pipeline_fit_sample_fraction_opt_in_without_pipeline_sample_warns(
+        self, spark_session
+    ):
+        """
+        useFitSample=True with no pipeline fitSampleFraction has no shared sample to
+        fit on, so it warns that useFitSample has no effect.
+        """
+        df = spark_session.createDataFrame([(1.0,), (2.0,), (3.0,), (4.0,)], ["x"])
+        pipeline = KamaeSparkPipeline(
+            stages=[
+                ConditionalStandardScaleEstimator(
+                    inputCol="x", outputCol="x_scaled", useFitSample=True
+                )
+            ]
+        )
+        with pytest.warns(UserWarning, match="useFitSample has no effect"):
+            model = pipeline.fit(df)
+        assert model is not None
 
     @pytest.mark.parametrize(
         "stages, input_col, original_dtype",

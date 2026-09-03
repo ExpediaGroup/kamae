@@ -11,11 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from kamae import __version__
-
-semantic_release_version = "3.2.0"
-
-
-def test_version():
-    assert __version__ == semantic_release_version

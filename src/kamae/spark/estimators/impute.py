@@ -66,6 +66,7 @@ class ImputeEstimator(
         maskValue: Optional[Union[float, int, str]] = None,
         imputeMethod: Optional[str] = None,
         sampleFraction: Optional[float] = None,
+        useFitSample: bool = False,
     ) -> None:
         """
         Initializes a ImputeEstimator estimator.
@@ -86,12 +87,15 @@ class ImputeEstimator(
         Valid values are "mean" or "median".
         :param sampleFraction: Fraction of data to sample for statistics
          estimation (exclusive 0.0-1.0). Default None (no sampling).
+        :param useFitSample: If True, fit on the enclosing pipeline's shared sample
+         when fitSampleFraction is set. Default False.
         :returns: None - class instantiated.
         """
         super().__init__()
         self._setDefault(
             imputeMethod="mean",
             sampleFraction=None,
+            useFitSample=False,
         )
         self.valid_impute_methods = ["mean", "median"]
         kwargs = self._input_kwargs
