@@ -122,7 +122,7 @@ from kamae.keras.tensorflow.layers import (
         (
             ArrayContainsLayer,
             [tf.random.normal((32, 1, 10)), tf.random.normal((32, 5, 1))],
-            None,
+            {"axis": -1, "keepdims": True},
             False,
         ),
         (

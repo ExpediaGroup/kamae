@@ -36,6 +36,10 @@ from pyspark.sql.types import (
 from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import ArrayContainsLayer
 from kamae.spark.params import MultiInputSingleOutputParams
+from kamae.spark.utils import (
+    get_array_nesting_level_and_element_dtype,
+    nested_transform,
+)
 
 from .base import BaseTransformer
 
@@ -51,10 +55,11 @@ class ArrayContainsTransformer(
 
     This transformer checks whether a scalar value is contained in an array.
 
-    Input:  Two columns `[arrayCol, valueCol]`, where `arrayCol` is an
-    `Array[Numeric]` and `valueCol` is a scalar `Numeric`.
-    Output: Scalar `Double` equal to `1.0` if the value is in the array,
-    else `0.0`.
+    Input:  Two columns `[arrayCol, valueCol]`, where `arrayCol` is a
+    (possibly nested) `Array[Numeric]` and `valueCol` is a scalar `Numeric`.
+    Output: `Boolean` (or nested `Array[Boolean]` for nested inputs) equal to
+    `True` if the value is in the innermost array, else `False`. Set
+    `outputDtype` to cast the boolean result to another dtype.
     """
 
     supported_backends = ALL_BACKENDS
@@ -118,9 +123,9 @@ class ArrayContainsTransformer(
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
-        Transforms the input dataset. Creates a new column with name `outputCol`,
-        equal to `1.0` if the value in `valueCol` is contained in the array in
-        `arrayCol`, else `0.0`.
+        Transforms the input dataset. Creates a new column `outputCol` that is
+        `True` where `valueCol` is contained in the innermost array of `arrayCol`.
+        Nested arrays are supported, yielding a nested array of booleans.
 
         :param dataset: Pyspark dataframe to transform.
         :returns: Transformed pyspark dataframe.
@@ -132,17 +137,19 @@ class ArrayContainsTransformer(
         if not isinstance(arr_t, ArrayType):
             raise TypeError(f"arrayCol '{arr_c}' must be an ArrayType, got {arr_t}")
 
-        if not isinstance(elem_t := arr_t.elementType, _NUMERIC_TYPES):
+        nesting_level, elem_t = get_array_nesting_level_and_element_dtype(arr_t)
+        if not isinstance(elem_t, _NUMERIC_TYPES):
             raise TypeError(f"arrayCol '{arr_c}' element must be numeric, got {elem_t}")
 
         if not isinstance(val_t, _NUMERIC_TYPES):
             raise TypeError(f"valueCol '{val_c}' must be numeric, got {val_t}")
 
-        output_col = (
-            F.when(F.array_contains(F.col(arr_c), F.col(val_c)), F.lit(1.0))
-            .otherwise(F.lit(0.0))
-            .cast(DoubleType())
+        # Apply array_contains at the innermost level
+        contains_func = nested_transform(
+            func=lambda x: F.array_contains(x, F.col(val_c)),
+            nest_level=nesting_level - 1,
         )
+        output_col = contains_func(F.col(arr_c))
         return dataset.withColumn(self.getOutputCol(), output_col)
 
     def get_keras_layer(self) -> keras.layers.Layer:
@@ -156,4 +163,6 @@ class ArrayContainsTransformer(
             name=self.getLayerName(),
             input_dtype=self.getInputKerasDtype(),
             output_dtype=self.getOutputKerasDtype(),
+            axis=-1,
+            keepdims=True,
         )

@@ -15,6 +15,7 @@
 import numpy as np
 import pytest
 import tensorflow as tf
+from pyspark.sql.types import DoubleType
 
 from kamae.spark.transformers import ArrayContainsTransformer
 
@@ -35,9 +36,9 @@ class TestArrayContains:
     def array_contains_transform_array_value_expected(self, spark_session):
         return spark_session.createDataFrame(
             [
-                ([1, 2, 3], 2, 4, 1.0),
-                ([1, 2, 3], 5, 1, 0.0),
-                ([4, 5, 6], 4, 9, 1.0),
+                ([1, 2, 3], 2, 4, True),
+                ([1, 2, 3], 5, 1, False),
+                ([4, 5, 6], 4, 9, True),
             ],
             ["array_col", "value_col", "other_value_col", "array_contains_value"],
         )
@@ -46,9 +47,9 @@ class TestArrayContains:
     def array_contains_transform_array_other_value_expected(self, spark_session):
         return spark_session.createDataFrame(
             [
-                ([1, 2, 3], 2, 4, 0.0),
-                ([1, 2, 3], 5, 1, 1.0),
-                ([4, 5, 6], 4, 9, 0.0),
+                ([1, 2, 3], 2, 4, False),
+                ([1, 2, 3], 5, 1, True),
+                ([4, 5, 6], 4, 9, False),
             ],
             [
                 "array_col",
@@ -56,6 +57,28 @@ class TestArrayContains:
                 "other_value_col",
                 "array_contains_other_value",
             ],
+        )
+
+    @pytest.fixture(scope="class")
+    def example_dataframe_with_nested_arrays(self, spark_session):
+        return spark_session.createDataFrame(
+            [
+                ([[1, 2, 3], [4, 5, 6]], 4),
+                ([[1, 2, 3], [4, 5, 6]], 9),
+                ([[7, 8, 9], [1, 1, 1]], 1),
+            ],
+            ["nested_array_col", "value_col"],
+        )
+
+    @pytest.fixture(scope="class")
+    def array_contains_transform_nested_expected(self, spark_session):
+        return spark_session.createDataFrame(
+            [
+                ([[1, 2, 3], [4, 5, 6]], 4, [False, True]),
+                ([[1, 2, 3], [4, 5, 6]], 9, [False, False]),
+                ([[7, 8, 9], [1, 1, 1]], 1, [False, True]),
+            ],
+            ["nested_array_col", "value_col", "nested_array_contains"],
         )
 
     @pytest.mark.parametrize(
@@ -90,6 +113,49 @@ class TestArrayContains:
         )
         actual = transformer.transform(example_dataframe_with_arrays)
         # then
+        diff = actual.exceptAll(expected)
+        assert diff.isEmpty(), "Expected and actual dataframes are not equal"
+
+    def test_spark_array_contains_transform_nested_arrays(
+        self,
+        example_dataframe_with_nested_arrays,
+        array_contains_transform_nested_expected,
+    ):
+        # given
+        expected = array_contains_transform_nested_expected
+        # when
+        transformer = ArrayContainsTransformer(
+            inputCols=["nested_array_col", "value_col"],
+            outputCol="nested_array_contains",
+        )
+        actual = transformer.transform(example_dataframe_with_nested_arrays)
+        # then
+        diff = actual.exceptAll(expected)
+        assert diff.isEmpty(), "Expected and actual dataframes are not equal"
+
+    def test_spark_array_contains_transform_output_dtype_cast(
+        self, spark_session, example_dataframe_with_arrays
+    ):
+        # given
+        expected = spark_session.createDataFrame(
+            [
+                ([1, 2, 3], 2, 4, 1.0),
+                ([1, 2, 3], 5, 1, 0.0),
+                ([4, 5, 6], 4, 9, 1.0),
+            ],
+            ["array_col", "value_col", "other_value_col", "array_contains_value"],
+        )
+        # when
+        transformer = ArrayContainsTransformer(
+            inputCols=["array_col", "value_col"],
+            outputCol="array_contains_value",
+            outputDtype="double",
+        )
+        actual = transformer.transform(example_dataframe_with_arrays)
+        # then
+        assert isinstance(
+            actual.schema["array_contains_value"].dataType, DoubleType
+        ), "Output column should be cast to DoubleType"
         diff = actual.exceptAll(expected)
         assert diff.isEmpty(), "Expected and actual dataframes are not equal"
 

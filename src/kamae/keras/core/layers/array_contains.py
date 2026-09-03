@@ -26,15 +26,11 @@ from kamae.keras.core.utils.input_utils import enforce_multiple_tensor_input
 @keras.saving.register_keras_serializable(package=kamae.__name__)
 class ArrayContainsLayer(BaseLayer):
     """
-    Computes whether a value is contained in an array along the last axis.
+    Computes whether a value is contained in an array along a given axis.
 
     Expects two inputs `(array, value)` that broadcast on every axis except the
-    last. The `array` tensor holds the dimension to search over (e.g. shape
-    `(B, 1, N)`), while the `value` tensor has size 1 on the last axis (e.g.
-    shape `(B, L, 1)`). The output is the broadcast shape with the last axis
-    collapsed to 1 (e.g. `(B, L, 1)`), containing `1.0` where the value is found
-    and `0.0` otherwise. Both inputs must share the same dtype; use `input_dtype`
-    to cast them to a common dtype.
+    search axis, and returns a boolean where `value` is found in `array`. Set
+    `output_dtype` to cast the result (e.g. to a float).
     """
 
     supported_backends = ALL_BACKENDS
@@ -45,6 +41,8 @@ class ArrayContainsLayer(BaseLayer):
         name: Optional[str] = None,
         input_dtype: Optional[str] = None,
         output_dtype: Optional[str] = None,
+        axis: int = -1,
+        keepdims: bool = True,
         **kwargs: Any,
     ) -> None:
         """
@@ -53,10 +51,16 @@ class ArrayContainsLayer(BaseLayer):
         :param name: Name of the layer, defaults to `None`.
         :param input_dtype: The dtype to cast the input to. Defaults to `None`.
         :param output_dtype: The dtype to cast the output to. Defaults to `None`.
+        :param axis: The axis along which to search for the value. Defaults to
+        `-1`.
+        :param keepdims: Whether to keep the searched axis as a size 1 dimension
+        in the output. Defaults to `True`.
         """
         super().__init__(
             name=name, input_dtype=input_dtype, output_dtype=output_dtype, **kwargs
         )
+        self.axis = axis
+        self.keepdims = keepdims
 
     @property
     def compatible_dtypes(self) -> Optional[List[str]]:
@@ -82,25 +86,17 @@ class ArrayContainsLayer(BaseLayer):
     @enforce_multiple_tensor_input
     def _call(self, inputs: Iterable[KerasTensor], **kwargs: Any) -> KerasTensor:
         """
-        Computes membership of `value` within `array` along the last axis.
-
-        Decorated with `@enforce_multiple_tensor_input` to ensure that the input
-        is an iterable of tensors. Raises an error if a single tensor is passed.
-
-        After decoration, we check the length of the inputs to ensure we have the
-        right number of input tensors.
+        Computes membership of `value` within `array` along the search axis.
 
         :param inputs: List of two tensors `(array, value)` to compute membership
         over.
-        :returns: The tensor resulting from the membership operation, with `1.0`
-        where the value is found and `0.0` otherwise.
+        :returns: A boolean tensor, `True` where the value is found.
         """
         if len(inputs) != 2:
             raise ValueError(f"Expected 2 inputs, got {len(inputs)} inputs instead.")
 
         array, value = inputs
-        any_match = ops.any(ops.equal(array, value), axis=-1, keepdims=True)
-        return ops.cast(any_match, "float32")
+        return ops.any(ops.equal(array, value), axis=self.axis, keepdims=self.keepdims)
 
     def get_config(self) -> Dict[str, Any]:
         """
@@ -109,4 +105,6 @@ class ArrayContainsLayer(BaseLayer):
 
         :returns: Dictionary of the configuration of the layer.
         """
-        return super().get_config()
+        config = super().get_config()
+        config.update({"axis": self.axis, "keepdims": self.keepdims})
+        return config

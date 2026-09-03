@@ -30,7 +30,7 @@ class TestArrayContains:
                 "input_1",
                 None,
                 None,
-                tf.constant([[[1.0]]]),
+                tf.constant([[[True]]]),
             ),
             (
                 [
@@ -40,7 +40,7 @@ class TestArrayContains:
                 "input_2",
                 None,
                 None,
-                tf.constant([[[0.0]]]),
+                tf.constant([[[False]]]),
             ),
             (
                 [
@@ -70,7 +70,7 @@ class TestArrayContains:
                 "input_4",
                 None,
                 None,
-                tf.constant([[[1.0]], [[0.0]]]),
+                tf.constant([[[True]], [[False]]]),
             ),
             (
                 [
@@ -80,7 +80,29 @@ class TestArrayContains:
                 "input_5",
                 "int64",
                 None,
-                tf.constant([[1.0]]),
+                tf.constant([[True]]),
+            ),
+            (
+                # Integer array and integer scalar value, boolean output.
+                [
+                    tf.constant([[[10, 20, 30]]], dtype="int64"),
+                    tf.constant([[[20]]], dtype="int64"),
+                ],
+                "input_6",
+                None,
+                None,
+                tf.constant([[[True]]]),
+            ),
+            (
+                # Integer array and integer scalar value, cast to int output.
+                [
+                    tf.constant([[[10, 20, 30]]], dtype="int32"),
+                    tf.constant([[[40]]], dtype="int32"),
+                ],
+                "input_7",
+                None,
+                "int32",
+                tf.constant([[[0]]], dtype="int32"),
             ),
         ],
     )
@@ -108,7 +130,60 @@ class TestArrayContains:
             output_tensor.shape == expected_output.shape
         ), "Output tensor shape is not the same as expected tensor shape"
 
-        tf.debugging.assert_near(output_tensor, expected_output, atol=1e-6)
+        tf.debugging.assert_equal(
+            tf.cast(output_tensor, "float64"), tf.cast(expected_output, "float64")
+        )
+
+    @pytest.mark.parametrize(
+        "input_tensors, axis, keepdims, expected_output",
+        [
+            (
+                # Default: search over last axis, keep the collapsed dimension.
+                [
+                    tf.constant([[[1, 2, 3]]]),
+                    tf.constant([[[2]]]),
+                ],
+                -1,
+                True,
+                tf.constant([[[True]]]),
+            ),
+            (
+                # keepdims=False drops the collapsed axis.
+                [
+                    tf.constant([[[1, 2, 3]]]),
+                    tf.constant([[[2]]]),
+                ],
+                -1,
+                False,
+                tf.constant([[True]]),
+            ),
+            (
+                # Search over a non-final axis.
+                [
+                    tf.constant([[[1], [2], [3]]]),
+                    tf.constant([[[2]]]),
+                ],
+                1,
+                True,
+                tf.constant([[[True]]]),
+            ),
+        ],
+    )
+    def test_array_contains_axis_keepdims(
+        self,
+        input_tensors,
+        axis,
+        keepdims,
+        expected_output,
+    ):
+        # when
+        layer = ArrayContainsLayer(axis=axis, keepdims=keepdims)
+        output_tensor = layer(input_tensors)
+        # then
+        assert (
+            output_tensor.shape == expected_output.shape
+        ), "Output tensor shape is not the same as expected tensor shape"
+        tf.debugging.assert_equal(output_tensor, expected_output)
 
     @pytest.mark.parametrize(
         "input_tensors",
