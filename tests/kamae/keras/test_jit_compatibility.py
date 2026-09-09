@@ -25,6 +25,7 @@ import kamae.keras.tensorflow.layers as tf_layers_mod
 from kamae.keras.core.layers import (
     AbsoluteValueLayer,
     ArrayConcatenateLayer,
+    ArrayContainsLayer,
     ArrayCropLayer,
     ArrayReduceMaxLayer,
     ArraySplitLayer,
@@ -106,6 +107,11 @@ JIT_COMPATIBLE_LAYERS = [
         ArrayConcatenateLayer,
         [tf.random.normal((32, 10, 100, 3)), tf.random.normal((32, 10, 100, 3))],
         {"axis": -2},
+    ),
+    (
+        ArrayContainsLayer,
+        [tf.random.normal((32, 1, 10)), tf.random.normal((32, 5, 1))],
+        None,
     ),
     (ArrayReduceMaxLayer, [tf.random.normal((32, 10))], {"default_value": 0.0}),
     (ArraySplitLayer, [tf.random.normal((32, 10, 100, 3))], {"axis": -2}),
