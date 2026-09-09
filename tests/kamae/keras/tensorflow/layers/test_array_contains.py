@@ -186,6 +186,64 @@ class TestArrayContains:
         tf.debugging.assert_equal(output_tensor, expected_output)
 
     @pytest.mark.parametrize(
+        "input_tensor, value_constant, output_dtype, expected_output",
+        [
+            (
+                # Single tensor input with a constant value to search for.
+                tf.constant([[[1, 2, 3]]]),
+                2.0,
+                None,
+                tf.constant([[[True]]]),
+            ),
+            (
+                tf.constant([[[1, 2, 3]]]),
+                5.0,
+                None,
+                tf.constant([[[False]]]),
+            ),
+            (
+                # Constant search with cast output.
+                tf.constant([[[1, 2, 3]], [[4, 5, 6]]]),
+                4.0,
+                "float64",
+                tf.constant([[[0.0]], [[1.0]]], dtype="float64"),
+            ),
+        ],
+    )
+    def test_array_contains_value_constant(
+        self,
+        input_tensor,
+        value_constant,
+        output_dtype,
+        expected_output,
+    ):
+        # when
+        layer = ArrayContainsLayer(
+            value_constant=value_constant,
+            output_dtype=output_dtype,
+        )
+        output_tensor = layer(input_tensor)
+        # then
+        assert (
+            output_tensor.shape == expected_output.shape
+        ), "Output tensor shape is not the same as expected tensor shape"
+        tf.debugging.assert_equal(
+            tf.cast(output_tensor, "float64"), tf.cast(expected_output, "float64")
+        )
+
+    def test_array_contains_value_constant_multiple_inputs_raises_error(self):
+        # given
+        layer = ArrayContainsLayer(value_constant=2.0)
+        # then
+        with pytest.raises(ValueError):
+            layer(
+                [
+                    tf.constant([[[1, 2, 3]]]),
+                    tf.constant([[[2]]]),
+                ]
+            )
+
+    @pytest.mark.parametrize(
         "input_tensors",
         [
             (

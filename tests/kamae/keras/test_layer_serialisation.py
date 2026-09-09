@@ -126,6 +126,12 @@ from kamae.keras.tensorflow.layers import (
             False,
         ),
         (
+            ArrayContainsLayer,
+            [tf.random.normal((32, 1, 10))],
+            {"axis": -1, "keepdims": True, "value_constant": 2.0},
+            False,
+        ),
+        (
             ArrayReduceMaxLayer,
             [tf.random.normal((32, 10))],
             {"default_value": 0.0},

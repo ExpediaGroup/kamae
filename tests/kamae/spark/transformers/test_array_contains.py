@@ -192,7 +192,65 @@ class TestArrayContains:
             outputCol="array_contains_output",
         )
         # then
-        with pytest.raises(TypeError):
+        with pytest.raises(ValueError):
+            transformer.transform(example_dataframe_with_arrays).collect()
+
+    def test_spark_array_contains_transform_constant(
+        self, spark_session, example_dataframe_with_arrays
+    ):
+        # given
+        expected = spark_session.createDataFrame(
+            [
+                ([1, 2, 3], 2, 4, True),
+                ([1, 2, 3], 5, 1, True),
+                ([4, 5, 6], 4, 9, False),
+            ],
+            ["array_col", "value_col", "other_value_col", "array_contains_const"],
+        )
+        # when
+        transformer = ArrayContainsTransformer(
+            inputCol="array_col",
+            outputCol="array_contains_const",
+            mathFloatConstant=2.0,
+        )
+        actual = transformer.transform(example_dataframe_with_arrays)
+        # then
+        diff = actual.exceptAll(expected)
+        assert diff.isEmpty(), "Expected and actual dataframes are not equal"
+
+    def test_spark_array_contains_transform_constant_nested(
+        self, spark_session, example_dataframe_with_nested_arrays
+    ):
+        # given
+        expected = spark_session.createDataFrame(
+            [
+                ([[1, 2, 3], [4, 5, 6]], 4, [False, True]),
+                ([[1, 2, 3], [4, 5, 6]], 9, [False, True]),
+                ([[7, 8, 9], [1, 1, 1]], 1, [False, False]),
+            ],
+            ["nested_array_col", "value_col", "nested_array_contains_const"],
+        )
+        # when
+        transformer = ArrayContainsTransformer(
+            inputCol="nested_array_col",
+            outputCol="nested_array_contains_const",
+            mathFloatConstant=5.0,
+        )
+        actual = transformer.transform(example_dataframe_with_nested_arrays)
+        # then
+        diff = actual.exceptAll(expected)
+        assert diff.isEmpty(), "Expected and actual dataframes are not equal"
+
+    def test_array_contains_transform_no_value_raises_error(
+        self, example_dataframe_with_arrays
+    ):
+        # given: single inputCol but no constant provided
+        transformer = ArrayContainsTransformer(
+            inputCol="array_col",
+            outputCol="array_contains_output",
+        )
+        # then
+        with pytest.raises(ValueError):
             transformer.transform(example_dataframe_with_arrays).collect()
 
     @pytest.mark.parametrize(
@@ -245,6 +303,61 @@ class TestArrayContains:
             .numpy()
             .flatten()
             .tolist()
+        )
+
+        # then
+        np.testing.assert_almost_equal(
+            spark_values,
+            tensorflow_values,
+        )
+
+    @pytest.mark.parametrize(
+        "input_arrays, constant, input_dtype, output_dtype",
+        [
+            (
+                [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+                5.0,
+                None,
+                None,
+            ),
+            (
+                [[10, 20, 30, 40], [5, 6, 7, 8], [0, 0, 0, 0]],
+                0.0,
+                "bigint",
+                "double",
+            ),
+        ],
+    )
+    def test_array_contains_transform_constant_spark_tf_parity(
+        self,
+        spark_session,
+        input_arrays,
+        constant,
+        input_dtype,
+        output_dtype,
+    ):
+        # given
+        transformer = ArrayContainsTransformer(
+            inputCol="array_col",
+            outputCol="output",
+            inputDtype=input_dtype,
+            outputDtype=output_dtype,
+            mathFloatConstant=constant,
+        )
+        # when
+        spark_df = spark_session.createDataFrame(
+            [(a,) for a in input_arrays],
+            ["array_col"],
+        )
+        spark_values = (
+            transformer.transform(spark_df)
+            .select("output")
+            .rdd.map(lambda r: r[0])
+            .collect()
+        )
+        array_tensor = tf.constant(input_arrays)
+        tensorflow_values = (
+            transformer.get_keras_layer()(array_tensor).numpy().flatten().tolist()
         )
 
         # then

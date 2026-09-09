@@ -23,7 +23,6 @@ import pyspark.sql.functions as F
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
-    ArrayType,
     ByteType,
     DataType,
     DoubleType,
@@ -35,31 +34,47 @@ from pyspark.sql.types import (
 
 from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.keras.core.layers import ArrayContainsLayer
-from kamae.spark.params import MultiInputSingleOutputParams
-from kamae.spark.utils import (
-    get_array_nesting_level_and_element_dtype,
-    nested_transform,
+from kamae.spark.params import (
+    MathFloatConstantParams,
+    MultiInputSingleOutputParams,
+    SingleInputSingleOutputParams,
 )
+from kamae.spark.utils import single_input_single_output_array_transform
 
 from .base import BaseTransformer
-
-_NUMERIC_TYPES = (ByteType, ShortType, IntegerType, LongType, FloatType, DoubleType)
 
 
 class ArrayContainsTransformer(
     BaseTransformer,
+    SingleInputSingleOutputParams,
     MultiInputSingleOutputParams,
+    MathFloatConstantParams,
 ):
     """
     ArrayContainsLayer Spark Transformer for use in Spark pipelines.
 
-    This transformer checks whether a scalar value is contained in an array.
+    Checks whether a scalar value is present in a (possibly nested) numeric
+    array. The value is either a second input column (`inputCols`) or the
+    `mathFloatConstant` (`inputCol`). Outputs a boolean; set `outputDtype` to
+    cast the result.
 
-    Input:  Two columns `[arrayCol, valueCol]`, where `arrayCol` is a
-    (possibly nested) `Array[Numeric]` and `valueCol` is a scalar `Numeric`.
-    Output: `Boolean` (or nested `Array[Boolean]` for nested inputs) equal to
-    `True` if the value is in the innermost array, else `False`. Set
-    `outputDtype` to cast the boolean result to another dtype.
+    Example:
+
+    >>> df.show()
+    +---------+
+    |        a|
+    +---------+
+    |[1, 2, 3]|
+    |[4, 5, 6]|
+    +---------+
+    >>> t = ArrayContainsTransformer(inputCol="a", outputCol="b", mathFloatConstant=2)
+    >>> t.transform(df).show()
+    +---------+-----+
+    |        a|    b|
+    +---------+-----+
+    |[1, 2, 3]| true|
+    |[4, 5, 6]|false|
+    +---------+-----+
     """
 
     supported_backends = ALL_BACKENDS
@@ -68,15 +83,20 @@ class ArrayContainsTransformer(
     @keyword_only
     def __init__(
         self,
+        inputCol: Optional[str] = None,
         inputCols: Optional[List[str]] = None,
         outputCol: Optional[str] = None,
         inputDtype: Optional[str] = None,
         outputDtype: Optional[str] = None,
         layerName: Optional[str] = None,
+        mathFloatConstant: Optional[float] = None,
     ) -> None:
         """
         Initializes an ArrayContainsTransformer transformer.
 
+        :param inputCol: Input array column name. Only used if inputCols is not
+        specified. If specified, we check whether `mathFloatConstant` is contained
+        in this array column.
         :param inputCols: Input column names, given as `[arrayCol, valueCol]`.
         :param outputCol: Output column name.
         :param inputDtype: Input data type to cast input column(s) to before
@@ -85,9 +105,12 @@ class ArrayContainsTransformer(
         transforming.
         :param layerName: Name of the layer. Used as the name of the Keras layer
         in the keras model. If not set, we use the uid of the Spark transformer.
+        :param mathFloatConstant: Optional constant value to check for. Used with
+        `inputCol`. If not provided, then `inputCols` is required.
         :returns: None - class instantiated.
         """
         super().__init__()
+        self._setDefault(mathFloatConstant=None)
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
 
@@ -123,33 +146,20 @@ class ArrayContainsTransformer(
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
-        Transforms the input dataset. Creates a new column `outputCol` that is
-        `True` where `valueCol` is contained in the innermost array of `arrayCol`.
-        Nested arrays are supported, yielding a nested array of booleans.
+        Adds `outputCol`, `True` where the value is present in the innermost
+        array. The value is a second input column or `mathFloatConstant`.
 
         :param dataset: Pyspark dataframe to transform.
         :returns: Transformed pyspark dataframe.
         """
-        arr_c, val_c = self.getInputCols()
-        arr_t = self.get_column_datatype(dataset, arr_c)
-        val_t = self.get_column_datatype(dataset, val_c)
+        array_col, value_col = self.get_multiple_input_cols("mathFloatConstant", 2)
+        df = dataset.select(array_col, value_col)
 
-        if not isinstance(arr_t, ArrayType):
-            raise TypeError(f"arrayCol '{arr_c}' must be an ArrayType, got {arr_t}")
-
-        nesting_level, elem_t = get_array_nesting_level_and_element_dtype(arr_t)
-        if not isinstance(elem_t, _NUMERIC_TYPES):
-            raise TypeError(f"arrayCol '{arr_c}' element must be numeric, got {elem_t}")
-
-        if not isinstance(val_t, _NUMERIC_TYPES):
-            raise TypeError(f"valueCol '{val_c}' must be numeric, got {val_t}")
-
-        # Apply array_contains at the innermost level
-        contains_func = nested_transform(
-            func=lambda x: F.array_contains(x, F.col(val_c)),
-            nest_level=nesting_level - 1,
+        output_col = single_input_single_output_array_transform(
+            input_col=array_col,
+            input_col_datatype=self.get_column_datatype(df, df.columns[0]),
+            func=lambda x: F.array_contains(x, value_col),
         )
-        output_col = contains_func(F.col(arr_c))
         return dataset.withColumn(self.getOutputCol(), output_col)
 
     def get_keras_layer(self) -> keras.layers.Layer:
@@ -165,4 +175,5 @@ class ArrayContainsTransformer(
             output_dtype=self.getOutputKerasDtype(),
             axis=-1,
             keepdims=True,
+            value_constant=self.getMathFloatConstant(),
         )
