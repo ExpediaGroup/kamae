@@ -76,6 +76,7 @@ from kamae.keras.tensorflow.layers import (
     DateDiffLayer,
     DateParseLayer,
     DateTimeToUnixTimestampLayer,
+    EventNgramLookupLayer,
     HashIndexLayer,
     IfStatementLayer,
     LambdaFunctionLayer,
@@ -227,6 +228,45 @@ from kamae.keras.tensorflow.layers import (
             DateTimeToUnixTimestampLayer,
             [tf.constant("2021-07-14", shape=(100, 10, 1))],
             {"unit": "s"},
+            False,
+        ),
+        (
+            EventNgramLookupLayer,
+            [
+                tf.constant(
+                    [
+                        [1, 2, 3, 4, 5, 0, 0, 0],
+                        [9, 9, 9, 9, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 1, 2, 3, 4],
+                    ],
+                    dtype=tf.int32,
+                )
+            ],
+            {
+                "num_events_per_input": [2],
+                "top_k": 3,
+                "tuple_size": 4,
+                "lookup_keys": [[1, 2, 3, 4], [5, 0, 0, 0]],
+                "lookup_values": [[2, 3, 0], [4, 0, 0]],
+            },
+            False,
+        ),
+        (
+            EventNgramLookupLayer,
+            [
+                tf.constant(
+                    [[1, 2, 3, 4, 5, 0, 0, 0], [9, 9, 9, 9, 0, 0, 0, 0]],
+                    dtype=tf.int32,
+                )
+            ],
+            {
+                "num_events_per_input": [2],
+                "top_k": 3,
+                "tuple_size": 4,
+                "lookup_keys": [[1, 2, 3, 4], [5, 0, 0, 0]],
+                "lookup_values": [[2, 3, 0], [4, 0, 0]],
+                "token_type_lookup": [0, 0, 5, 1, 8],
+            },
             False,
         ),
         (DivideLayer, [tf.random.normal((100, 10, 5))], {"divisor": 2}, False),

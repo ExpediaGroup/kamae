@@ -37,6 +37,7 @@ from .date_time_to_unix_timestamp import (  # noqa: F401
     DateTimeToUnixTimestampTransformer,
 )
 from .divide import DivideTransformer  # noqa: F401
+from .event_ngram_lookup import EventNgramLookupTransformer  # noqa: F401
 from .exp import ExpTransformer  # noqa: F401
 from .exponent import ExponentTransformer  # noqa: F401
 from .hash_index import HashIndexTransformer  # noqa: F401
