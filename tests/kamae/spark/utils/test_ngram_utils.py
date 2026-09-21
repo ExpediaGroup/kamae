@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from collections import Counter
 
 import pytest
@@ -22,6 +23,7 @@ from kamae.spark.utils.ngram_utils import (
     build_tuple_lookup_table,
     build_vocabulary,
     collect_ngrams_from_dataframe,
+    log_vocabulary_by_length,
     tokenize_events,
 )
 from kamae.spark.utils.ngram_worker_functions import (
@@ -249,3 +251,37 @@ class TestTokenizeEvents:
         assert tokenize_events(
             [1, 2, 3, 4], {}, num_events=1, tuple_size=4, top_k=2
         ) == [UNK_TOKEN_ID, UNK_TOKEN_ID]
+
+
+class TestLogVocabularyByLength:
+    def test_reports_the_share_of_each_n_gram_length(self, caplog):
+        # A vocabulary dominated by 1-grams means the n-gram combinations are
+        # earning little, which is what this reports.
+        vocabulary = {
+            ("L0_1",): 2,
+            ("L0_2",): 3,
+            ("L0_1", "L1_5"): 4,
+            ("L0_1", "L1_5", "L2_9"): 5,
+            ("L0_1", "L1_5", "L2_9", "L3_2"): 6,
+        }
+        with caplog.at_level(logging.INFO, logger="kamae.spark.utils.ngram_utils"):
+            log_vocabulary_by_length(vocabulary)
+
+        message = caplog.text
+        assert "1-gram 2 (40.0%)" in message
+        assert "2-gram 1 (20.0%)" in message
+        assert "3-gram 1 (20.0%)" in message
+        assert "4-gram 1 (20.0%)" in message
+
+    def test_reports_an_empty_vocabulary_without_dividing_by_zero(self, caplog):
+        with caplog.at_level(logging.INFO, logger="kamae.spark.utils.ngram_utils"):
+            log_vocabulary_by_length({})
+        assert "empty vocabulary" in caplog.text
+
+    def test_build_vocabulary_reports_the_distribution(self, caplog):
+        counter = Counter(
+            {("L0_1",): 10, ("L0_1", "L1_2"): 8, ("L0_1", "L1_2", "L2_3"): 6}
+        )
+        with caplog.at_level(logging.INFO, logger="kamae.spark.utils.ngram_utils"):
+            build_vocabulary(ngram_counter=counter, vocab_size=100, min_ngram_freq=1)
+        assert "Vocabulary by n-gram length" in caplog.text

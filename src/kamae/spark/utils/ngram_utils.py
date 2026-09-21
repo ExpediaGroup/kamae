@@ -150,6 +150,31 @@ def collect_ngrams_from_dataframe(
     return all_ngrams
 
 
+def log_vocabulary_by_length(ngram_to_id: Dict[Tuple[str, ...], int]) -> None:
+    """
+    Logs how the vocabulary splits across n-gram lengths.
+
+    A vocabulary dominated by 1-grams means the tokenizer is mostly learning
+    single ID levels and the n-gram combinations are earning little, which is the
+    signal for tuning ``vocab_size`` and ``min_ngram_freq``. Counting is one pass
+    over the kept n-grams, so this is cheap enough to always report.
+
+    :param ngram_to_id: The fitted vocabulary, n-gram tuple to token id.
+    :returns: None - the distribution is logged.
+    """
+    if not ngram_to_id:
+        logger.info("Vocabulary by n-gram length: empty vocabulary")
+        return
+    by_length = Counter(len(ngram) for ngram in ngram_to_id)
+    total = len(ngram_to_id)
+    parts = [
+        f"{length}-gram {by_length[length]:,} "
+        f"({100.0 * by_length[length] / total:.1f}%)"
+        for length in sorted(by_length)
+    ]
+    logger.info(f"Vocabulary by n-gram length: {' | '.join(parts)}")
+
+
 def build_vocabulary(
     ngram_counter: Counter,
     vocab_size: int = 50000,
@@ -191,6 +216,7 @@ def build_vocabulary(
         f"Final vocabulary size: {len(ngram_to_id) + NUM_RESERVED_TOKENS:,} "
         f"({len(ngram_to_id):,} n-grams + {NUM_RESERVED_TOKENS} reserved tokens)"
     )
+    log_vocabulary_by_length(ngram_to_id)
 
     return ngram_to_id
 
