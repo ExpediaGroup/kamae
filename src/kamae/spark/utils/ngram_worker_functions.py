@@ -15,12 +15,14 @@
 """
 Worker functions for n-gram extraction in Spark RDD operations.
 
-These functions run on Spark workers, so they depend only on the Python standard
-library (no TensorFlow / kamae imports).
+These run inside ``flatMap`` / ``map`` on the Spark workers and are pure Python over
+plain ints and tuples (standard library only). Importing this module still imports the
+``kamae`` package, and with it TensorFlow, so kamae must be installed on the workers,
+as for kamae's other UDF-based transformers.
 """
 
 from itertools import combinations
-from typing import Any, Dict, Iterator, List, Sequence, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 PAD_TOKEN_ID = 0
 UNK_TOKEN_ID = 1
@@ -117,14 +119,19 @@ def encode_tuple(
     id_tuple: Tuple[int, ...],
     ngrams: Dict[Tuple[str, ...], int],
     top_k: int,
-) -> List[int]:
+) -> Optional[List[int]]:
     """
     Encodes one event tuple into its top-k token ids against a fitted vocabulary.
 
     Keeps the tuple's n-grams that are present in ``ngrams`` and returns the ``top_k``
     smallest ids; ids are assigned by descending frequency, so a smaller id is a more
-    frequent n-gram. An all-zero tuple yields padding, and a non-zero tuple whose every
-    n-gram missed the vocabulary yields ``<unk>``, one per present ID level.
+    frequent n-gram.
+
+    Returns `None` when the tuple has no token to contribute, i.e. when it is all-zero
+    or when every one of its n-grams missed the vocabulary. Such a tuple is left out of
+    the lookup table, so at inference it takes the same table-miss path as a tuple that
+    was never seen during fitting. Unknown is therefore decided in one place, by one
+    rule, rather than once here and again at inference.
 
     Runs inside a Spark ``map`` on the workers, and is the single source of truth for
     per-tuple encoding used by ``build_tuple_lookup_table``.
@@ -132,18 +139,14 @@ def encode_tuple(
     :param id_tuple: Event tuple of IDs.
     :param ngrams: Fitted mapping from n-gram tuple to token id.
     :param top_k: Number of tokens to return.
-    :returns: List of token ids of length ``top_k`` (padded if needed).
+    :returns: List of token ids of length ``top_k`` (padded if needed), or `None` if the
+    tuple matched no n-gram.
     """
-    present_levels = sum(1 for id_value in id_tuple if id_value != 0)
-    if present_levels == 0:
-        return [PAD_TOKEN_ID] * top_k
-
     token_ids = sorted(
         ngrams[ngram] for ngram in event_ngrams(id_tuple) if ngram in ngrams
     )
     if not token_ids:
-        num_unk = min(present_levels, top_k)
-        return [UNK_TOKEN_ID] * num_unk + [PAD_TOKEN_ID] * (top_k - num_unk)
+        return None
 
     tokens = token_ids[:top_k]
     return tokens + [PAD_TOKEN_ID] * (top_k - len(tokens))

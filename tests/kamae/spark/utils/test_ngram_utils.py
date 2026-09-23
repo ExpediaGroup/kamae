@@ -53,6 +53,18 @@ class TestCollectNgramsFromDataFrame:
         assert len(counter) == 15
         assert set(counter.values()) == {1}
 
+    def test_drops_ngrams_below_min_frequency_before_collecting(self, spark_session):
+        # The two events share L0_1, L1_2 and L2_3, so only the 2**3 - 1 = 7
+        # combinations of those levels are seen twice.
+        schema = StructType([StructField("clicks_ids", ArrayType(IntegerType()), True)])
+        df = spark_session.createDataFrame([([1, 2, 3, 4],), ([1, 2, 3, 5],)], schema)
+
+        counter = collect_ngrams_from_dataframe(df, ["clicks_ids"], 4, min_ngram_freq=2)
+
+        assert len(counter) == 7
+        assert set(counter.values()) == {2}
+        assert all("L3_4" not in ngram and "L3_5" not in ngram for ngram in counter)
+
     def test_raises_when_an_input_column_is_a_nested_array(self, spark_session):
         # A nested array would be chunked over its sub-arrays rather than over its ids.
         schema = StructType(
@@ -206,20 +218,20 @@ class TestEncodeTuple:
             PAD_TOKEN_ID,
         ]
 
-    def test_all_zero_tuple_is_padding(self):
-        assert encode_tuple((0, 0), self.NGRAMS, top_k=3) == [PAD_TOKEN_ID] * 3
+    def test_all_zero_tuple_has_no_encoding(self):
+        assert encode_tuple((0, 0), self.NGRAMS, top_k=3) is None
 
-    def test_unmatched_tuple_yields_one_unk_per_present_level(self):
-        # Two non-zero levels, none in the vocabulary -> two unks, then padding.
-        assert encode_tuple((7, 8), self.NGRAMS, top_k=4) == [
+    def test_unmatched_tuple_has_no_encoding_so_it_is_left_out_of_the_table(self):
+        # A tuple with no n-gram in the vocabulary carries no token, so it is omitted
+        # from the lookup table and resolves to <unk> at inference by the same rule as
+        # a tuple that was never seen while fitting.
+        assert encode_tuple((7, 8), self.NGRAMS, top_k=4) is None
+        assert tokenize_events([7, 8], {}, num_events=1, tuple_size=2, top_k=4) == [
             UNK_TOKEN_ID,
-            UNK_TOKEN_ID,
+            PAD_TOKEN_ID,
             PAD_TOKEN_ID,
             PAD_TOKEN_ID,
         ]
-
-    def test_unk_count_never_exceeds_top_k(self):
-        assert encode_tuple((7, 8, 9), self.NGRAMS, top_k=2) == [UNK_TOKEN_ID] * 2
 
 
 class TestTokenizeEvents:
@@ -229,8 +241,9 @@ class TestTokenizeEvents:
         "ids, expected",
         [
             ([1, 2, 3, 4, 5, 6, 7, 8], [2, 3, 4, 5]),
-            # A non-zero tuple missing from the table is unknown, not padding.
-            ([1, 2, 3, 4, 9, 9, 9, 9], [2, 3, UNK_TOKEN_ID, UNK_TOKEN_ID]),
+            # A non-zero tuple missing from the table is unknown, not padding, and is
+            # marked by a single <unk> rather than filling every token slot.
+            ([1, 2, 3, 4, 9, 9, 9, 9], [2, 3, UNK_TOKEN_ID, PAD_TOKEN_ID]),
             # An all-zero event is padding.
             ([1, 2, 3, 4, 0, 0, 0, 0], [2, 3, 0, 0]),
             # Short rows are right-padded to num_events * top_k.
@@ -242,7 +255,7 @@ class TestTokenizeEvents:
             # Null ids read as 0, so an all-null event is padding and a partially-null
             # event is looked up as if the null levels were absent.
             ([None, None, None, None, 1, 2, 3, 4], [0, 0, 2, 3]),
-            ([1, 2, 3, None, 0, 0, 0, 0], [UNK_TOKEN_ID, UNK_TOKEN_ID, 0, 0]),
+            ([1, 2, 3, None, 0, 0, 0, 0], [UNK_TOKEN_ID, PAD_TOKEN_ID, 0, 0]),
         ],
     )
     def test_tokenizes_to_fixed_length(self, ids, expected):
@@ -259,7 +272,7 @@ class TestTokenizeEvents:
     def test_empty_lookup_table_maps_every_event_to_unk(self):
         assert tokenize_events(
             [1, 2, 3, 4], {}, num_events=1, tuple_size=4, top_k=2
-        ) == [UNK_TOKEN_ID, UNK_TOKEN_ID]
+        ) == [UNK_TOKEN_ID, PAD_TOKEN_ID]
 
 
 class TestLogVocabularyByLength:

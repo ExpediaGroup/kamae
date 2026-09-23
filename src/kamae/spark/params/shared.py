@@ -1282,3 +1282,20 @@ class EventNgramLookupParams(Params):
         :returns: Per-token-id list of ID-level bitmasks, or None.
         """
         return self.getOrDefault(self.tokenTypeLookup)
+
+    def getTokenTypeCols(self, token_cols: List[str]) -> List[str]:
+        """
+        Gets the names of the derived token-type columns.
+
+        With includeTokenTypes set, every token column ``<col>`` is accompanied by a
+        ``<col>_types`` column. These are not listed in outputCols, so the estimator
+        and transformer both declare them alongside the token columns, in the order
+        the Keras layer returns its type tensors.
+
+        :param token_cols: The token (output) column names.
+        :returns: One type column name per token column, or an empty list if
+        includeTokenTypes is not set.
+        """
+        if not self.getIncludeTokenTypes():
+            return []
+        return [f"{col}_types" for col in token_cols]

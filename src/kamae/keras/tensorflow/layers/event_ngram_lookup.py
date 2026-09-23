@@ -36,11 +36,15 @@ path). The table is persisted in ``get_config`` as parallel ``lookup_keys`` /
 exports cleanly to SavedModel.
 
 Token id conventions (shared with the vocabulary):
-    - ``0`` = padding (``<pad>``): emitted for all-zero / missing events.
-    - ``1`` = unknown (``<unk>``): emitted for a non-zero tuple absent from the table.
+    - ``0`` = padding (``<pad>``): emitted for all-zero / missing events, and for the
+      unused token slots of an event that matched fewer than ``top_k`` n-grams.
+    - ``1`` = unknown (``<unk>``): a non-zero tuple absent from the table yields a
+      single ``<unk>`` followed by padding. Every unrecognised tuple takes this one
+      path, whether it was unseen while fitting or matched no n-gram, so the encoding
+      depends on the tuple rather than on whether it appeared in the fitting corpus.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import keras
 import tensorflow as tf
@@ -52,6 +56,42 @@ from kamae.keras.core.base import BaseLayer
 
 PAD_TOKEN_ID = 0
 UNK_TOKEN_ID = 1
+
+
+def compute_key_bits(ids: Iterable[int], tuple_size: int) -> int:
+    """
+    Computes the bits allotted per ID level when packing an event tuple into an int64.
+
+    Each tuple key is bijectively packed into a single signed ``int64`` by allotting
+    ``key_bits`` bits per ID level, where ``key_bits`` is the bit length of the largest
+    ID. This is the single definition of which IDs the lookup table can hold: the
+    estimator calls it at fit time, so an unpackable table fails there rather than
+    later, when the Keras layer is built.
+
+    :param ids: Every ID in the lookup table keys.
+    :param tuple_size: Number of ID levels per event tuple.
+    :raises ValueError: If an ID is negative, or the packed key would not fit in a
+    signed ``int64``.
+    :returns: Number of bits allotted per ID level.
+    """
+    ids = [int(x) for x in ids]
+    min_id = min(ids, default=0)
+    if min_id < 0:
+        raise ValueError(
+            f"Discrete ID values must be non-negative, but the lookup table "
+            f"contains {min_id}. Each event tuple is packed into a single "
+            f"non-negative int64 key, which a negative ID cannot represent."
+        )
+    max_id = max(ids, default=1)
+    key_bits = max(1, max_id.bit_length())
+    if tuple_size * key_bits > 63:
+        raise ValueError(
+            f"Cannot pack event tuples into a signed int64: tuple_size "
+            f"({tuple_size}) * key_bits ({key_bits}, from a largest ID "
+            f"of {max_id}) = {tuple_size * key_bits} bits, which exceeds "
+            f"63. Reduce tuple_size or the ID cardinality."
+        )
+    return key_bits
 
 
 @tf.keras.utils.register_keras_serializable(package=kamae.__name__)
@@ -134,35 +174,18 @@ class EventNgramLookupLayer(BaseLayer):
         """
         Builds the ``IntegerLookup`` sublayer and gathered values tensor.
 
-        Each tuple key is bijectively packed into a single ``int64`` by allotting
-        ``key_bits`` bits per ID level, where ``key_bits`` is the bit length of the
-        largest ID in the table. Packing lets one ``IntegerLookup`` index the whole
-        table, which keeps string ops out of the serving path. The lookup maps a
-        miss/OOV to index 0 and the i-th key to index ``i + 1``; ``_call`` shifts back
-        by one to gather from the values tensor.
+        Each tuple key is packed into a single ``int64`` (see ``compute_key_bits``).
+        Packing lets one ``IntegerLookup`` index the whole table, which keeps string
+        ops out of the serving path. The lookup maps a miss/OOV to index 0 and the i-th
+        key to index ``i + 1``; ``_call`` shifts back by one to gather from the values
+        tensor.
 
         :param keys: Tuple keys as a list of int lists.
         :param values: Token lists (one per key), each of length ``top_k``.
         :raises ValueError: If an ID is negative, or the packed key would not fit in a
         signed ``int64``.
         """
-        key_ids = [int(x) for k in keys for x in k]
-        min_id = min(key_ids, default=0)
-        if min_id < 0:
-            raise ValueError(
-                f"Discrete ID values must be non-negative, but the lookup table "
-                f"contains {min_id}. Each event tuple is packed into a single "
-                f"non-negative int64 key, which a negative ID cannot represent."
-            )
-        max_id = max(key_ids, default=1)
-        self.key_bits = max(1, max_id.bit_length())
-        if self.tuple_size * self.key_bits > 63:
-            raise ValueError(
-                f"Cannot pack event tuples into a signed int64: tuple_size "
-                f"({self.tuple_size}) * key_bits ({self.key_bits}, from a largest ID "
-                f"of {max_id}) = {self.tuple_size * self.key_bits} bits, which exceeds "
-                f"63. Reduce tuple_size or the ID cardinality."
-            )
+        self.key_bits = compute_key_bits((x for k in keys for x in k), self.tuple_size)
         self.key_powers = [1 << (j * self.key_bits) for j in range(self.tuple_size)]
         packed_keys = [
             sum(int(x) * p for x, p in zip(k, self.key_powers)) for k in keys
@@ -185,7 +208,9 @@ class EventNgramLookupLayer(BaseLayer):
             mask_token=None,
             name=f"{self.name}_key_lookup",
         )
-        self.unk_pattern = tf.constant([UNK_TOKEN_ID] * self.top_k, dtype=tf.int32)
+        self.unk_pattern = tf.constant(
+            [UNK_TOKEN_ID] + [PAD_TOKEN_ID] * (self.top_k - 1), dtype=tf.int32
+        )
         self.pad_pattern = tf.constant([PAD_TOKEN_ID] * self.top_k, dtype=tf.int32)
 
     @property
@@ -261,12 +286,19 @@ class EventNgramLookupLayer(BaseLayer):
 
         :param inputs: List of ID tensors (one per ``num_events_per_input`` entry). A
         single input may be passed as a bare tensor.
+        :raises ValueError: If the number of inputs does not match
+        ``num_events_per_input``.
         :returns: One token tensor per input. If a ``token_type_lookup`` was supplied,
         the per-input type tensors are appended after the token tensors. A single token
         tensor (one input, no types) is returned unwrapped.
         """
         if not isinstance(inputs, (list, tuple)):
             inputs = [inputs]
+        if len(inputs) != len(self.num_events_per_input):
+            raise ValueError(
+                f"Expected one input per num_events_per_input entry "
+                f"({len(self.num_events_per_input)}), but got {len(inputs)} inputs."
+            )
 
         tokens = [
             self._tokenize(inp, num_events)
@@ -279,37 +311,6 @@ class EventNgramLookupLayer(BaseLayer):
         # Type = per-token bitmask of contributing ID levels, gathered by token id.
         types = [tf.gather(self._type_tensor, tok) for tok in tokens]
         return tokens + types
-
-    def compute_output_shape(
-        self, input_shape: Union[tuple, List[tuple]]
-    ) -> Union[tuple, List[tuple]]:
-        """
-        Declares the output shape(s) for functional model building.
-
-        :param input_shape: A single input shape, or a list of input shapes (one per
-        input column).
-        :returns: The matching output shape(s), with each id axis replaced by
-        ``num_events * top_k``. When types are emitted, the per-input type shapes are
-        appended after the token shapes.
-        """
-        single = not isinstance(input_shape[0], (list, tuple))
-        shapes = [input_shape] if single else list(input_shape)
-
-        token_shapes = []
-        for shape, num_events in zip(shapes, self.num_events_per_input):
-            output_length = num_events * self.top_k
-            if len(shape) == 3:
-                token_shapes.append((shape[0], shape[1], output_length))
-            elif len(shape) == 2:
-                token_shapes.append((shape[0], output_length))
-            else:
-                token_shapes.append(shape)
-
-        if self._token_type_lookup is not None:
-            # One type tensor per input, each the shape of its tokens, appended after
-            # all the token tensors.
-            return token_shapes + token_shapes
-        return token_shapes[0] if single else token_shapes
 
     def get_config(self) -> Dict[str, Any]:
         """

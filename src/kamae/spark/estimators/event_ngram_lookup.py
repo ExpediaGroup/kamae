@@ -21,13 +21,14 @@ combinations of length 1..``tupleSize``, so skipped ID levels are included) acro
 the corpus, keeps the ``vocabSize`` most frequent above ``minNgramFreq``, and
 pre-computes, for every observed event tuple, its ``topK`` token ids. The fitted
 lookup table is handed to the ``EventNgramLookupTransformer`` for O(1) tokenization.
+Tuples not observed during fitting map to ``<unk>`` at transform time.
 """
 
 # pylint: disable=unused-argument
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
@@ -35,6 +36,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql.types import DataType, IntegerType, LongType
 
 from kamae.keras.core.backend import TENSORFLOW_ONLY
+from kamae.keras.tensorflow.layers.event_ngram_lookup import compute_key_bits
 from kamae.spark.params import (
     EventNgramLookupParams,
     MultiInputMultiOutputParams,
@@ -46,6 +48,7 @@ from kamae.spark.utils import (
     build_tuple_lookup_table,
     build_vocabulary,
     collect_ngrams_from_dataframe,
+    validate_event_column_lengths,
 )
 
 from .base import BaseEstimator
@@ -207,6 +210,20 @@ class EventNgramLookupEstimator(
         """
         return [IntegerType(), LongType()]
 
+    def get_layer_inputs_outputs(self) -> Tuple[List[str], List[str]]:
+        """
+        Gets the input and output column names, including the token-type columns.
+
+        Overrides the base method because, with ``includeTokenTypes`` set, the fitted
+        transformer also produces a ``<col>_types`` column per output column. Declaring
+        them here keeps the pipeline graph accurate at fit time, so that a downstream
+        estimator reading a type column is fitted after this stage has been applied.
+
+        :returns: Tuple of the input column names and the output column names.
+        """
+        inputs, token_cols = super().get_layer_inputs_outputs()
+        return inputs, token_cols + self.getTokenTypeCols(token_cols)
+
     def _fit(self, dataset: DataFrame) -> EventNgramLookupTransformer:
         """
         Trains the n-gram vocabulary and returns the fitted transformer.
@@ -214,38 +231,30 @@ class EventNgramLookupEstimator(
         :param dataset: Input DataFrame with the discrete-ID columns.
         :returns: An ``EventNgramLookupTransformer`` carrying the fitted lookup table.
         :raises ValueError: If ``inputCols``, ``outputCols`` and ``numEventsPerInput``
-        do not all have the same length.
+        do not all have the same length, or the observed IDs cannot be packed by the
+        Keras layer (negative, or too large for ``tupleSize``).
         """
         input_cols = self.getInputCols()
         output_cols = self.getOutputCols()
         num_events_per_input = self.getNumEventsPerInput()
-
-        if len(input_cols) != len(output_cols):
-            raise ValueError(
-                f"inputCols and outputCols must have the same length. Got "
-                f"{len(input_cols)} inputs and {len(output_cols)} outputs."
-            )
-        if num_events_per_input is None or len(input_cols) != len(num_events_per_input):
-            n_events = 0 if num_events_per_input is None else len(num_events_per_input)
-            raise ValueError(
-                f"numEventsPerInput must have one entry per input column. Got "
-                f"{len(input_cols)} inputs and {n_events} event counts."
-            )
+        validate_event_column_lengths(input_cols, output_cols, num_events_per_input)
 
         tuple_size = self.getTupleSize()
         top_k = self.getTopK()
+        min_ngram_freq = self.getMinNgramFreq()
 
         # Count within-event n-grams, then keep the most frequent as the vocabulary.
         ngram_counter = collect_ngrams_from_dataframe(
             df=dataset,
             input_columns=input_cols,
             event_size=tuple_size,
+            min_ngram_freq=min_ngram_freq,
         )
         vocabulary = EventNgramVocabulary(
             ngrams=build_vocabulary(
                 ngram_counter=ngram_counter,
                 vocab_size=self.getVocabSize(),
-                min_ngram_freq=self.getMinNgramFreq(),
+                min_ngram_freq=min_ngram_freq,
             )
         )
 
@@ -272,6 +281,10 @@ class EventNgramLookupEstimator(
         for id_tuple, tokens in tuple_to_tokens.items():
             lookup_keys.extend(id_tuple)
             lookup_values.extend(tokens)
+
+        # Fail now, rather than when the Keras layer is built, if the Keras layer could
+        # not pack the observed tuples into its int64 keys.
+        compute_key_bits(lookup_keys, tuple_size)
 
         return EventNgramLookupTransformer(
             inputCols=input_cols,

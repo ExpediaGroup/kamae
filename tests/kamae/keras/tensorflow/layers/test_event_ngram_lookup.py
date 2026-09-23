@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import keras
 import pytest
 import tensorflow as tf
 
@@ -64,7 +65,7 @@ class TestEventNgramLookupLayer:
         tf.debugging.assert_equal(
             output,
             tf.constant(
-                [[2, 3, 0, 4, 5, 0], [2, 3, 0, 1, 1, 1], [0, 0, 0, 0, 0, 0]],
+                [[2, 3, 0, 4, 5, 0], [2, 3, 0, 1, 0, 0], [0, 0, 0, 0, 0, 0]],
                 dtype=output.dtype,
             ),
         )
@@ -89,7 +90,7 @@ class TestEventNgramLookupLayer:
             tf.constant(
                 [
                     [[2, 3, 0, 4, 5, 0], [0, 0, 0, 0, 0, 0]],
-                    [[4, 5, 0, 2, 3, 0], [1, 1, 1, 0, 0, 0]],
+                    [[4, 5, 0, 2, 3, 0], [1, 0, 0, 0, 0, 0]],
                 ],
                 dtype=output.dtype,
             ),
@@ -163,7 +164,7 @@ class TestEventNgramLookupLayer:
         layer = _layer(lookup_keys=[], lookup_values=[])
         output = layer(tf.constant([[1, 2, 3, 4, 0, 0, 0, 0]], dtype=tf.int32))
         tf.debugging.assert_equal(
-            output, tf.constant([[1, 1, 1, 0, 0, 0]], dtype=output.dtype)
+            output, tf.constant([[1, 0, 0, 0, 0, 0]], dtype=output.dtype)
         )
 
     def test_out_of_range_id_misses_instead_of_aliasing_a_valid_key(self):
@@ -177,7 +178,7 @@ class TestEventNgramLookupLayer:
         output = layer(tf.constant([[17, 2, 3, 4]], dtype=tf.int32))
 
         # then
-        tf.debugging.assert_equal(output, tf.constant([[1, 1, 1]], dtype=output.dtype))
+        tf.debugging.assert_equal(output, tf.constant([[1, 0, 0]], dtype=output.dtype))
 
     def test_negative_id_misses_instead_of_aliasing_a_valid_key(self):
         # given: a table key whose first ID level is 0, which is what clamping a
@@ -193,7 +194,7 @@ class TestEventNgramLookupLayer:
         output = layer(tf.constant([[-3, 6, 7, 8]], dtype=tf.int32))
 
         # then
-        tf.debugging.assert_equal(output, tf.constant([[1, 1, 1]], dtype=output.dtype))
+        tf.debugging.assert_equal(output, tf.constant([[1, 0, 0]], dtype=output.dtype))
 
     def test_raises_when_the_table_contains_a_negative_id(self):
         # Packing allots a fixed number of bits per ID level, so a negative id would
@@ -230,26 +231,27 @@ class TestEventNgramLookupLayer:
         tf.debugging.assert_equal(tokens, expected_tokens)
         tf.debugging.assert_equal(types, expected_types)
 
-    def test_compute_output_shape_matches_the_call_output(self):
+    def test_symbolic_outputs_are_int32_with_the_tokenized_shape(self):
+        # Keras infers the symbolic outputs by tracing _call, so they carry the real
+        # int32 dtype and a downstream integer-only layer can be chained onto them.
+        layer = _layer(
+            num_events_per_input=[2, 1], token_type_lookup=[0, 0, 5, 1, 8, 3]
+        )
+        clicks = keras.Input(shape=(8,), dtype="int32")
+        prop = keras.Input(shape=(None, 4), dtype="int64")
+
+        outputs = layer([clicks, prop])
+
+        assert [(output.dtype, output.shape) for output in outputs] == [
+            ("int32", (None, 2 * TOP_K)),
+            ("int32", (None, None, TOP_K)),
+            ("int32", (None, 2 * TOP_K)),
+            ("int32", (None, None, TOP_K)),
+        ]
+
+    def test_raises_when_inputs_do_not_match_num_events_per_input(self):
+        # Inputs are paired with their event counts, so a mismatch would otherwise
+        # silently drop the unpaired inputs' outputs.
         layer = _layer(num_events_per_input=[2, 1])
-        shapes = layer.compute_output_shape([(None, 8), (None, 4)])
-        assert shapes == [(None, 2 * TOP_K), (None, 1 * TOP_K)]
-
-    def test_compute_output_shape_single_input_is_unwrapped(self):
-        # A lone input with no types returns one shape, not a list of one, matching
-        # what _call returns.
-        assert _layer().compute_output_shape((None, 8)) == (None, 2 * TOP_K)
-
-    def test_compute_output_shape_preserves_the_list_dimension(self):
-        # Rank-3 in, rank-3 out: only the id axis is replaced.
-        assert _layer().compute_output_shape((None, 30, 8)) == (None, 30, 2 * TOP_K)
-
-    def test_compute_output_shape_passes_through_unexpected_ranks(self):
-        # Neither rank-2 nor rank-3, so there is no id axis to resize; the shape is
-        # returned untouched rather than guessed at.
-        assert _layer().compute_output_shape((8,)) == (8,)
-
-    def test_compute_output_shape_appends_type_shapes(self):
-        layer = _layer(token_type_lookup=[0, 0, 5, 1, 8, 3])
-        shapes = layer.compute_output_shape((None, 8))
-        assert shapes == [(None, 2 * TOP_K), (None, 2 * TOP_K)]
+        with pytest.raises(ValueError, match="num_events_per_input"):
+            layer(tf.constant([[1, 2, 3, 4, 5, 6, 7, 8]], dtype=tf.int32))

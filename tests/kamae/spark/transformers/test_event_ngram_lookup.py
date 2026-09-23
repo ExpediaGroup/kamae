@@ -73,7 +73,7 @@ class TestEventNgramLookupTransformer:
         ]
         expected = [
             [2, 3, 0, 4, 5, 0],  # both tuples known
-            [2, 3, 0, 1, 1, 1],  # known then <unk> (id 1)
+            [2, 3, 0, 1, 0, 0],  # known then a single <unk> (id 1), then padding
             [0, 0, 0, 0, 0, 0],  # both padding (id 0)
         ]
         assert actual == expected
@@ -133,8 +133,14 @@ class TestEventNgramLookupTransformer:
         # same dtypes rather than silently accepting a column it cannot serve.
         schema = StructType([StructField("clicks_ids", ArrayType(StringType()), True)])
         df = spark_session.createDataFrame([(["1,2,3,4"],)], schema)
-        with pytest.raises(Exception):
+        with pytest.raises(TypeError):
             self._transformer().transform(df).collect()
+
+    def test_transform_raises_when_column_lengths_differ(self, search_level_df):
+        # Columns are tokenized pairwise, so a mismatch must not silently drop one.
+        transformer = self._transformer(outputCols=["clicks_tokens", "extra_tokens"])
+        with pytest.raises(ValueError):
+            transformer.transform(search_level_df)
 
     def test_spark_tf_parity_with_list_dimension(self, search_level_df):
         # Rank-3 inputs (batch, list_size, ids) arise in listwise models; the list
@@ -170,22 +176,42 @@ class TestEventNgramLookupTransformer:
         assert layer.top_k == TOP_K
         assert layer.tuple_size == TUPLE_SIZE
 
-    def test_multiple_inputs_one_layer_all_events(self):
-        transformer = EventNgramLookupTransformer(
+    def test_spark_tf_parity_multiple_inputs_with_types(self, spark_session):
+        # A single layer tokenizes every input against the shared table, returning all
+        # the token tensors and then all the type tensors, in the declared order.
+        transformer = self._transformer(
             inputCols=["clicks_ids", "prop_ids"],
             outputCols=["clicks_tokens", "prop_tokens"],
             numEventsPerInput=[2, 1],
-            tupleSize=TUPLE_SIZE,
-            topK=TOP_K,
-            vocabularySize=VOCAB_SIZE,
-            lookupKeys=LOOKUP_KEYS,
-            lookupValues=LOOKUP_VALUES,
+            includeTokenTypes=True,
+            tokenTypeLookup=[0, 0, 5, 1, 8, 3],
             layerName="tokenizer",
         )
-        # A single layer tokenizes all inputs (the table is embedded once).
-        layer = transformer.get_keras_layer()
-        assert isinstance(layer, EventNgramLookupLayer)
-        assert layer.num_events_per_input == [2, 1]
+        clicks = [[1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 3, 4, 9, 9, 9, 9], [0] * 8]
+        prop = [[5, 6, 7, 8], [9, 9, 9, 9], [1, 2, 3, 4]]
+        schema = StructType(
+            [
+                StructField("clicks_ids", ArrayType(IntegerType()), True),
+                StructField("prop_ids", ArrayType(IntegerType()), True),
+            ]
+        )
+        df = spark_session.createDataFrame(list(zip(clicks, prop)), schema)
+        _, output_cols = transformer.get_layer_inputs_outputs()
+
+        spark_rows = transformer.transform(df).select(*output_cols).collect()
+        tf_outputs = transformer.get_keras_layer()(
+            [tf.constant(clicks, dtype=tf.int32), tf.constant(prop, dtype=tf.int32)]
+        )
+
+        assert output_cols == [
+            "clicks_tokens",
+            "prop_tokens",
+            "clicks_tokens_types",
+            "prop_tokens_types",
+        ]
+        assert len(tf_outputs) == len(output_cols)
+        for output_col, tf_output in zip(output_cols, tf_outputs):
+            assert tf_output.numpy().tolist() == [row[output_col] for row in spark_rows]
 
     def test_construct_layer_info(self):
         info = self._transformer().construct_layer_info()

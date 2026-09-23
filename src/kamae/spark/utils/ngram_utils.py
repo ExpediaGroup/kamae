@@ -100,13 +100,45 @@ class EventNgramVocabulary:
         return lookup
 
 
-def validate_input_columns(df: DataFrame, input_columns: List[str]) -> None:
+def validate_event_column_lengths(
+    input_columns: List[str],
+    output_columns: List[str],
+    num_events_per_input: Optional[List[int]],
+) -> None:
+    """
+    Checks that there is one output column and one event count per input column.
+
+    The columns are tokenized pairwise, so a length mismatch would otherwise be
+    silently truncated to the shortest list.
+
+    :param input_columns: Column names holding discrete ID values.
+    :param output_columns: Column names for the token arrays.
+    :param num_events_per_input: Number of events per input column.
+    :raises ValueError: If the three lists do not all have the same length.
+    :returns: None - the lengths are validated.
+    """
+    if len(input_columns) != len(output_columns):
+        raise ValueError(
+            f"inputCols and outputCols must have the same length. Got "
+            f"{len(input_columns)} inputs and {len(output_columns)} outputs."
+        )
+    if num_events_per_input is None or len(input_columns) != len(num_events_per_input):
+        n_events = 0 if num_events_per_input is None else len(num_events_per_input)
+        raise ValueError(
+            f"numEventsPerInput must have one entry per input column. Got "
+            f"{len(input_columns)} inputs and {n_events} event counts."
+        )
+
+
+def validate_event_id_columns(df: DataFrame, input_columns: List[str]) -> None:
     """
     Checks that every input column is present and is a flat array of ids.
 
     Each column value is a flat integer array chunked into consecutive events, so a
     scalar column has no ids to chunk and a nested array (e.g. ``array<array<int>>``)
-    would be chunked over its sub-arrays rather than its ids.
+    would be chunked over its sub-arrays rather than its ids. Nested (e.g. listwise)
+    columns are therefore not yet supported on the Spark side, although the Keras
+    layer accepts rank-3 inputs.
 
     :param df: DataFrame holding the discrete-ID columns.
     :param input_columns: Column names holding discrete ID values.
@@ -137,22 +169,26 @@ def collect_ngrams_from_dataframe(
     df: DataFrame,
     input_columns: List[str],
     event_size: int,
+    min_ngram_freq: int = 1,
 ) -> Counter:
     """
     Extracts and counts within-event n-grams across the given columns, distributed.
 
     All columns are counted in a single pass: every n-gram of every column of a row is
     emitted by one ``flatMap``, so the dataset is read once no matter how many columns
-    are tokenized. Counts are aggregated with ``reduceByKey`` (map-side combine), so
-    only the distinct n-grams reach the driver.
+    are tokenized. Counts are aggregated with ``reduceByKey`` (map-side combine) and
+    filtered by ``min_ngram_freq`` on the executors, so only the distinct n-grams that
+    can enter the vocabulary reach the driver.
 
     :param df: Input DataFrame with the discrete-ID columns.
     :param input_columns: Column names holding discrete ID values.
     :param event_size: Number of discrete ID values per event.
-    :returns: Counter mapping each n-gram tuple to its corpus frequency.
+    :param min_ngram_freq: Minimum corpus frequency for an n-gram to be collected.
+    Defaults to 1 (every n-gram).
+    :returns: Counter mapping each collected n-gram tuple to its corpus frequency.
     :raises ValueError: If a column is missing, or is not a single-level array.
     """
-    validate_input_columns(df, input_columns)
+    validate_event_id_columns(df, input_columns)
 
     logger.info(f"Collecting n-grams from {len(input_columns)} columns in one pass...")
 
@@ -167,11 +203,15 @@ def collect_ngrams_from_dataframe(
         )
         .map(lambda ngram: (ngram, 1))
         .reduceByKey(lambda a, b: a + b)
+        .filter(lambda ngram_count: ngram_count[1] >= min_ngram_freq)
         .collect()
     )
 
     all_ngrams = Counter(dict(ngram_counts))
-    logger.info(f"Found {len(all_ngrams):,} unique n-grams across all columns")
+    logger.info(
+        f"Found {len(all_ngrams):,} unique n-grams with frequency >= "
+        f"{min_ngram_freq} across all columns"
+    )
 
     return all_ngrams
 
@@ -223,10 +263,7 @@ def build_vocabulary(
     filtered_ngrams = {
         ngram: freq for ngram, freq in ngram_counter.items() if freq >= min_ngram_freq
     }
-    logger.info(
-        f"After min_freq={min_ngram_freq}: {len(filtered_ngrams):,} n-grams "
-        f"(from {len(ngram_counter):,} total)"
-    )
+    logger.info(f"After min_freq={min_ngram_freq}: {len(filtered_ngrams):,} n-grams")
 
     # Sort by frequency descending, then by the n-gram itself so that equal-frequency
     # n-grams are ordered deterministically across runs.
@@ -262,12 +299,16 @@ def build_tuple_lookup_table(
     function of the tuple and the fitted vocabulary, so the assembled table does not
     depend on how the work was partitioned.
 
+    Tuples that matched no n-gram are left out of the table, so they resolve to
+    ``<unk>`` at inference by the same rule as a tuple never seen during fitting. This
+    also keeps the table to the tuples that carry a token.
+
     :param df: DataFrame with the discrete-ID columns.
     :param input_columns: Column names holding discrete ID values.
     :param vocabulary: Fitted ``EventNgramVocabulary``.
     :param top_k: Number of tokens per tuple.
     :param event_size: Number of discrete ID values per tuple.
-    :returns: Mapping from each event tuple to its list of ``top_k`` token ids.
+    :returns: Mapping from each token-bearing event tuple to its ``top_k`` token ids.
     """
     logger.info("Building tuple->tokens lookup table (distributed)...")
 
@@ -286,6 +327,7 @@ def build_tuple_lookup_table(
         )
         .distinct()
         .map(lambda id_tuple: (id_tuple, encode_tuple(id_tuple, ngrams, top_k)))
+        .filter(lambda kv: kv[1] is not None)
         .collectAsMap()
     )
 
@@ -306,9 +348,11 @@ def tokenize_events(
 
     Splits the row into per-event tuples and maps each to its tokens: an all-zero event
     yields padding, a tuple in the table yields its stored tokens, and any other
-    non-zero tuple yields ``<unk>``. This is the single source of truth for the
-    row-level tokenization used by the Spark transform UDF, and is mirrored by the
-    TensorFlow ``EventNgramLookupLayer``.
+    non-zero tuple is unrecognised and yields a single ``<unk>`` followed by padding.
+    One ``<unk>`` marks that an event occurred but matched nothing, without giving an
+    unrecognised event more embedded tokens than a recognised one. This is the single
+    source of truth for the row-level tokenization used by the Spark transform UDF, and
+    is mirrored by the TensorFlow ``EventNgramLookupLayer``.
 
     :param ids: One row's discrete ID values as a flat int array, split into
     consecutive events of ``tuple_size`` ids. May be `None` or empty, and individual
@@ -321,7 +365,7 @@ def tokenize_events(
     :returns: Flat token array of length ``num_events * top_k``.
     """
     pad_tokens = [PAD_TOKEN_ID] * top_k
-    unk_tokens = [UNK_TOKEN_ID] * top_k
+    unk_tokens = [UNK_TOKEN_ID] + [PAD_TOKEN_ID] * (top_k - 1)
 
     if not ids:
         return pad_tokens * num_events

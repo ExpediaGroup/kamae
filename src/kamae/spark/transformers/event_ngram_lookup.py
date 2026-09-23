@@ -28,13 +28,17 @@ is derived by gathering the fitted ``tokenTypeLookup`` at the token ids.
 Token id conventions (shared with the vocabulary and the TF layer):
     - ``0`` = padding (``<pad>``): emitted for all-zero / missing events.
     - ``1`` = unknown (``<unk>``): emitted for a non-zero tuple absent from the table.
+
+The table only holds the event tuples that matched at least one n-gram during fitting,
+so any other non-zero tuple, including a new combination of individually known IDs,
+maps to a single ``<unk>`` followed by padding.
 """
 
 # pylint: disable=unused-argument
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import pyspark.sql.functions as F
 import tensorflow as tf
@@ -52,7 +56,11 @@ from pyspark.sql.types import (
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import EventNgramLookupLayer
 from kamae.spark.params import EventNgramLookupParams, MultiInputMultiOutputParams
-from kamae.spark.utils import tokenize_events, validate_input_columns
+from kamae.spark.utils import (
+    tokenize_events,
+    validate_event_column_lengths,
+    validate_event_id_columns,
+)
 
 from .base import BaseTransformer
 
@@ -150,23 +158,27 @@ class EventNgramLookupTransformer(
         column is added by gathering the type bitmask at each token id.
 
         :param dataset: Input DataFrame.
-        :raises ValueError: If a column is missing, or is not a single-level array.
+        :raises ValueError: If the input columns, output columns and event counts
+        differ in length, or a column is missing or is not a single-level array.
         :returns: DataFrame with the tokenized output columns, and the optional type
         columns.
         """
-        validate_input_columns(dataset, self.getInputCols())
+        input_cols = self.getInputCols()
+        output_cols = self.getOutputCols()
+        num_events_per_input = self.getNumEventsPerInput()
+        validate_event_column_lengths(input_cols, output_cols, num_events_per_input)
+        validate_event_id_columns(dataset, input_cols)
 
         tuple_size = self.getTupleSize()
         top_k = self.getTopK()
         lookup_table = self.getTupleToTokens()
         include_types = self.getIncludeTokenTypes()
         type_lookup = self.getTokenTypeLookup() if include_types else None
+        type_cols = dict(zip(output_cols, self.getTokenTypeCols(output_cols)))
 
         token_array_type = ArrayType(IntegerType())
         for input_col, output_col, num_events in zip(
-            self.getInputCols(),
-            self.getOutputCols(),
-            self.getNumEventsPerInput(),
+            input_cols, output_cols, num_events_per_input
         ):
             # num_events is bound per column via the default argument so each UDF
             # captures its own value rather than the last loop iteration's.
@@ -215,7 +227,7 @@ class EventNgramLookupTransformer(
             dataset = (
                 dataset.withColumn(struct_col, tokenize_udf(F.col(input_col)))
                 .withColumn(output_col, F.col(f"{struct_col}.tokens"))
-                .withColumn(f"{output_col}_types", casted_types)
+                .withColumn(type_cols[output_col], casted_types)
                 .drop(struct_col)
             )
 
@@ -255,27 +267,16 @@ class EventNgramLookupTransformer(
             name=self.getLayerName(),
         )
 
-    def construct_layer_info(self) -> Dict[str, Any]:
+    def get_layer_inputs_outputs(self) -> Tuple[List[str], List[str]]:
         """
-        Constructs the layer info dictionary, appending the token-type output columns.
+        Gets the input and output column names, including the token-type columns.
 
-        Overrides the base method because the consolidated layer emits more outputs
-        than there are output columns when ``includeTokenTypes`` is set: it returns the
-        per-input type tensors after the token tensors, so the ``<col>_types`` columns
-        must be appended in that same order for the pipeline graph to zip them up
-        correctly.
+        Overrides the base method because, with ``includeTokenTypes`` set, the layer
+        emits more outputs than there are output columns: it returns the per-input
+        type tensors after the token tensors, so the ``<col>_types`` columns are
+        appended in that same order for the pipeline graph to zip them up correctly.
 
-        :returns: Dictionary with the layer name, Keras layer, inputs and outputs.
+        :returns: Tuple of the input column names and the output column names.
         """
-        inputs, token_cols = self.get_layer_inputs_outputs()
-
-        outputs = list(token_cols)
-        if self.getIncludeTokenTypes():
-            outputs += [f"{col}_types" for col in token_cols]
-
-        return {
-            "name": self.getOrDefault("layerName"),
-            "layer": self.get_keras_layer(),
-            "inputs": inputs,
-            "outputs": outputs,
-        }
+        inputs, token_cols = super().get_layer_inputs_outputs()
+        return inputs, token_cols + self.getTokenTypeCols(token_cols)

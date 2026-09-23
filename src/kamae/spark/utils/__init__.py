@@ -39,7 +39,8 @@ from .ngram_utils import (  # noqa: F401
     build_vocabulary,
     collect_ngrams_from_dataframe,
     tokenize_events,
-    validate_input_columns,
+    validate_event_column_lengths,
+    validate_event_id_columns,
 )
 from .transform_utils import (  # noqa: F401
     multi_input_single_output_array_transform,
