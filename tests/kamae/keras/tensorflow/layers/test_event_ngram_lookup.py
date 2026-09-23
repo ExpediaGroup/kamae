@@ -179,6 +179,32 @@ class TestEventNgramLookupLayer:
         # then
         tf.debugging.assert_equal(output, tf.constant([[1, 1, 1]], dtype=output.dtype))
 
+    def test_negative_id_misses_instead_of_aliasing_a_valid_key(self):
+        # given: a table key whose first ID level is 0, which is what clamping a
+        # negative id would produce, so a negative id must miss rather than resolve
+        # to this key's tokens.
+        layer = _layer(
+            num_events_per_input=[1],
+            lookup_keys=[[0, 6, 7, 8]],
+            lookup_values=[[2, 3, 0]],
+        )
+
+        # when
+        output = layer(tf.constant([[-3, 6, 7, 8]], dtype=tf.int32))
+
+        # then
+        tf.debugging.assert_equal(output, tf.constant([[1, 1, 1]], dtype=output.dtype))
+
+    def test_raises_when_the_table_contains_a_negative_id(self):
+        # Packing allots a fixed number of bits per ID level, so a negative id would
+        # collide with the non-negative tuple that shares its remaining levels.
+        with pytest.raises(ValueError, match="non-negative"):
+            _layer(
+                num_events_per_input=[1],
+                lookup_keys=[[-1, 6, 7, 8]],
+                lookup_values=[[2, 3, 0]],
+            )
+
     def test_raises_when_keys_do_not_fit_in_an_int64(self):
         # 16 levels of a 2**32-sized id space needs far more than 63 bits.
         with pytest.raises(ValueError, match="int64"):

@@ -143,9 +143,18 @@ class EventNgramLookupLayer(BaseLayer):
 
         :param keys: Tuple keys as a list of int lists.
         :param values: Token lists (one per key), each of length ``top_k``.
-        :raises ValueError: If the packed key would not fit in a signed ``int64``.
+        :raises ValueError: If an ID is negative, or the packed key would not fit in a
+        signed ``int64``.
         """
-        max_id = max((int(x) for k in keys for x in k), default=1)
+        key_ids = [int(x) for k in keys for x in k]
+        min_id = min(key_ids, default=0)
+        if min_id < 0:
+            raise ValueError(
+                f"Discrete ID values must be non-negative, but the lookup table "
+                f"contains {min_id}. Each event tuple is packed into a single "
+                f"non-negative int64 key, which a negative ID cannot represent."
+            )
+        max_id = max(key_ids, default=1)
         self.key_bits = max(1, max_id.bit_length())
         if self.tuple_size * self.key_bits > 63:
             raise ValueError(
@@ -203,13 +212,10 @@ class EventNgramLookupLayer(BaseLayer):
         if input_rank == 3:
             batch_size = tf.shape(inputs)[0]
             list_or_1 = tf.shape(inputs)[1]
-            num_ids = tf.shape(inputs)[2]
-            inputs_flat = tf.reshape(inputs, [-1, num_ids])
-            eff_batch = batch_size * list_or_1
+            inputs_flat = tf.reshape(inputs, [-1, tf.shape(inputs)[2]])
             restore_list = True
         else:
             inputs_flat = inputs
-            eff_batch = tf.shape(inputs_flat)[0]
             restore_list = False
 
         # Pad/truncate the id axis to num_events * tuple_size, then split into tuples.
@@ -224,12 +230,12 @@ class EventNgramLookupLayer(BaseLayer):
         # All-zero tuples are padding; everything else is looked up (miss -> UNK).
         is_padding = tf.reduce_all(tf.equal(all_tuples, 0), axis=1)
 
-        # Pack each tuple into one int64 key. IDs wider than key_bits cannot be
+        # Pack each tuple into one int64 key. IDs outside [0, max_id] cannot be
         # represented, so they are clamped for packing and then forced to miss --
         # clamping alone would let an out-of-range ID alias onto a valid key.
         max_id = (1 << self.key_bits) - 1
         ids_64 = tf.cast(all_tuples, tf.int64)
-        in_range = tf.reduce_all(ids_64 <= max_id, axis=1)
+        in_range = tf.reduce_all((ids_64 >= 0) & (ids_64 <= max_id), axis=1)
         powers = tf.constant(self.key_powers, dtype=tf.int64)
         tuple_keys = tf.reduce_sum(tf.clip_by_value(ids_64, 0, max_id) * powers, axis=1)
 
@@ -245,7 +251,7 @@ class EventNgramLookupLayer(BaseLayer):
 
         if restore_list:
             return tf.reshape(tokens, [batch_size, list_or_1, output_length])
-        return tf.reshape(tokens, [eff_batch, output_length])
+        return tf.reshape(tokens, [-1, output_length])
 
     def _call(
         self, inputs: Union[KerasTensor, List[KerasTensor]], **kwargs: Any
@@ -300,12 +306,10 @@ class EventNgramLookupLayer(BaseLayer):
                 token_shapes.append(shape)
 
         if self._token_type_lookup is not None:
-            outputs = token_shapes + list(token_shapes)
-        elif single:
-            return token_shapes[0]
-        else:
-            outputs = token_shapes
-        return outputs
+            # One type tensor per input, each the shape of its tokens, appended after
+            # all the token tensors.
+            return token_shapes + token_shapes
+        return token_shapes[0] if single else token_shapes
 
     def get_config(self) -> Dict[str, Any]:
         """

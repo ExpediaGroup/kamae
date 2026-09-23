@@ -28,6 +28,7 @@ from typing import Dict, List, Optional, Tuple
 
 from pyspark.sql import DataFrame
 
+from kamae.spark.utils.array_utils import get_array_nesting_level
 from kamae.spark.utils.ngram_worker_functions import (
     NUM_RESERVED_TOKENS,
     PAD_TOKEN_ID,
@@ -35,11 +36,10 @@ from kamae.spark.utils.ngram_worker_functions import (
     encode_tuple,
     extract_ngrams_from_column_worker,
     extract_tuples_from_column_worker,
+    iter_events,
 )
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_EVENT_SIZE = 4  # Default discrete ID values per event (e.g. L0, L1, L2, L3)
 
 
 class EventNgramVocabulary:
@@ -100,10 +100,43 @@ class EventNgramVocabulary:
         return lookup
 
 
+def validate_input_columns(df: DataFrame, input_columns: List[str]) -> None:
+    """
+    Checks that every input column is present and is a flat array of ids.
+
+    Each column value is a flat integer array chunked into consecutive events, so a
+    scalar column has no ids to chunk and a nested array (e.g. ``array<array<int>>``)
+    would be chunked over its sub-arrays rather than its ids.
+
+    :param df: DataFrame holding the discrete-ID columns.
+    :param input_columns: Column names holding discrete ID values.
+    :raises ValueError: If a column is missing, or is not a single-level array.
+    :returns: None - the columns are validated.
+    """
+    missing_cols = [c for c in input_columns if c not in df.columns]
+    if missing_cols:
+        # Training the vocabulary on a subset of the requested columns would silently
+        # produce a vocabulary that does not cover every column being tokenized.
+        raise ValueError(
+            f"Input columns not found on the DataFrame: {missing_cols}. "
+            f"Available columns: {df.columns}"
+        )
+
+    for column_name in input_columns:
+        nesting_level = get_array_nesting_level(
+            column_dtype=df.schema[column_name].dataType
+        )
+        if nesting_level != 1:
+            raise ValueError(
+                f"Input column {column_name} must be a single-level array of discrete "
+                f"ID values, but it has an array nesting level of {nesting_level}."
+            )
+
+
 def collect_ngrams_from_dataframe(
     df: DataFrame,
     input_columns: List[str],
-    event_size: int = DEFAULT_EVENT_SIZE,
+    event_size: int,
 ) -> Counter:
     """
     Extracts and counts within-event n-grams across the given columns, distributed.
@@ -117,16 +150,9 @@ def collect_ngrams_from_dataframe(
     :param input_columns: Column names holding discrete ID values.
     :param event_size: Number of discrete ID values per event.
     :returns: Counter mapping each n-gram tuple to its corpus frequency.
-    :raises ValueError: If any of the input columns is missing from the DataFrame.
+    :raises ValueError: If a column is missing, or is not a single-level array.
     """
-    missing_cols = [c for c in input_columns if c not in df.columns]
-    if missing_cols:
-        # Training the vocabulary on a subset of the requested columns would silently
-        # produce a vocabulary that does not cover every column being tokenized.
-        raise ValueError(
-            f"Input columns not found on the DataFrame: {missing_cols}. "
-            f"Available columns: {df.columns}"
-        )
+    validate_input_columns(df, input_columns)
 
     logger.info(f"Collecting n-grams from {len(input_columns)} columns in one pass...")
 
@@ -177,8 +203,8 @@ def log_vocabulary_by_length(ngram_to_id: Dict[Tuple[str, ...], int]) -> None:
 
 def build_vocabulary(
     ngram_counter: Counter,
-    vocab_size: int = 50000,
-    min_ngram_freq: int = 10,
+    vocab_size: int,
+    min_ngram_freq: int,
 ) -> Dict[Tuple[str, ...], int]:
     """
     Builds the vocabulary by filtering on frequency and keeping the top n-grams.
@@ -205,7 +231,7 @@ def build_vocabulary(
     # Sort by frequency descending, then by the n-gram itself so that equal-frequency
     # n-grams are ordered deterministically across runs.
     top_ngrams = sorted(filtered_ngrams.items(), key=lambda x: (-x[1], x[0]))[
-        : vocab_size - NUM_RESERVED_TOKENS
+        : max(vocab_size - NUM_RESERVED_TOKENS, 0)
     ]
     ngram_to_id = {
         ngram: token_id
@@ -226,7 +252,7 @@ def build_tuple_lookup_table(
     input_columns: List[str],
     vocabulary: EventNgramVocabulary,
     top_k: int,
-    event_size: int = DEFAULT_EVENT_SIZE,
+    event_size: int,
 ) -> Dict[Tuple[int, ...], List[int]]:
     """
     Pre-computes the ``id_tuple -> top-k token ids`` lookup table, distributed.
@@ -243,9 +269,6 @@ def build_tuple_lookup_table(
     :param event_size: Number of discrete ID values per tuple.
     :returns: Mapping from each event tuple to its list of ``top_k`` token ids.
     """
-    if not input_columns:
-        return {}
-
     logger.info("Building tuple->tokens lookup table (distributed)...")
 
     # The fitted n-gram vocabulary is bounded by vocab_size (not by the number of
@@ -281,10 +304,10 @@ def tokenize_events(
     """
     Tokenizes one row's discrete ID values into a flat token array via the lookup table.
 
-    Splits the row into per-event tuples and maps each to its tokens: an all-zero or
-    incomplete event yields padding, a tuple in the table yields its stored tokens, and
-    any other non-zero tuple yields ``<unk>``. This is the single source of truth for
-    the row-level tokenization used by the Spark transform UDF, and is mirrored by the
+    Splits the row into per-event tuples and maps each to its tokens: an all-zero event
+    yields padding, a tuple in the table yields its stored tokens, and any other
+    non-zero tuple yields ``<unk>``. This is the single source of truth for the
+    row-level tokenization used by the Spark transform UDF, and is mirrored by the
     TensorFlow ``EventNgramLookupLayer``.
 
     :param ids: One row's discrete ID values as a flat int array, split into
@@ -294,6 +317,7 @@ def tokenize_events(
     :param num_events: Number of events the output is padded/truncated to.
     :param tuple_size: Number of discrete ID values per event tuple.
     :param top_k: Number of tokens per event tuple.
+    :raises ValueError: If the number of ids is not a multiple of ``tuple_size``.
     :returns: Flat token array of length ``num_events * top_k``.
     """
     pad_tokens = [PAD_TOKEN_ID] * top_k
@@ -302,18 +326,10 @@ def tokenize_events(
     if not ids:
         return pad_tokens * num_events
 
-    # A null id is read as 0 (an absent ID level), matching the fitting path and the
-    # dense TensorFlow input, rather than producing a tuple that can never be found.
-    event_tuples = [
-        tuple(
-            0 if id_value is None else id_value for id_value in ids[i : i + tuple_size]
-        )
-        for i in range(0, len(ids), tuple_size)
-    ]
-
     all_tokens: List[int] = []
-    for event_tuple in event_tuples:
-        if len(event_tuple) != tuple_size or all(v == 0 for v in event_tuple):
+    for event_ids in iter_events(ids, tuple_size):
+        event_tuple = tuple(event_ids)
+        if all(id_value == 0 for id_value in event_tuple):
             all_tokens.extend(pad_tokens)
         else:
             all_tokens.extend(lookup_table.get(event_tuple, unk_tokens))

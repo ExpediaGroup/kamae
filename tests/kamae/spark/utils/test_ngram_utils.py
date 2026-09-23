@@ -53,11 +53,14 @@ class TestCollectNgramsFromDataFrame:
         assert len(counter) == 15
         assert set(counter.values()) == {1}
 
-
-class TestBuildTupleLookupTable:
-    def test_no_input_columns_yields_an_empty_table(self, spark_session):
-        vocabulary = EventNgramVocabulary(ngrams={("L0_1",): 2})
-        assert build_tuple_lookup_table(None, [], vocabulary, top_k=3) == {}
+    def test_raises_when_an_input_column_is_a_nested_array(self, spark_session):
+        # A nested array would be chunked over its sub-arrays rather than over its ids.
+        schema = StructType(
+            [StructField("nested_ids", ArrayType(ArrayType(IntegerType())), True)]
+        )
+        nested_df = spark_session.createDataFrame([([[1, 2, 3, 4]],)], schema)
+        with pytest.raises(ValueError, match="array nesting level"):
+            collect_ngrams_from_dataframe(nested_df, ["nested_ids"], 4)
 
 
 class TestExtractNgramsFromColumnWorker:
@@ -79,8 +82,6 @@ class TestExtractNgramsFromColumnWorker:
             ),
             # An all-zero event contributes nothing.
             ([0, 0, 0], 3, []),
-            # A trailing partial event is not a complete event and is skipped.
-            ([1, 0, 0, 5], 3, [("L0_1",)]),
             (None, 3, []),
             ([], 3, []),
             # A null id is an absent ID level, exactly like a 0, rather than becoming
@@ -99,10 +100,14 @@ class TestExtractNgramsFromColumnWorker:
 
     def test_never_crosses_event_boundaries(self):
         # Two single-level events: no n-gram may contain ids from both.
-        ngrams = extract_ngrams_from_column_worker([1, 0, 0, 5], 3)
+        ngrams = extract_ngrams_from_column_worker([1, 0, 0, 5, 0, 0], 3)
         assert all(
             not ({"L0_1"} <= set(ngram) and {"L0_5"} <= set(ngram)) for ngram in ngrams
         )
+
+    def test_raises_when_the_ids_are_not_a_whole_number_of_events(self):
+        with pytest.raises(ValueError, match="whole number of events"):
+            extract_ngrams_from_column_worker([1, 2, 3, 4, 5, 6], 4)
 
 
 class TestExtractTuplesFromColumnWorker:
@@ -232,8 +237,6 @@ class TestTokenizeEvents:
             ([1, 2, 3, 4], [2, 3, 0, 0]),
             # Long rows are truncated.
             ([1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4], [2, 3, 4, 5]),
-            # A trailing partial event is dropped.
-            ([1, 2, 3, 4, 5, 6], [2, 3, 0, 0]),
             (None, [0, 0, 0, 0]),
             ([], [0, 0, 0, 0]),
             # Null ids read as 0, so an all-null event is padding and a partially-null
@@ -246,6 +249,12 @@ class TestTokenizeEvents:
         actual = tokenize_events(ids, self.LOOKUP, num_events=2, tuple_size=4, top_k=2)
         assert actual == expected
         assert len(actual) == 4
+
+    def test_raises_when_the_ids_are_not_a_whole_number_of_events(self):
+        with pytest.raises(ValueError, match="whole number of events"):
+            tokenize_events(
+                [1, 2, 3, 4, 5, 6], self.LOOKUP, num_events=2, tuple_size=4, top_k=2
+            )
 
     def test_empty_lookup_table_maps_every_event_to_unk(self):
         assert tokenize_events(

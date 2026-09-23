@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import pytest
-from pyspark.sql.types import ArrayType, IntegerType, StructField, StructType
+from pyspark.sql.types import ArrayType, IntegerType, LongType, StructField, StructType
 
 from kamae.spark.estimators import EventNgramLookupEstimator
 from kamae.spark.transformers import EventNgramLookupTransformer
@@ -113,12 +113,11 @@ class TestEventNgramLookupEstimator:
 
     def test_compatible_dtypes_are_integer_only(self):
         # The Keras layer consumes integer ids only, so the Spark side must not
-        # advertise dtypes it cannot achieve parity on.
+        # advertise dtypes it cannot achieve parity on. The dtypes are compared
+        # against the element type of the input column, so they name the element
+        # types rather than the array that holds them.
         estimator = self._estimator()
-        assert estimator.compatible_dtypes == [
-            IntegerType(),
-            ArrayType(IntegerType()),
-        ]
+        assert estimator.compatible_dtypes == [IntegerType(), LongType()]
 
     def test_use_fit_sample_defaults_to_false(self, id_df):
         # KamaeSparkPipeline calls getUseFitSample() on every estimator declaring the
@@ -129,7 +128,14 @@ class TestEventNgramLookupEstimator:
 
     @pytest.mark.parametrize(
         "param, value",
-        [("vocabSize", 2), ("minNgramFreq", 0)],
+        [
+            ("vocabSize", 2),
+            ("minNgramFreq", 0),
+            ("tupleSize", 0),
+            ("topK", 0),
+            ("numEventsPerInput", []),
+            ("numEventsPerInput", [1, 0]),
+        ],
     )
     def test_invalid_fit_params_raise(self, param, value):
         with pytest.raises(ValueError):

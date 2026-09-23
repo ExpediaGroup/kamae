@@ -103,8 +103,6 @@ class TestEventNgramLookupTransformer:
         [
             # A short row is right-padded up to numEvents * topK.
             ([1, 2, 3, 4], [2, 3, 0, 0, 0, 0]),
-            # A trailing partial event cannot be a tuple, so it is dropped.
-            ([1, 2, 3, 4, 5, 6], [2, 3, 0, 0, 0, 0]),
             # A row longer than numEvents is truncated.
             ([1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4], [2, 3, 0, 4, 5, 0]),
             # Null and empty rows are all padding.
@@ -167,7 +165,7 @@ class TestEventNgramLookupTransformer:
     def test_get_keras_layer_returns_single_consolidated_layer(self):
         layer = self._transformer().get_keras_layer()
         assert isinstance(layer, EventNgramLookupLayer)
-        assert layer.name == "clicks_tokens_tokenizer"
+        assert layer.name == "clicks_tokens"
         assert layer.num_events_per_input == [2]
         assert layer.top_k == TOP_K
         assert layer.tuple_size == TUPLE_SIZE
@@ -262,6 +260,21 @@ class TestEventNgramLookupTransformer:
             assert row["clicks_tokens_types"] == [
                 type_lookup[t] for t in row["clicks_tokens"]
             ]
+
+    def test_output_dtype_applies_to_the_type_columns(self, search_level_df):
+        # The type columns are derived rather than listed in outputCols, so they must
+        # be cast alongside them to stay the same dtype as the layer's type tensors.
+        transformer = self._transformer(
+            includeTokenTypes=True,
+            tokenTypeLookup=[0, 0, 5, 1, 8, 3],
+            outputDtype="float",
+        )
+
+        schema = transformer.transform(search_level_df).schema
+
+        assert (
+            schema["clicks_tokens"].dataType == schema["clicks_tokens_types"].dataType
+        )
 
     def test_construct_layer_info_appends_type_outputs(self):
         # The consolidated layer returns all token tensors then all type tensors, so

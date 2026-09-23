@@ -1118,8 +1118,14 @@ class EventNgramLookupParams(Params):
         Sets the numEventsPerInput parameter.
 
         :param value: Number of events per input column.
+        :raises ValueError: If the list is empty or any column has fewer than one event.
         :returns: Instance of class mixed in.
         """
+        if not value or any(num_events < 1 for num_events in value):
+            raise ValueError(
+                f"numEventsPerInput must give at least one event for each input "
+                f"column. Got {value}"
+            )
         return self._set(numEventsPerInput=value)
 
     def getNumEventsPerInput(self) -> List[int]:
@@ -1135,8 +1141,11 @@ class EventNgramLookupParams(Params):
         Sets the tupleSize parameter.
 
         :param value: Number of discrete ID values per event tuple.
+        :raises ValueError: If the tuple size is not a positive integer.
         :returns: Instance of class mixed in.
         """
+        if value < 1:
+            raise ValueError(f"tupleSize must be a positive integer. Got {value}")
         return self._set(tupleSize=value)
 
     def getTupleSize(self) -> int:
@@ -1152,8 +1161,11 @@ class EventNgramLookupParams(Params):
         Sets the topK parameter.
 
         :param value: Number of tokens emitted per event tuple.
+        :raises ValueError: If the number of tokens is not a positive integer.
         :returns: Instance of class mixed in.
         """
+        if value < 1:
+            raise ValueError(f"topK must be a positive integer. Got {value}")
         return self._set(topK=value)
 
     def getTopK(self) -> int:

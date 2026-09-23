@@ -40,12 +40,19 @@ import pyspark.sql.functions as F
 import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
-from pyspark.sql.types import ArrayType, DataType, IntegerType, StructField, StructType
+from pyspark.sql.types import (
+    ArrayType,
+    DataType,
+    IntegerType,
+    LongType,
+    StructField,
+    StructType,
+)
 
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.keras.tensorflow.layers import EventNgramLookupLayer
 from kamae.spark.params import EventNgramLookupParams, MultiInputMultiOutputParams
-from kamae.spark.utils.ngram_utils import tokenize_events
+from kamae.spark.utils import tokenize_events, validate_input_columns
 
 from .base import BaseTransformer
 
@@ -131,7 +138,7 @@ class EventNgramLookupTransformer(
 
         :returns: List of compatible data types for the layer.
         """
-        return [IntegerType(), ArrayType(IntegerType())]
+        return [IntegerType(), LongType()]
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
@@ -143,9 +150,12 @@ class EventNgramLookupTransformer(
         column is added by gathering the type bitmask at each token id.
 
         :param dataset: Input DataFrame.
+        :raises ValueError: If a column is missing, or is not a single-level array.
         :returns: DataFrame with the tokenized output columns, and the optional type
         columns.
         """
+        validate_input_columns(dataset, self.getInputCols())
+
         tuple_size = self.getTupleSize()
         top_k = self.getTopK()
         lookup_table = self.getTupleToTokens()
@@ -196,10 +206,16 @@ class EventNgramLookupTransformer(
                 ),
             )
             struct_col = f"{output_col}__tokens_and_types"
+            # The type columns are not in outputCols, so the egress cast applied to the
+            # output columns does not reach them. Cast them here so that they carry the
+            # same dtype as the type tensors the Keras layer returns.
+            casted_types, _ = self._cast_output_columns(
+                [F.col(f"{struct_col}.types")], [token_array_type]
+            )[0]
             dataset = (
                 dataset.withColumn(struct_col, tokenize_udf(F.col(input_col)))
                 .withColumn(output_col, F.col(f"{struct_col}.tokens"))
-                .withColumn(f"{output_col}_types", F.col(f"{struct_col}.types"))
+                .withColumn(f"{output_col}_types", casted_types)
                 .drop(struct_col)
             )
 
@@ -236,7 +252,7 @@ class EventNgramLookupTransformer(
             ),
             input_dtype=self.getInputKerasDtype(),
             output_dtype=self.getOutputKerasDtype(),
-            name=f"{self.getLayerName()}_tokenizer",
+            name=self.getLayerName(),
         )
 
     def construct_layer_info(self) -> Dict[str, Any]:

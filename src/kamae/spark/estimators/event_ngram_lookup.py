@@ -32,7 +32,7 @@ from typing import List, Optional
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
-from pyspark.sql.types import ArrayType, DataType, IntegerType
+from pyspark.sql.types import DataType, IntegerType, LongType
 
 from kamae.keras.core.backend import TENSORFLOW_ONLY
 from kamae.spark.params import (
@@ -41,7 +41,7 @@ from kamae.spark.params import (
     SampleFractionParams,
 )
 from kamae.spark.transformers import EventNgramLookupTransformer
-from kamae.spark.utils.ngram_utils import (
+from kamae.spark.utils import (
     EventNgramVocabulary,
     build_tuple_lookup_table,
     build_vocabulary,
@@ -205,7 +205,7 @@ class EventNgramLookupEstimator(
 
         :returns: List of compatible data types for the estimator.
         """
-        return [IntegerType(), ArrayType(IntegerType())]
+        return [IntegerType(), LongType()]
 
     def _fit(self, dataset: DataFrame) -> EventNgramLookupTransformer:
         """
