@@ -255,3 +255,8 @@ class TestEventNgramLookupLayer:
         layer = _layer(num_events_per_input=[2, 1])
         with pytest.raises(ValueError, match="num_events_per_input"):
             layer(tf.constant([[1, 2, 3, 4, 5, 6, 7, 8]], dtype=tf.int32))
+
+    @pytest.mark.parametrize("shape", [(8,), (1, 1, 1, 8)])
+    def test_raises_for_inputs_that_are_not_rank_two_or_three(self, shape):
+        with pytest.raises(ValueError, match="rank"):
+            _layer()(tf.zeros(shape, dtype=tf.int32))

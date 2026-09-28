@@ -28,11 +28,10 @@ from typing import Dict, List, Optional, Tuple
 
 from pyspark.sql import DataFrame
 
+from kamae.keras.tensorflow.layers.event_ngram_lookup import PAD_TOKEN_ID, UNK_TOKEN_ID
 from kamae.spark.utils.array_utils import get_array_nesting_level
 from kamae.spark.utils.ngram_worker_functions import (
     NUM_RESERVED_TOKENS,
-    PAD_TOKEN_ID,
-    UNK_TOKEN_ID,
     encode_tuple,
     extract_ngrams_from_column_worker,
     extract_tuples_from_column_worker,
@@ -79,14 +78,9 @@ class EventNgramVocabulary:
 
         Each n-gram is a tuple of level-prefixed ids (``L<level>_<id>``). The type
         encodes *which* ID levels the n-gram spans as a bitmask with bit ``level`` set
-        for each present level (e.g. an ``(L0, L2)`` skip-gram -> ``0b0101 = 5``). It is
-        compact categorical feature the model can embed alongside the token itself. The
-        reserved ``<pad>`` and ``<unk>`` tokens map to ``0``.
-
-        The bitmask is parametric in the number of ID levels: the level integer is
-        parsed from each n-gram part, so it works for any ``tupleSize`` (and
-        multi-digit levels).
-        The type cardinality is ``2 ** tupleSize``.
+        for each present level (e.g. an ``(L0, L2)`` skip-gram -> ``0b0101 = 5``). The
+        reserved ``<pad>`` and ``<unk>`` tokens map to ``0``, and the type cardinality
+        is ``2 ** tupleSize``.
 
         :returns: List indexed by token id giving each token's level bitmask.
         """
@@ -190,7 +184,7 @@ def collect_ngrams_from_dataframe(
     """
     validate_event_id_columns(df, input_columns)
 
-    logger.info(f"Collecting n-grams from {len(input_columns)} columns in one pass...")
+    logger.info("Collecting n-grams from %d columns in one pass...", len(input_columns))
 
     ngram_counts = (
         df.select(*input_columns)
@@ -209,8 +203,9 @@ def collect_ngrams_from_dataframe(
 
     all_ngrams = Counter(dict(ngram_counts))
     logger.info(
-        f"Found {len(all_ngrams):,} unique n-grams with frequency >= "
-        f"{min_ngram_freq} across all columns"
+        "Found %d unique n-grams with frequency >= %d across all columns",
+        len(all_ngrams),
+        min_ngram_freq,
     )
 
     return all_ngrams
@@ -220,10 +215,8 @@ def log_vocabulary_by_length(ngram_to_id: Dict[Tuple[str, ...], int]) -> None:
     """
     Logs how the vocabulary splits across n-gram lengths.
 
-    A vocabulary dominated by 1-grams means the tokenizer is mostly learning
-    single ID levels and the n-gram combinations are earning little, which is the
-    signal for tuning ``vocab_size`` and ``min_ngram_freq``. Counting is one pass
-    over the kept n-grams, so this is cheap enough to always report.
+    A vocabulary dominated by 1-grams means the n-gram combinations are earning
+    little, which is the signal for tuning ``vocab_size`` and ``min_ngram_freq``.
 
     :param ngram_to_id: The fitted vocabulary, n-gram tuple to token id.
     :returns: None - the distribution is logged.
@@ -238,36 +231,30 @@ def log_vocabulary_by_length(ngram_to_id: Dict[Tuple[str, ...], int]) -> None:
         f"({100.0 * by_length[length] / total:.1f}%)"
         for length in sorted(by_length)
     ]
-    logger.info(f"Vocabulary by n-gram length: {' | '.join(parts)}")
+    logger.info("Vocabulary by n-gram length: %s", " | ".join(parts))
 
 
 def build_vocabulary(
     ngram_counter: Counter,
     vocab_size: int,
-    min_ngram_freq: int,
 ) -> Dict[Tuple[str, ...], int]:
     """
-    Builds the vocabulary by filtering on frequency and keeping the top n-grams.
+    Builds the vocabulary by keeping the most frequent n-grams.
 
-    N-grams below ``min_ngram_freq`` are dropped, the rest are sorted by descending
-    frequency (ties broken by the n-gram itself, for determinism) and the top
+    The counter is expected to be already filtered by frequency, as returned by
+    ``collect_ngrams_from_dataframe``. N-grams are sorted by descending frequency
+    (ties broken by the n-gram itself, for determinism) and the top
     ``vocab_size - NUM_RESERVED_TOKENS`` are assigned contiguous ids from
     ``NUM_RESERVED_TOKENS`` upwards. Because ids ascend as frequency descends,
     "the top-k most frequent matching n-grams" is later just an ascending sort of ids.
 
     :param ngram_counter: Counter mapping n-gram tuples to frequencies.
     :param vocab_size: Target vocabulary size including the two reserved tokens.
-    :param min_ngram_freq: Minimum frequency for an n-gram to be included.
     :returns: Mapping from each kept n-gram tuple to its token id.
     """
-    filtered_ngrams = {
-        ngram: freq for ngram, freq in ngram_counter.items() if freq >= min_ngram_freq
-    }
-    logger.info(f"After min_freq={min_ngram_freq}: {len(filtered_ngrams):,} n-grams")
-
     # Sort by frequency descending, then by the n-gram itself so that equal-frequency
     # n-grams are ordered deterministically across runs.
-    top_ngrams = sorted(filtered_ngrams.items(), key=lambda x: (-x[1], x[0]))[
+    top_ngrams = sorted(ngram_counter.items(), key=lambda x: (-x[1], x[0]))[
         : max(vocab_size - NUM_RESERVED_TOKENS, 0)
     ]
     ngram_to_id = {
@@ -276,8 +263,10 @@ def build_vocabulary(
     }
 
     logger.info(
-        f"Final vocabulary size: {len(ngram_to_id) + NUM_RESERVED_TOKENS:,} "
-        f"({len(ngram_to_id):,} n-grams + {NUM_RESERVED_TOKENS} reserved tokens)"
+        "Final vocabulary size: %d (%d n-grams + %d reserved tokens)",
+        len(ngram_to_id) + NUM_RESERVED_TOKENS,
+        len(ngram_to_id),
+        NUM_RESERVED_TOKENS,
     )
     log_vocabulary_by_length(ngram_to_id)
 
@@ -300,8 +289,7 @@ def build_tuple_lookup_table(
     depend on how the work was partitioned.
 
     Tuples that matched no n-gram are left out of the table, so they resolve to
-    ``<unk>`` at inference by the same rule as a tuple never seen during fitting. This
-    also keeps the table to the tuples that carry a token.
+    ``<unk>`` in the same way as a tuple never seen during fitting.
 
     :param df: DataFrame with the discrete-ID columns.
     :param input_columns: Column names holding discrete ID values.
@@ -311,9 +299,6 @@ def build_tuple_lookup_table(
     :returns: Mapping from each token-bearing event tuple to its ``top_k`` token ids.
     """
     logger.info("Building tuple->tokens lookup table (distributed)...")
-
-    # The fitted n-gram vocabulary is bounded by vocab_size (not by the number of
-    # tuples), so it is captured by the encoding closure and shipped to the workers.
     ngrams = vocabulary.ngrams
 
     tuple_to_tokens = (
@@ -331,7 +316,7 @@ def build_tuple_lookup_table(
         .collectAsMap()
     )
 
-    logger.info(f"Encoded {len(tuple_to_tokens):,} unique tuples")
+    logger.info("Encoded %d unique tuples", len(tuple_to_tokens))
 
     return tuple_to_tokens
 
@@ -348,11 +333,8 @@ def tokenize_events(
 
     Splits the row into per-event tuples and maps each to its tokens: an all-zero event
     yields padding, a tuple in the table yields its stored tokens, and any other
-    non-zero tuple is unrecognised and yields a single ``<unk>`` followed by padding.
-    One ``<unk>`` marks that an event occurred but matched nothing, without giving an
-    unrecognised event more embedded tokens than a recognised one. This is the single
-    source of truth for the row-level tokenization used by the Spark transform UDF, and
-    is mirrored by the TensorFlow ``EventNgramLookupLayer``.
+    non-zero tuple yields a single ``<unk>`` followed by padding. Mirrored by the
+    Keras ``EventNgramLookupLayer``.
 
     :param ids: One row's discrete ID values as a flat int array, split into
     consecutive events of ``tuple_size`` ids. May be `None` or empty, and individual
@@ -383,3 +365,27 @@ def tokenize_events(
     if len(all_tokens) < expected_length:
         all_tokens.extend([PAD_TOKEN_ID] * (expected_length - len(all_tokens)))
     return all_tokens[:expected_length]
+
+
+def tokenize_events_with_types(
+    ids: Optional[List[int]],
+    lookup_table: Dict[Tuple[int, ...], List[int]],
+    token_type_lookup: List[int],
+    num_events: int,
+    tuple_size: int,
+    top_k: int,
+) -> Tuple[List[int], List[int]]:
+    """
+    Tokenizes one row as ``tokenize_events`` does, and gathers each token's type.
+
+    :param ids: One row's discrete ID values as a flat int array.
+    :param lookup_table: Fitted mapping from event tuple to its top-k token list.
+    :param token_type_lookup: Per-token-id list of ID-level bitmasks.
+    :param num_events: Number of events the output is padded/truncated to.
+    :param tuple_size: Number of discrete ID values per event tuple.
+    :param top_k: Number of tokens per event tuple.
+    :returns: Tuple of (token ids, type bitmasks), both of length
+    ``num_events * top_k``.
+    """
+    tokens = tokenize_events(ids, lookup_table, num_events, tuple_size, top_k)
+    return tokens, [token_type_lookup[token] for token in tokens]

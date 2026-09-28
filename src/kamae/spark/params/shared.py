@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Union
 
 from pyspark.ml.param import Param, Params, TypeConverters
 
@@ -1067,50 +1067,12 @@ class EventNgramLookupParams(Params):
         typeConverter=TypeConverters.toInt,
     )
 
-    vocabularySize = Param(
-        Params._dummy(),
-        "vocabularySize",
-        "Number of token ids the fitted vocabulary actually produced, including the "
-        "reserved pad and unk tokens. This is the fitted result, not the requested "
-        "target (which is the estimator's vocabSize and is only an upper bound): it is "
-        "published so a downstream embedding table can be sized to the tokens that "
-        "were really learned.",
-        typeConverter=TypeConverters.toInt,
-    )
-
-    # The fitted lookup table is held as two parallel flat int arrays rather than as a
-    # dict, because Spark ML writes params to JSON metadata and a dict keyed by id
-    # tuples is not JSON-serialisable, which would make the fitted pipeline unsaveable.
-    # Same parallel-arrays shape as StringMapParams.
-    lookupKeys = Param(
-        Params._dummy(),
-        "lookupKeys",
-        "Flattened event tuples of the fitted lookup table, tupleSize ids per tuple.",
-        typeConverter=TypeConverters.toListInt,
-    )
-
-    lookupValues = Param(
-        Params._dummy(),
-        "lookupValues",
-        "Flattened token lists of the fitted lookup table, topK tokens per tuple, "
-        "positionally aligned with lookupKeys.",
-        typeConverter=TypeConverters.toListInt,
-    )
-
     includeTokenTypes = Param(
         Params._dummy(),
         "includeTokenTypes",
-        "Whether to also emit, per input column, a parallel '<col>_types' column giving "
-        "each token's ID-level bitmask (a compact categorical feature for the model).",
+        "Whether to also emit, per input column, a parallel '<col>_types' column "
+        "giving each token's ID-level bitmask.",
         typeConverter=TypeConverters.toBoolean,
-    )
-
-    tokenTypeLookup = Param(
-        Params._dummy(),
-        "tokenTypeLookup",
-        "Per-token-id list mapping each token to a bitmask of the ID levels its n-gram "
-        "spans (0 for pad/unk). Used only when includeTokenTypes is True.",
-        typeConverter=TypeConverters.toListInt,
     )
 
     def setNumEventsPerInput(self, value: List[int]) -> "EventNgramLookupParams":
@@ -1176,79 +1138,6 @@ class EventNgramLookupParams(Params):
         """
         return self.getOrDefault(self.topK)
 
-    def setVocabularySize(self, value: int) -> "EventNgramLookupParams":
-        """
-        Sets the vocabularySize parameter.
-
-        :param value: Total number of unique tokens in the fitted vocabulary.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(vocabularySize=value)
-
-    def getVocabularySize(self) -> int:
-        """
-        Gets the vocabularySize parameter.
-
-        :returns: Total number of unique tokens in the fitted vocabulary.
-        """
-        return self.getOrDefault(self.vocabularySize)
-
-    def setLookupKeys(self, value: List[int]) -> "EventNgramLookupParams":
-        """
-        Sets the lookupKeys parameter.
-
-        :param value: Flattened event tuples, tupleSize ids per tuple.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(lookupKeys=value)
-
-    def getLookupKeys(self) -> Optional[List[int]]:
-        """
-        Gets the lookupKeys parameter.
-
-        :returns: Flattened event tuples, or None if not set.
-        """
-        return self.getOrDefault(self.lookupKeys)
-
-    def setLookupValues(self, value: List[int]) -> "EventNgramLookupParams":
-        """
-        Sets the lookupValues parameter.
-
-        :param value: Flattened token lists, topK tokens per tuple.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(lookupValues=value)
-
-    def getLookupValues(self) -> Optional[List[int]]:
-        """
-        Gets the lookupValues parameter.
-
-        :returns: Flattened token lists, or None if not set.
-        """
-        return self.getOrDefault(self.lookupValues)
-
-    def getTupleToTokens(self) -> Dict[Tuple[int, ...], List[int]]:
-        """
-        Rebuilds the ``event tuple -> top-k token list`` lookup table.
-
-        Derived from the flat ``lookupKeys`` / ``lookupValues`` params, which are what
-        the fitted pipeline actually persists.
-
-        :returns: Mapping from each event tuple to its list of token ids.
-        """
-        keys = self.getLookupKeys()
-        values = self.getLookupValues()
-        if not keys or not values:
-            return {}
-        tuple_size = self.getTupleSize()
-        top_k = self.getTopK()
-        return {
-            tuple(keys[i : i + tuple_size]): values[j : j + top_k]
-            for i, j in zip(
-                range(0, len(keys), tuple_size), range(0, len(values), top_k)
-            )
-        }
-
     def setIncludeTokenTypes(self, value: bool) -> "EventNgramLookupParams":
         """
         Sets the includeTokenTypes parameter.
@@ -1265,23 +1154,6 @@ class EventNgramLookupParams(Params):
         :returns: Whether to also emit per-input token-type columns.
         """
         return self.getOrDefault(self.includeTokenTypes)
-
-    def setTokenTypeLookup(self, value: List[int]) -> "EventNgramLookupParams":
-        """
-        Sets the tokenTypeLookup parameter.
-
-        :param value: Per-token-id list of ID-level bitmasks.
-        :returns: Instance of class mixed in.
-        """
-        return self._set(tokenTypeLookup=value)
-
-    def getTokenTypeLookup(self) -> Optional[List[int]]:
-        """
-        Gets the tokenTypeLookup parameter.
-
-        :returns: Per-token-id list of ID-level bitmasks, or None.
-        """
-        return self.getOrDefault(self.tokenTypeLookup)
 
     def getTokenTypeCols(self, token_cols: List[str]) -> List[str]:
         """

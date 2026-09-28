@@ -27,7 +27,7 @@ from kamae.spark.transformers import EventNgramLookupTransformer
 
 # Fitted lookup table shared across the tests: two known event tuples, top_k = 3.
 LOOKUP_TABLE = {(1, 2, 3, 4): [2, 3, 0], (5, 6, 7, 8): [4, 5, 0]}
-# The transformer persists the table as two flat, JSON-serialisable int lists.
+# The transformer persists the table as two flat, JSON-serializable int lists.
 LOOKUP_KEYS = [i for key in LOOKUP_TABLE for i in key]
 LOOKUP_VALUES = [v for value in LOOKUP_TABLE.values() for v in value]
 TOP_K = 3
@@ -52,7 +52,7 @@ class TestEventNgramLookupTransformer:
         return EventNgramLookupTransformer(**params)
 
     @pytest.fixture
-    def search_level_df(self, spark_session):
+    def id_df(self, spark_session):
         # Each row is a flat int array of 2 events x 4 ids: a known tuple, an unknown
         # tuple and an all-zero (padding) tuple.
         data = [
@@ -63,13 +63,11 @@ class TestEventNgramLookupTransformer:
         schema = StructType([StructField("clicks_ids", ArrayType(IntegerType()), True)])
         return spark_session.createDataFrame(data, schema)
 
-    def test_transform_known_unknown_padding(self, search_level_df):
+    def test_transform_known_unknown_padding(self, id_df):
         transformer = self._transformer()
         actual = [
             row["clicks_tokens"]
-            for row in transformer.transform(search_level_df)
-            .select("clicks_tokens")
-            .collect()
+            for row in transformer.transform(id_df).select("clicks_tokens").collect()
         ]
         expected = [
             [2, 3, 0, 4, 5, 0],  # both tuples known
@@ -78,13 +76,11 @@ class TestEventNgramLookupTransformer:
         ]
         assert actual == expected
 
-    def test_spark_tf_parity_search_level(self, search_level_df):
+    def test_spark_tf_parity_search_level(self, id_df):
         transformer = self._transformer()
         spark_out = [
             row["clicks_tokens"]
-            for row in transformer.transform(search_level_df)
-            .select("clicks_tokens")
-            .collect()
+            for row in transformer.transform(id_df).select("clicks_tokens").collect()
         ]
         layer = transformer.get_keras_layer()
         tf_in = tf.constant(
@@ -136,21 +132,19 @@ class TestEventNgramLookupTransformer:
         with pytest.raises(TypeError):
             self._transformer().transform(df).collect()
 
-    def test_transform_raises_when_column_lengths_differ(self, search_level_df):
+    def test_transform_raises_when_column_lengths_differ(self, id_df):
         # Columns are tokenized pairwise, so a mismatch must not silently drop one.
         transformer = self._transformer(outputCols=["clicks_tokens", "extra_tokens"])
         with pytest.raises(ValueError):
-            transformer.transform(search_level_df)
+            transformer.transform(id_df)
 
-    def test_spark_tf_parity_with_list_dimension(self, search_level_df):
+    def test_spark_tf_parity_with_list_dimension(self, id_df):
         # Rank-3 inputs (batch, list_size, ids) arise in listwise models; the list
         # dimension must be preserved and each item tokenized independently.
         transformer = self._transformer()
         spark_out = [
             row["clicks_tokens"]
-            for row in transformer.transform(search_level_df)
-            .select("clicks_tokens")
-            .collect()
+            for row in transformer.transform(id_df).select("clicks_tokens").collect()
         ]
         layer = transformer.get_keras_layer()
         # One batch of 3 list items, mirroring the 3 Spark rows.
@@ -244,7 +238,7 @@ class TestEventNgramLookupTransformer:
 
     def test_params_survive_save_and_load(self, spark_session, tmp_path):
         # Spark writes params to JSON metadata, so the fitted table has to stay in a
-        # JSON-serialisable shape for the transformer, and any pipeline holding it, to
+        # JSON-serializable shape for the transformer, and any pipeline holding it, to
         # be saveable at all.
         transformer = self._transformer(
             includeTokenTypes=True, tokenTypeLookup=[0, 0, 5, 1, 8, 3]
@@ -259,25 +253,25 @@ class TestEventNgramLookupTransformer:
         assert reloaded.getTokenTypeLookup() == [0, 0, 5, 1, 8, 3]
 
     def test_reloaded_transformer_tokenizes_identically(
-        self, spark_session, search_level_df, tmp_path
+        self, spark_session, id_df, tmp_path
     ):
         transformer = self._transformer()
-        expected = transformer.transform(search_level_df).collect()
+        expected = transformer.transform(id_df).collect()
 
         path = str(tmp_path / "transformer")
         transformer.write().overwrite().save(path)
         reloaded = EventNgramLookupTransformer.load(path)
 
-        assert reloaded.transform(search_level_df).collect() == expected
+        assert reloaded.transform(id_df).collect() == expected
 
-    def test_transform_emits_type_columns(self, search_level_df):
+    def test_transform_emits_type_columns(self, id_df):
         # token id -> ID-level bitmask; tokens 2/3 are types 5/1, unk(1)->0, pad(0)->0.
         type_lookup = [0, 0, 5, 1, 8, 3]
         transformer = self._transformer(
             includeTokenTypes=True, tokenTypeLookup=type_lookup
         )
         rows = (
-            transformer.transform(search_level_df)
+            transformer.transform(id_df)
             .select("clicks_tokens", "clicks_tokens_types")
             .collect()
         )
@@ -287,7 +281,7 @@ class TestEventNgramLookupTransformer:
                 type_lookup[t] for t in row["clicks_tokens"]
             ]
 
-    def test_output_dtype_applies_to_the_type_columns(self, search_level_df):
+    def test_output_dtype_applies_to_the_type_columns(self, id_df):
         # The type columns are derived rather than listed in outputCols, so they must
         # be cast alongside them to stay the same dtype as the layer's type tensors.
         transformer = self._transformer(
@@ -296,7 +290,7 @@ class TestEventNgramLookupTransformer:
             outputDtype="float",
         )
 
-        schema = transformer.transform(search_level_df).schema
+        schema = transformer.transform(id_df).schema
 
         assert (
             schema["clicks_tokens"].dataType == schema["clicks_tokens_types"].dataType
@@ -311,14 +305,14 @@ class TestEventNgramLookupTransformer:
         assert info["inputs"] == ["clicks_ids"]
         assert info["outputs"] == ["clicks_tokens", "clicks_tokens_types"]
 
-    def test_spark_tf_parity_with_types(self, search_level_df):
+    def test_spark_tf_parity_with_types(self, id_df):
         type_lookup = [0, 0, 5, 1, 8, 3]
         transformer = self._transformer(
             includeTokenTypes=True, tokenTypeLookup=type_lookup
         )
         spark_tokens, spark_types = [], []
         for row in (
-            transformer.transform(search_level_df)
+            transformer.transform(id_df)
             .select("clicks_tokens", "clicks_tokens_types")
             .collect()
         ):

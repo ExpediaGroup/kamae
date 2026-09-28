@@ -63,6 +63,14 @@ class TestEventNgramLookupEstimator:
         # The frequent tuple was observed and pre-encoded into the lookup table.
         assert (1, 2, 3, 4) in transformer.getTupleToTokens()
 
+    @pytest.mark.parametrize(
+        "param",
+        ["vocabularySize", "lookupKeys", "lookupValues", "tokenTypeLookup"],
+    )
+    def test_fitted_state_is_not_an_estimator_param(self, param):
+        # The lookup table is produced by fitting, so only the transformer carries it.
+        assert not self._estimator().hasParam(param)
+
     def test_layer_name_defaults_to_uid(self, id_df):
         estimator = self._estimator()
         transformer = estimator.fit(id_df)

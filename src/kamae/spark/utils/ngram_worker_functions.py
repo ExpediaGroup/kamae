@@ -16,16 +16,14 @@
 Worker functions for n-gram extraction in Spark RDD operations.
 
 These run inside ``flatMap`` / ``map`` on the Spark workers and are pure Python over
-plain ints and tuples (standard library only). Importing this module still imports the
-``kamae`` package, and with it TensorFlow, so kamae must be installed on the workers,
-as for kamae's other UDF-based transformers.
+plain ints and tuples.
 """
 
 from itertools import combinations
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
-PAD_TOKEN_ID = 0
-UNK_TOKEN_ID = 1
+from kamae.keras.tensorflow.layers.event_ngram_lookup import PAD_TOKEN_ID
+
 NUM_RESERVED_TOKENS = 2  # <pad> and <unk>; learned n-grams get ids from here upwards
 
 
@@ -63,9 +61,8 @@ def event_ngrams(event_ids: Sequence[int]) -> Iterator[Tuple[str, ...]]:
 
     The event's non-zero ids are level-prefixed (``L<level>_<id>``) and every
     combination of length 1..n is emitted, so n-grams that skip ID levels are included.
-    Zero ids denote absent ID levels and take no part in any n-gram. This is the single
-    definition of an n-gram, used both when counting them and when encoding a tuple
-    against a fitted vocabulary.
+    Zero ids denote absent ID levels and take no part in any n-gram. Used both when
+    counting n-grams and when encoding a tuple against a fitted vocabulary.
 
     :param event_ids: One event's ids, one per ID level.
     :returns: Iterator over the event's n-gram tuples.
@@ -127,14 +124,9 @@ def encode_tuple(
     smallest ids; ids are assigned by descending frequency, so a smaller id is a more
     frequent n-gram.
 
-    Returns `None` when the tuple has no token to contribute, i.e. when it is all-zero
-    or when every one of its n-grams missed the vocabulary. Such a tuple is left out of
-    the lookup table, so at inference it takes the same table-miss path as a tuple that
-    was never seen during fitting. Unknown is therefore decided in one place, by one
-    rule, rather than once here and again at inference.
-
-    Runs inside a Spark ``map`` on the workers, and is the single source of truth for
-    per-tuple encoding used by ``build_tuple_lookup_table``.
+    Returns `None` when the tuple is all-zero or none of its n-grams is in the
+    vocabulary. Such a tuple is left out of the lookup table, so at inference it
+    resolves to ``<unk>`` like a tuple never seen during fitting.
 
     :param id_tuple: Event tuple of IDs.
     :param ngrams: Fitted mapping from n-gram tuple to token id.

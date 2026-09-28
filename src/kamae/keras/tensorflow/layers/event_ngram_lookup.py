@@ -29,19 +29,15 @@ bitmask of the ID levels its n-gram spans), grouped after all the token tensors:
 ``[tokens_0, ..., tokens_{N-1}, types_0, ..., types_{N-1}]``.
 
 Each event tuple is bijectively packed into a single ``int64`` key and resolved by a
-Keras ``IntegerLookup`` sublayer plus a gathered values tensor, applied fully
-vectorised (no per-element ``map_fn`` / ``cond`` and no string ops in the serving
-path). The table is persisted in ``get_config`` as parallel ``lookup_keys`` /
-``lookup_values`` lists so the layer reloads standalone from a ``.keras`` file and
-exports cleanly to SavedModel.
+Keras ``IntegerLookup`` sublayer plus a gathered values tensor, fully vectorized and
+with no string ops in the serving path. The table is persisted in ``get_config`` as
+parallel ``lookup_keys`` / ``lookup_values`` lists, so the layer reloads standalone.
 
 Token id conventions (shared with the vocabulary):
     - ``0`` = padding (``<pad>``): emitted for all-zero / missing events, and for the
       unused token slots of an event that matched fewer than ``top_k`` n-grams.
     - ``1`` = unknown (``<unk>``): a non-zero tuple absent from the table yields a
-      single ``<unk>`` followed by padding. Every unrecognised tuple takes this one
-      path, whether it was unseen while fitting or matched no n-gram, so the encoding
-      depends on the tuple rather than on whether it appeared in the fitting corpus.
+      single ``<unk>`` followed by padding.
 """
 
 from typing import Any, Dict, Iterable, List, Optional, Union
@@ -105,9 +101,14 @@ class EventNgramLookupLayer(BaseLayer):
 
     One layer tokenizes all input columns (``num_events_per_input`` gives the event
     count of each). Each input may be rank-2 ``(batch, num_events * tuple_size)`` or
-    rank-3 ``(batch, list_size, num_events * tuple_size)``; the list dimension (e.g.
-    per listwise item) is preserved. The id axis is padded/truncated to
-    ``num_events * tuple_size`` before being split into tuples.
+    rank-3 ``(batch, list_size, num_events * tuple_size)``; the list dimension is
+    preserved. The id axis is zero-padded or truncated to ``num_events * tuple_size``
+    before being split into tuples.
+
+    Unlike the Spark transformer, which raises when a row's ids are not a whole number
+    of events, the layer zero-pads a partial trailing event and looks it up. This is
+    deliberate: it keeps assertions out of the serving graph, so a malformed request
+    is tokenized rather than failed.
 
     Outputs one token tensor per input. With ``token_type_lookup`` set it also outputs
     one type tensor per input (same shape as the tokens), grouped after the tokens.
@@ -229,14 +230,20 @@ class EventNgramLookupLayer(BaseLayer):
         :param inputs: ID tensor, rank-2 ``(batch, num_events * tuple_size)`` or rank-3
         ``(batch, list_size, num_events * tuple_size)``.
         :param num_events: Number of events this input is padded/truncated to.
+        :raises ValueError: If the input is neither rank-2 nor rank-3.
         :returns: Token id tensor of shape ``(batch, num_events * top_k)`` for a
         rank-2 input, or ``(batch, list_size, num_events * top_k)`` for rank-3.
         """
         output_length = num_events * self.top_k
         input_rank = len(inputs.shape)
+        if input_rank not in (2, 3):
+            raise ValueError(
+                f"Expected rank-2 (batch, ids) or rank-3 (batch, list, ids) inputs, "
+                f"but got an input of rank {input_rank}."
+            )
         if input_rank == 3:
             batch_size = tf.shape(inputs)[0]
-            list_or_1 = tf.shape(inputs)[1]
+            list_size = tf.shape(inputs)[1]
             inputs_flat = tf.reshape(inputs, [-1, tf.shape(inputs)[2]])
             restore_list = True
         else:
@@ -244,8 +251,7 @@ class EventNgramLookupLayer(BaseLayer):
             restore_list = False
 
         # Pad/truncate the id axis to num_events * tuple_size, then split into tuples.
-        # Padding by the full expected length before slicing covers both the short and
-        # the long case without branching on the input width.
+        # Padding by the full length first covers short and long inputs alike.
         expected_length = num_events * self.tuple_size
         inputs_padded = tf.pad(inputs_flat, [[0, 0], [0, expected_length]])[
             :, :expected_length
@@ -269,13 +275,12 @@ class EventNgramLookupLayer(BaseLayer):
         found = (indices > 0) & in_range
         gathered = tf.gather(self.values_tensor, tf.maximum(indices - 1, 0))
 
-        # tf.where broadcasts, so the (top_k,) unk/pad constants apply as they are,
-        # with no per-tuple copy materialised.
+        # tf.where broadcasts the (top_k,) unk/pad constants across all tuples.
         tokens = tf.where(found[:, None], gathered, self.unk_pattern)
         tokens = tf.where(is_padding[:, None], self.pad_pattern, tokens)
 
         if restore_list:
-            return tf.reshape(tokens, [batch_size, list_or_1, output_length])
+            return tf.reshape(tokens, [batch_size, list_size, output_length])
         return tf.reshape(tokens, [-1, output_length])
 
     def _call(

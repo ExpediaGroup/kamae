@@ -16,33 +16,29 @@
 EventNgramLookupTransformer: tokenizes discrete IDs with a pre-computed lookup table.
 
 Applies the ``tuple -> top-k tokens`` table fitted by ``EventNgramLookupEstimator``.
-Both the Spark path (``_transform``) and the TensorFlow path (``get_keras_layer``) are
-plain ``O(1)`` lookups, so the same event tuple always maps to the same tokens and the
-two paths produce identical output.
+The Spark path (``_transform``) and the Keras layer (``get_keras_layer``) apply the
+same table, so both produce identical tokens.
 
 When ``includeTokenTypes`` is set, each token column ``<col>`` is accompanied by a
-parallel ``<col>_types`` column giving each token's ID-level bitmask (a compact
-categorical feature for the model). The type is a pure function of the token id, so it
-is derived by gathering the fitted ``tokenTypeLookup`` at the token ids.
+parallel ``<col>_types`` column giving each token's ID-level bitmask.
 
-Token id conventions (shared with the vocabulary and the TF layer):
+Token id conventions (shared with the vocabulary and the Keras layer):
     - ``0`` = padding (``<pad>``): emitted for all-zero / missing events.
-    - ``1`` = unknown (``<unk>``): emitted for a non-zero tuple absent from the table.
-
-The table only holds the event tuples that matched at least one n-gram during fitting,
-so any other non-zero tuple, including a new combination of individually known IDs,
-maps to a single ``<unk>`` followed by padding.
+    - ``1`` = unknown (``<unk>``): a non-zero tuple absent from the table yields a
+      single ``<unk>`` followed by padding.
 """
 
 # pylint: disable=unused-argument
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional, Tuple
+from functools import partial
+from typing import Dict, List, Optional, Tuple
 
 import pyspark.sql.functions as F
 import tensorflow as tf
 from pyspark import keyword_only
+from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
     ArrayType,
@@ -58,6 +54,7 @@ from kamae.keras.tensorflow.layers import EventNgramLookupLayer
 from kamae.spark.params import EventNgramLookupParams, MultiInputMultiOutputParams
 from kamae.spark.utils import (
     tokenize_events,
+    tokenize_events_with_types,
     validate_event_column_lengths,
     validate_event_id_columns,
 )
@@ -65,18 +62,146 @@ from kamae.spark.utils import (
 from .base import BaseTransformer
 
 
+class EventNgramLookupTransformerParams(Params):
+    """
+    Mixin class containing the fitted state of the EventNgramLookupTransformer.
+
+    These are produced by the ``EventNgramLookupEstimator``, so they live on the
+    transformer only. The lookup table is held as two parallel flat int lists because
+    Spark ML writes params to JSON, where a dict keyed by id tuples cannot be written.
+    """
+
+    vocabularySize = Param(
+        Params._dummy(),
+        "vocabularySize",
+        "Number of token ids in the fitted vocabulary, including the reserved pad and "
+        "unk tokens.",
+        typeConverter=TypeConverters.toInt,
+    )
+
+    lookupKeys = Param(
+        Params._dummy(),
+        "lookupKeys",
+        "Flattened event tuples of the fitted lookup table, tupleSize ids per tuple.",
+        typeConverter=TypeConverters.toListInt,
+    )
+
+    lookupValues = Param(
+        Params._dummy(),
+        "lookupValues",
+        "Flattened token lists of the fitted lookup table, topK tokens per tuple, "
+        "positionally aligned with lookupKeys.",
+        typeConverter=TypeConverters.toListInt,
+    )
+
+    tokenTypeLookup = Param(
+        Params._dummy(),
+        "tokenTypeLookup",
+        "Per-token-id list mapping each token to a bitmask of the ID levels its n-gram "
+        "spans (0 for pad/unk). Used only when includeTokenTypes is True.",
+        typeConverter=TypeConverters.toListInt,
+    )
+
+    def setVocabularySize(self, value: int) -> "EventNgramLookupTransformerParams":
+        """
+        Sets the vocabularySize parameter.
+
+        :param value: Number of token ids in the fitted vocabulary.
+        :returns: Instance of class mixed in.
+        """
+        return self._set(vocabularySize=value)
+
+    def getVocabularySize(self) -> int:
+        """
+        Gets the vocabularySize parameter.
+
+        :returns: Number of token ids in the fitted vocabulary.
+        """
+        return self.getOrDefault(self.vocabularySize)
+
+    def setLookupKeys(self, value: List[int]) -> "EventNgramLookupTransformerParams":
+        """
+        Sets the lookupKeys parameter.
+
+        :param value: Flattened event tuples, tupleSize ids per tuple.
+        :returns: Instance of class mixed in.
+        """
+        return self._set(lookupKeys=value)
+
+    def getLookupKeys(self) -> Optional[List[int]]:
+        """
+        Gets the lookupKeys parameter.
+
+        :returns: Flattened event tuples, or None if not set.
+        """
+        return self.getOrDefault(self.lookupKeys)
+
+    def setLookupValues(self, value: List[int]) -> "EventNgramLookupTransformerParams":
+        """
+        Sets the lookupValues parameter.
+
+        :param value: Flattened token lists, topK tokens per tuple.
+        :returns: Instance of class mixed in.
+        """
+        return self._set(lookupValues=value)
+
+    def getLookupValues(self) -> Optional[List[int]]:
+        """
+        Gets the lookupValues parameter.
+
+        :returns: Flattened token lists, or None if not set.
+        """
+        return self.getOrDefault(self.lookupValues)
+
+    def setTokenTypeLookup(
+        self, value: List[int]
+    ) -> "EventNgramLookupTransformerParams":
+        """
+        Sets the tokenTypeLookup parameter.
+
+        :param value: Per-token-id list of ID-level bitmasks.
+        :returns: Instance of class mixed in.
+        """
+        return self._set(tokenTypeLookup=value)
+
+    def getTokenTypeLookup(self) -> Optional[List[int]]:
+        """
+        Gets the tokenTypeLookup parameter.
+
+        :returns: Per-token-id list of ID-level bitmasks, or None.
+        """
+        return self.getOrDefault(self.tokenTypeLookup)
+
+    def getTupleToTokens(self) -> Dict[Tuple[int, ...], List[int]]:
+        """
+        Rebuilds the ``event tuple -> top-k token list`` table from the flat params.
+
+        :returns: Mapping from each event tuple to its list of token ids.
+        """
+        keys = self.getLookupKeys() or []
+        values = self.getLookupValues() or []
+        tuple_size = self.getTupleSize()
+        top_k = self.getTopK()
+        return {
+            tuple(keys[i : i + tuple_size]): values[j : j + top_k]
+            for i, j in zip(
+                range(0, len(keys), tuple_size), range(0, len(values), top_k)
+            )
+        }
+
+
 class EventNgramLookupTransformer(
     BaseTransformer,
     MultiInputMultiOutputParams,
     EventNgramLookupParams,
+    EventNgramLookupTransformerParams,
 ):
     """
     Tokenizes discrete ID values using the pre-computed ``tuple -> top-k tokens`` table.
 
     Each input column holds a sequence of events; every event is a ``tupleSize``-long
-    group of IDs. For each event the transformer emits the tuple's ``topK``
-    token ids (padding for all-zero events, ``<unk>`` for non-zero tuples absent from
-    the table), producing a flat ``numEvents * topK`` array per input column. When
+    group of IDs. For each event the transformer emits the tuple's ``topK`` token ids,
+    producing a flat ``numEvents * topK`` array per input column. When
     ``includeTokenTypes`` is set, a parallel ``<col>_types`` column of the same shape is
     also produced, giving each token's ID-level bitmask.
     """
@@ -113,7 +238,7 @@ class EventNgramLookupTransformer(
         :param numEventsPerInput: Number of events per input column, e.g. [10, 10, 1].
         :param tupleSize: Number of discrete ID values (ID levels) per event tuple.
         :param topK: Number of tokens emitted per event tuple.
-        :param vocabularySize: Total number of unique tokens in the fitted vocabulary.
+        :param vocabularySize: Number of token ids in the fitted vocabulary.
         :param lookupKeys: Fitted lookup table keys, as the event tuples flattened to a
         single int list (``tupleSize`` ids per tuple).
         :param lookupValues: Fitted lookup table values, as the token lists flattened to
@@ -150,12 +275,12 @@ class EventNgramLookupTransformer(
 
     def _transform(self, dataset: DataFrame) -> DataFrame:
         """
-        Tokenizes each input column with a per-column UDF over ``tokenize_events``.
+        Tokenizes each input column with a per-column UDF.
 
         Each input value is a flat integer array, split into consecutive events of
         ``tupleSize`` ids. The output is a flat integer array of length
-        ``numEvents * topK``. When ``includeTokenTypes`` is set, a ``<col>_types``
-        column is added by gathering the type bitmask at each token id.
+        ``numEvents * topK``. When ``includeTokenTypes`` is set, the same UDF also
+        returns each token's type bitmask, written to the ``<col>_types`` column.
 
         :param dataset: Input DataFrame.
         :raises ValueError: If the input columns, output columns and event counts
@@ -169,96 +294,77 @@ class EventNgramLookupTransformer(
         validate_event_column_lengths(input_cols, output_cols, num_events_per_input)
         validate_event_id_columns(dataset, input_cols)
 
-        tuple_size = self.getTupleSize()
-        top_k = self.getTopK()
-        lookup_table = self.getTupleToTokens()
-        include_types = self.getIncludeTokenTypes()
-        type_lookup = self.getTokenTypeLookup() if include_types else None
-        type_cols = dict(zip(output_cols, self.getTokenTypeCols(output_cols)))
-
+        table_kwargs = {
+            "lookup_table": self.getTupleToTokens(),
+            "tuple_size": self.getTupleSize(),
+            "top_k": self.getTopK(),
+        }
         token_array_type = ArrayType(IntegerType())
-        for input_col, output_col, num_events in zip(
-            input_cols, output_cols, num_events_per_input
-        ):
-            # num_events is bound per column via the default argument so each UDF
-            # captures its own value rather than the last loop iteration's.
-            if not include_types:
+        if not self.getIncludeTokenTypes():
+            for input_col, output_col, num_events in zip(
+                input_cols, output_cols, num_events_per_input
+            ):
                 tokenize_udf = F.udf(
-                    lambda ids, num_events=num_events: tokenize_events(
-                        ids, lookup_table, num_events, tuple_size, top_k
-                    ),
+                    partial(tokenize_events, num_events=num_events, **table_kwargs),
                     token_array_type,
                 )
                 dataset = dataset.withColumn(output_col, tokenize_udf(F.col(input_col)))
-                continue
+            return dataset
 
-            # A token's type is a pure function of its id, so both are produced by one
-            # UDF returning a struct, keeping the column to a single Python round-trip.
-            def _tokenize_with_types(
-                ids: Optional[List[int]], num_events: int = num_events
-            ) -> Tuple[List[int], List[int]]:
-                """Tokenizes one row and gathers each token's type bitmask.
-
-                :param ids: One row's discrete ID values.
-                :param num_events: Number of events this column is sized to.
-                :returns: Tuple of (token ids, type bitmasks), same length.
-                """
-                tokens = tokenize_events(
-                    ids, lookup_table, num_events, tuple_size, top_k
-                )
-                return tokens, [type_lookup[token] for token in tokens]
-
+        # Tokens and types come from one UDF returning a struct, so each row crosses
+        # into Python once.
+        struct_type = StructType(
+            [
+                StructField("tokens", token_array_type),
+                StructField("types", token_array_type),
+            ]
+        )
+        for input_col, output_col, type_col, num_events in zip(
+            input_cols,
+            output_cols,
+            self.getTokenTypeCols(output_cols),
+            num_events_per_input,
+        ):
             tokenize_udf = F.udf(
-                _tokenize_with_types,
-                StructType(
-                    [
-                        StructField("tokens", token_array_type),
-                        StructField("types", token_array_type),
-                    ]
+                partial(
+                    tokenize_events_with_types,
+                    token_type_lookup=self.getTokenTypeLookup(),
+                    num_events=num_events,
+                    **table_kwargs,
                 ),
+                struct_type,
             )
             struct_col = f"{output_col}__tokens_and_types"
-            # The type columns are not in outputCols, so the egress cast applied to the
-            # output columns does not reach them. Cast them here so that they carry the
-            # same dtype as the type tensors the Keras layer returns.
+            # The type columns are not in outputCols, so the base class's output cast
+            # does not reach them; cast them here to match the Keras layer.
             casted_types, _ = self._cast_output_columns(
                 [F.col(f"{struct_col}.types")], [token_array_type]
             )[0]
             dataset = (
                 dataset.withColumn(struct_col, tokenize_udf(F.col(input_col)))
                 .withColumn(output_col, F.col(f"{struct_col}.tokens"))
-                .withColumn(type_cols[output_col], casted_types)
+                .withColumn(type_col, casted_types)
                 .drop(struct_col)
             )
-
         return dataset
 
     def get_keras_layer(self) -> tf.keras.layers.Layer:
         """
         Gets the Keras layer for the EventNgramLookup transformer.
 
-        Returns a single ``EventNgramLookupLayer`` that tokenizes all input columns (so
-        the fitted lookup table is embedded once), for in-graph tokenization on
-        TensorFlow (needed when reading raw files via TFParquet). The layer outputs one
-        token tensor per input, plus one type tensor per input when
-        ``includeTokenTypes`` is set.
+        Returns a single ``EventNgramLookupLayer`` that tokenizes all input columns, so
+        the fitted lookup table is embedded once. The layer outputs one token tensor
+        per input, plus one type tensor per input when ``includeTokenTypes`` is set.
 
         :returns: The consolidated ``EventNgramLookupLayer``.
         """
-        # The layer takes the table as nested key/value lists, so the flat params are
-        # reshaped back into one list per tuple.
-        tuple_size = self.getTupleSize()
-        top_k = self.getTopK()
-        keys = self.getLookupKeys() or []
-        values = self.getLookupValues() or []
+        lookup_table = self.getTupleToTokens()
         return EventNgramLookupLayer(
             num_events_per_input=self.getNumEventsPerInput(),
-            top_k=top_k,
-            tuple_size=tuple_size,
-            lookup_keys=[
-                keys[i : i + tuple_size] for i in range(0, len(keys), tuple_size)
-            ],
-            lookup_values=[values[i : i + top_k] for i in range(0, len(values), top_k)],
+            top_k=self.getTopK(),
+            tuple_size=self.getTupleSize(),
+            lookup_keys=[list(key) for key in lookup_table],
+            lookup_values=list(lookup_table.values()),
             token_type_lookup=(
                 self.getTokenTypeLookup() if self.getIncludeTokenTypes() else None
             ),
@@ -272,9 +378,8 @@ class EventNgramLookupTransformer(
         Gets the input and output column names, including the token-type columns.
 
         Overrides the base method because, with ``includeTokenTypes`` set, the layer
-        emits more outputs than there are output columns: it returns the per-input
-        type tensors after the token tensors, so the ``<col>_types`` columns are
-        appended in that same order for the pipeline graph to zip them up correctly.
+        returns the per-input type tensors after the token tensors, so the
+        ``<col>_types`` columns are appended in that same order.
 
         :returns: Tuple of the input column names and the output column names.
         """

@@ -241,20 +241,17 @@ class EventNgramLookupEstimator(
 
         tuple_size = self.getTupleSize()
         top_k = self.getTopK()
-        min_ngram_freq = self.getMinNgramFreq()
 
         # Count within-event n-grams, then keep the most frequent as the vocabulary.
         ngram_counter = collect_ngrams_from_dataframe(
             df=dataset,
             input_columns=input_cols,
             event_size=tuple_size,
-            min_ngram_freq=min_ngram_freq,
+            min_ngram_freq=self.getMinNgramFreq(),
         )
         vocabulary = EventNgramVocabulary(
             ngrams=build_vocabulary(
-                ngram_counter=ngram_counter,
-                vocab_size=self.getVocabSize(),
-                min_ngram_freq=min_ngram_freq,
+                ngram_counter=ngram_counter, vocab_size=self.getVocabSize()
             )
         )
 
@@ -273,17 +270,15 @@ class EventNgramLookupEstimator(
             vocabulary.build_type_lookup() if include_token_types else None
         )
 
-        # Flatten the table into two parallel int lists so that it is JSON-serialisable
-        # and the fitted pipeline can be saved. One pass over the items keeps the keys
-        # and values positionally aligned.
+        # Flatten the table into two parallel int lists so the fitted pipeline can be
+        # saved (Spark writes params to JSON).
         lookup_keys: List[int] = []
         lookup_values: List[int] = []
         for id_tuple, tokens in tuple_to_tokens.items():
             lookup_keys.extend(id_tuple)
             lookup_values.extend(tokens)
 
-        # Fail now, rather than when the Keras layer is built, if the Keras layer could
-        # not pack the observed tuples into its int64 keys.
+        # Fail at fit time if the Keras layer could not pack the tuples into int64 keys.
         compute_key_bits(lookup_keys, tuple_size)
 
         return EventNgramLookupTransformer(

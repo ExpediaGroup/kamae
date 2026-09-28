@@ -18,6 +18,7 @@ from collections import Counter
 import pytest
 from pyspark.sql.types import ArrayType, IntegerType, StructField, StructType
 
+from kamae.keras.tensorflow.layers.event_ngram_lookup import PAD_TOKEN_ID, UNK_TOKEN_ID
 from kamae.spark.utils.ngram_utils import (
     EventNgramVocabulary,
     build_tuple_lookup_table,
@@ -25,10 +26,9 @@ from kamae.spark.utils.ngram_utils import (
     collect_ngrams_from_dataframe,
     log_vocabulary_by_length,
     tokenize_events,
+    tokenize_events_with_types,
 )
 from kamae.spark.utils.ngram_worker_functions import (
-    PAD_TOKEN_ID,
-    UNK_TOKEN_ID,
     encode_tuple,
     extract_ngrams_from_column_worker,
     extract_tuples_from_column_worker,
@@ -142,7 +142,7 @@ class TestExtractTuplesFromColumnWorker:
 class TestBuildVocabulary:
     def test_assigns_ids_by_descending_frequency_from_two(self):
         counter = Counter({("L0_1",): 100, ("L1_2",): 50, ("L0_1", "L1_2"): 10})
-        ngram_to_id = build_vocabulary(counter, vocab_size=100, min_ngram_freq=1)
+        ngram_to_id = build_vocabulary(counter, vocab_size=100)
         # Ids start at 2 (0 and 1 are reserved) and ascend as frequency descends, so
         # a smaller id always means a more frequent n-gram.
         assert ngram_to_id == {
@@ -151,22 +151,17 @@ class TestBuildVocabulary:
             ("L0_1", "L1_2"): 4,
         }
 
-    def test_drops_ngrams_below_min_frequency(self):
-        counter = Counter({("L0_1",): 100, ("L1_2",): 5})
-        ngram_to_id = build_vocabulary(counter, vocab_size=100, min_ngram_freq=10)
-        assert ngram_to_id == {("L0_1",): 2}
-
     def test_vocab_size_reserves_two_special_tokens(self):
         counter = Counter({("L0_1",): 100, ("L1_2",): 90, ("L2_3",): 80})
-        ngram_to_id = build_vocabulary(counter, vocab_size=4, min_ngram_freq=1)
+        ngram_to_id = build_vocabulary(counter, vocab_size=4)
         # vocab_size=4 leaves room for 2 learned n-grams alongside pad and unk.
         assert len(ngram_to_id) == 2
 
     def test_ties_broken_deterministically_by_ngram(self):
         counter = Counter({("L1_2",): 10, ("L0_1",): 10})
-        first = build_vocabulary(counter, vocab_size=100, min_ngram_freq=1)
+        first = build_vocabulary(counter, vocab_size=100)
         second = build_vocabulary(
-            Counter({("L0_1",): 10, ("L1_2",): 10}), vocab_size=100, min_ngram_freq=1
+            Counter({("L0_1",): 10, ("L1_2",): 10}), vocab_size=100
         )
         assert first == second
 
@@ -274,6 +269,20 @@ class TestTokenizeEvents:
             [1, 2, 3, 4], {}, num_events=1, tuple_size=4, top_k=2
         ) == [UNK_TOKEN_ID, PAD_TOKEN_ID]
 
+    def test_with_types_gathers_each_tokens_type(self):
+        # Type lookup indexed by token id: pad and unk are 0, tokens 2..5 are learned.
+        type_lookup = [0, 0, 1, 3, 2, 15]
+        tokens, types = tokenize_events_with_types(
+            [1, 2, 3, 4, 9, 9, 9, 9],
+            self.LOOKUP,
+            type_lookup,
+            num_events=2,
+            tuple_size=4,
+            top_k=2,
+        )
+        assert tokens == [2, 3, UNK_TOKEN_ID, PAD_TOKEN_ID]
+        assert types == [1, 3, 0, 0]
+
 
 class TestLogVocabularyByLength:
     def test_reports_the_share_of_each_n_gram_length(self, caplog):
@@ -305,5 +314,5 @@ class TestLogVocabularyByLength:
             {("L0_1",): 10, ("L0_1", "L1_2"): 8, ("L0_1", "L1_2", "L2_3"): 6}
         )
         with caplog.at_level(logging.INFO, logger="kamae.spark.utils.ngram_utils"):
-            build_vocabulary(ngram_counter=counter, vocab_size=100, min_ngram_freq=1)
+            build_vocabulary(ngram_counter=counter, vocab_size=100)
         assert "Vocabulary by n-gram length" in caplog.text
