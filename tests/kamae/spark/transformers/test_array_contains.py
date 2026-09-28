@@ -133,6 +133,39 @@ class TestArrayContains:
         diff = actual.exceptAll(expected)
         assert diff.isEmpty(), "Expected and actual dataframes are not equal"
 
+    def test_spark_array_contains_transform_null_elements(self, spark_session):
+        # given
+        # array_contains returns null when the array holds a null and the value
+        # is not otherwise present (or when the array itself is null); coalesce to
+        # False keeps parity with the always-boolean Keras output.
+        input_df = spark_session.createDataFrame(
+            [
+                ([1, 2, 3], 5),
+                ([1, None, 3], 5),
+                ([1, None, 3], 1),
+                (None, 5),
+            ],
+            ["array_col", "value_col"],
+        )
+        expected = spark_session.createDataFrame(
+            [
+                ([1, 2, 3], 5, False),
+                ([1, None, 3], 5, False),
+                ([1, None, 3], 1, True),
+                (None, 5, False),
+            ],
+            ["array_col", "value_col", "array_contains_value"],
+        )
+        # when
+        transformer = ArrayContainsTransformer(
+            inputCols=["array_col", "value_col"],
+            outputCol="array_contains_value",
+        )
+        actual = transformer.transform(input_df)
+        # then
+        diff = actual.exceptAll(expected)
+        assert diff.isEmpty(), "Expected and actual dataframes are not equal"
+
     def test_spark_array_contains_transform_output_dtype_cast(
         self, spark_session, example_dataframe_with_arrays
     ):

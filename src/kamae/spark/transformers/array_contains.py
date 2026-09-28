@@ -158,7 +158,7 @@ class ArrayContainsTransformer(
         output_col = single_input_single_output_array_transform(
             input_col=array_col,
             input_col_datatype=self.get_column_datatype(df, df.columns[0]),
-            func=lambda x: F.array_contains(x, value_col),
+            func=lambda x: F.coalesce(F.array_contains(x, value_col), F.lit(False)),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 
