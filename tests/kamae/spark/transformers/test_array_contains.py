@@ -15,7 +15,7 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-from pyspark.sql.types import DoubleType
+from pyspark.sql.types import ArrayType, DoubleType, FloatType, StructField, StructType
 
 from kamae.spark.transformers import ArrayContainsTransformer
 
@@ -359,6 +359,22 @@ class TestArrayContains:
                 "bigint",
                 "double",
             ),
+            (
+                # Non-integer constant on an integer array must stay unmatched on
+                # both sides (Spark must not narrow 2.5 -> 2).
+                [[1, 2, 3], [2, 4, 6], [7, 8, 9]],
+                2.5,
+                None,
+                None,
+            ),
+            (
+                # Same as above but int64: Keras widens the array to float64, so
+                # Spark must also compare in double (no narrowing) and stay unmatched.
+                [[1, 2, 3], [2, 4, 6], [7, 8, 9]],
+                2.5,
+                "bigint",
+                None,
+            ),
         ],
     )
     def test_array_contains_transform_constant_spark_tf_parity(
@@ -389,6 +405,78 @@ class TestArrayContains:
             .collect()
         )
         array_tensor = tf.constant(input_arrays)
+        tensorflow_values = (
+            transformer.get_keras_layer()(array_tensor).numpy().flatten().tolist()
+        )
+
+        # then
+        np.testing.assert_almost_equal(
+            spark_values,
+            tensorflow_values,
+        )
+
+    def test_array_contains_transform_constant_float32_spark_tf_parity(
+        self, spark_session
+    ):
+        # given
+        # 0.1 isn't exactly representable in float32. With inputDtype=None nothing
+        # aligns the array and constant, so Spark must narrow the literal to the
+        # array's float32 element type to match the Keras layer (which narrows the
+        # constant); otherwise Spark compares in double and diverges.
+        input_arrays = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+        schema = StructType([StructField("array_col", ArrayType(FloatType()))])
+        transformer = ArrayContainsTransformer(
+            inputCol="array_col",
+            outputCol="output",
+            mathFloatConstant=0.1,
+        )
+        # when
+        spark_df = spark_session.createDataFrame(
+            [(a,) for a in input_arrays],
+            schema,
+        )
+        spark_values = (
+            transformer.transform(spark_df)
+            .select("output")
+            .rdd.map(lambda r: r[0])
+            .collect()
+        )
+        array_tensor = tf.constant(input_arrays, dtype=tf.float32)
+        tensorflow_values = (
+            transformer.get_keras_layer()(array_tensor).numpy().flatten().tolist()
+        )
+
+        # then
+        np.testing.assert_almost_equal(
+            spark_values,
+            tensorflow_values,
+        )
+
+    def test_array_contains_transform_constant_float64_spark_tf_parity(
+        self, spark_session
+    ):
+        # given
+        # Double array: Keras narrows the constant to float64, so Spark's double
+        # literal already aligns (no-op cast) and both compare in double.
+        input_arrays = [[1.1, 2.2, 3.3], [4.4, 5.5, 6.6]]
+        schema = StructType([StructField("array_col", ArrayType(DoubleType()))])
+        transformer = ArrayContainsTransformer(
+            inputCol="array_col",
+            outputCol="output",
+            mathFloatConstant=2.2,
+        )
+        # when
+        spark_df = spark_session.createDataFrame(
+            [(a,) for a in input_arrays],
+            schema,
+        )
+        spark_values = (
+            transformer.transform(spark_df)
+            .select("output")
+            .rdd.map(lambda r: r[0])
+            .collect()
+        )
+        array_tensor = tf.constant(input_arrays, dtype=tf.float64)
         tensorflow_values = (
             transformer.get_keras_layer()(array_tensor).numpy().flatten().tolist()
         )

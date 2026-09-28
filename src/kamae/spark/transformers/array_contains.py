@@ -27,6 +27,7 @@ from pyspark.sql.types import (
     DataType,
     DoubleType,
     FloatType,
+    FractionalType,
     IntegerType,
     LongType,
     ShortType,
@@ -39,7 +40,10 @@ from kamae.spark.params import (
     MultiInputSingleOutputParams,
     SingleInputSingleOutputParams,
 )
-from kamae.spark.utils import single_input_single_output_array_transform
+from kamae.spark.utils import (
+    get_element_type,
+    single_input_single_output_array_transform,
+)
 
 from .base import BaseTransformer
 
@@ -154,10 +158,15 @@ class ArrayContainsTransformer(
         """
         array_col, value_col = self.get_multiple_input_cols("mathFloatConstant", 2)
         df = dataset.select(array_col, value_col)
+        c_dt = self.get_column_datatype(df, df.columns[0])
+        e_dt = get_element_type(c_dt)
+
+        if self.getMathFloatConstant() is not None and isinstance(e_dt, FractionalType):
+            value_col = value_col.cast(e_dt)
 
         output_col = single_input_single_output_array_transform(
             input_col=array_col,
-            input_col_datatype=self.get_column_datatype(df, df.columns[0]),
+            input_col_datatype=c_dt,
             func=lambda x: F.coalesce(F.array_contains(x, value_col), F.lit(False)),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
