@@ -204,6 +204,8 @@ class EventNgramLookupTransformer(
     producing a flat ``numEvents * topK`` array per input column. When
     ``includeTokenTypes`` is set, a parallel ``<col>_types`` column of the same shape is
     also produced, giving each token's ID-level bitmask.
+
+    A row whose ids are not a whole number of events raises, as in the Keras layer.
     """
 
     supported_backends = TENSORFLOW_ONLY

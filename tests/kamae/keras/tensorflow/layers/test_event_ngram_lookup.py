@@ -109,6 +109,26 @@ class TestEventNgramLookupLayer:
         output = _layer()(tf.constant(inputs, dtype=tf.int32))
         tf.debugging.assert_equal(output, tf.constant(expected, dtype=output.dtype))
 
+    @pytest.mark.parametrize("width", [3, 6, 9])
+    def test_raises_when_a_known_width_is_not_a_whole_number_of_events(self, width):
+        # Matches the Spark transformer, which raises on the same inputs.
+        with pytest.raises(ValueError, match="whole number of events"):
+            _layer()(tf.ones((1, width), dtype=tf.int32))
+        with pytest.raises(ValueError, match="whole number of events"):
+            _layer()(keras.Input(shape=(None, width), dtype="int32"))
+
+    def test_unknown_width_is_checked_per_batch(self):
+        # With no static width, the whole-events check runs in the graph instead.
+        tokenize = tf.function(
+            _layer(), input_signature=[tf.TensorSpec([None, None], tf.int32)]
+        )
+        output = tokenize(tf.constant([[1, 2, 3, 4]], dtype=tf.int32))
+        tf.debugging.assert_equal(
+            output, tf.constant([[2, 3, 0, 0, 0, 0]], dtype=output.dtype)
+        )
+        with pytest.raises(tf.errors.InvalidArgumentError, match="whole number"):
+            tokenize(tf.constant([[1, 2, 3, 4, 5, 6]], dtype=tf.int32))
+
     def test_tokenizes_every_input_with_its_own_event_count(self):
         # given: two inputs with different numbers of events, one shared table.
         layer = _layer(num_events_per_input=[2, 1])

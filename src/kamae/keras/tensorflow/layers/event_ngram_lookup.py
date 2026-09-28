@@ -102,13 +102,12 @@ class EventNgramLookupLayer(BaseLayer):
     One layer tokenizes all input columns (``num_events_per_input`` gives the event
     count of each). Each input may be rank-2 ``(batch, num_events * tuple_size)`` or
     rank-3 ``(batch, list_size, num_events * tuple_size)``; the list dimension is
-    preserved. The id axis is zero-padded or truncated to ``num_events * tuple_size``
-    before being split into tuples.
+    preserved. The id axis is padded with all-zero (padding) events or truncated to
+    ``num_events * tuple_size`` before being split into tuples.
 
-    Unlike the Spark transformer, which raises when a row's ids are not a whole number
-    of events, the layer zero-pads a partial trailing event and looks it up. This is
-    deliberate: it keeps assertions out of the serving graph, so a malformed request
-    is tokenized rather than failed.
+    As in the Spark transformer, the id axis must hold a whole number of events, and a
+    width that is not a multiple of ``tuple_size`` raises. A known width is checked
+    when the layer is called; an unknown width is checked in the graph, per batch.
 
     Outputs one token tensor per input. With ``token_type_lookup`` set it also outputs
     one type tensor per input (same shape as the tokens), grouped after the tokens.
@@ -230,7 +229,10 @@ class EventNgramLookupLayer(BaseLayer):
         :param inputs: ID tensor, rank-2 ``(batch, num_events * tuple_size)`` or rank-3
         ``(batch, list_size, num_events * tuple_size)``.
         :param num_events: Number of events this input is padded/truncated to.
-        :raises ValueError: If the input is neither rank-2 nor rank-3.
+        :raises ValueError: If the input is neither rank-2 nor rank-3, or its known id
+        axis width is not a whole number of events.
+        :raises tf.errors.InvalidArgumentError: If an id axis of unknown width is not a
+        whole number of events.
         :returns: Token id tensor of shape ``(batch, num_events * top_k)`` for a
         rank-2 input, or ``(batch, list_size, num_events * top_k)`` for rank-3.
         """
@@ -240,6 +242,21 @@ class EventNgramLookupLayer(BaseLayer):
             raise ValueError(
                 f"Expected rank-2 (batch, ids) or rank-3 (batch, list, ids) inputs, "
                 f"but got an input of rank {input_rank}."
+            )
+        width = inputs.shape[-1]
+        if width is None:
+            tf.debugging.assert_equal(
+                tf.shape(inputs)[-1] % self.tuple_size,
+                0,
+                message=(
+                    f"The id axis must be a whole number of events: its width is not "
+                    f"a multiple of tuple_size {self.tuple_size}."
+                ),
+            )
+        elif width % self.tuple_size != 0:
+            raise ValueError(
+                f"The id axis must be a whole number of events: got width {width}, "
+                f"which is not a multiple of tuple_size {self.tuple_size}."
             )
         if input_rank == 3:
             batch_size = tf.shape(inputs)[0]

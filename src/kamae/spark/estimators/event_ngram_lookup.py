@@ -232,7 +232,8 @@ class EventNgramLookupEstimator(
         :returns: An ``EventNgramLookupTransformer`` carrying the fitted lookup table.
         :raises ValueError: If ``inputCols``, ``outputCols`` and ``numEventsPerInput``
         do not all have the same length, or the observed IDs cannot be packed by the
-        Keras layer (negative, or too large for ``tupleSize``).
+        Keras layer (negative, or too large for ``tupleSize``). A row whose ids are not
+        a whole number of events also fails the fit, raised on the Spark executors.
         """
         input_cols = self.getInputCols()
         output_cols = self.getOutputCols()
