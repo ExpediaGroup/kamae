@@ -14,6 +14,7 @@
 
 from .absolute_value import AbsoluteValueTransformer  # noqa: F401
 from .array_concatenate import ArrayConcatenateTransformer  # noqa: F401
+from .array_contains import ArrayContainsTransformer  # noqa: F401
 from .array_crop import ArrayCropTransformer  # noqa: F401
 from .array_reduce_max import ArrayReduceMaxTransformer  # noqa: F401
 from .array_split import ArraySplitTransformer  # noqa: F401

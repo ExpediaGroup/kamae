@@ -20,6 +20,7 @@ Multi-backend layers that work across TensorFlow, JAX, and PyTorch backends.
 
 from .absolute_value import AbsoluteValueLayer
 from .array_concatenate import ArrayConcatenateLayer
+from .array_contains import ArrayContainsLayer
 from .array_crop import ArrayCropLayer
 from .array_reduce_max import ArrayReduceMaxLayer
 from .array_split import ArraySplitLayer
@@ -73,6 +74,7 @@ __all__ = [
     "LogicalNotLayer",
     "NumericalIfStatementLayer",
     "ArrayConcatenateLayer",
+    "ArrayContainsLayer",
     "ArrayReduceMaxLayer",
     "ArraySplitLayer",
     "ArrayCropLayer",
