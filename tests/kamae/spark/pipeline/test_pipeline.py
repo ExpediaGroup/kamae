@@ -18,7 +18,6 @@ from unittest.mock import patch
 
 import pytest
 import tensorflow as tf
-from pyspark.sql import DataFrame
 from pyspark.sql.types import DoubleType
 
 from kamae.spark.estimators import (
@@ -619,10 +618,13 @@ class TestPipeline:
         """
         checkpoint must be invoked during fit only when checkpointInterval > 0.
         """
-        original_checkpoint = DataFrame.checkpoint
+        # Patch the concrete class: on Spark 4 pyspark.sql.DataFrame is an abstract
+        # parent of the classic DataFrame, so patching it would not intercept calls.
+        dataframe_cls = type(example_dataframe)
+        original_checkpoint = dataframe_cls.checkpoint
 
         with patch.object(
-            DataFrame,
+            dataframe_cls,
             "checkpoint",
             autospec=True,
             side_effect=original_checkpoint,

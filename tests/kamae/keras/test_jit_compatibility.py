@@ -504,12 +504,12 @@ def test_jit_incompatible_layers_fail(layer_cls, input_tensors, kwargs):
             return layer(inputs[0])
         return layer(list(inputs))
 
-    # Must raise Exception when trying to JIT compile
+    # Must raise Exception when trying to JIT compile. We lower to HLO rather than
+    # executing, since executing goes through the XLA compilation cache, which in
+    # TF 2.21 aborts the process when hashing string constants after a prior failed
+    # compile (Check failed: DataTypeCanUseMemcpy(dtype())).
     with pytest.raises(Exception):
-        result = jit_call(*input_tensors)
-        # Force evaluation if result is symbolic
-        if hasattr(result, "numpy"):
-            result.numpy()
+        jit_call.experimental_get_compiler_ir(*input_tensors)(stage="hlo")
 
 
 def test_all_layers_define_jit_compatible_and_supported_backends():
