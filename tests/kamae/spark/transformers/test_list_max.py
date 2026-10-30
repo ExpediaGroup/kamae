@@ -664,6 +664,152 @@ class TestListMax:
                 "double",
                 "float",
             ),
+            # Integer values with segmentation
+            (
+                3,
+                tf.constant(
+                    [
+                        [1],
+                        [1],
+                        [1],
+                        [2],
+                        [2],
+                        [2],
+                    ],
+                    dtype=tf.int64,
+                ),
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [1],
+                            [1],
+                            [4],
+                            [5],
+                            [5],
+                            [20],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                    # segment
+                    tf.constant(
+                        [
+                            [1],
+                            [1],
+                            [2],
+                            [1],
+                            [1],
+                            [2],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                ],
+                None,
+                True,
+                None,
+                "bigint",
+                "bigint",
+            ),
+            # Integer values with segmentation & filter
+            (
+                3,
+                tf.constant(
+                    [
+                        [1],
+                        [1],
+                        [1],
+                        [2],
+                        [2],
+                        [2],
+                    ],
+                    dtype=tf.int64,
+                ),
+                [
+                    # values
+                    tf.constant(
+                        [
+                            [1],
+                            [1],
+                            [4],
+                            [5],
+                            [5],
+                            [20],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                    # segment
+                    tf.constant(
+                        [
+                            [1],
+                            [1],
+                            [2],
+                            [1],
+                            [1],
+                            [2],
+                        ],
+                        dtype=tf.int64,
+                    ),
+                ],
+                2,
+                True,
+                None,
+                "bigint",
+                "bigint",
+            ),
+            # Remaining integer widths, with segmentation & filter, to check
+            # Spark/Keras parity for every integer dtype the transformer accepts.
+            *[
+                (
+                    3,
+                    tf.constant(
+                        [
+                            [1],
+                            [1],
+                            [1],
+                            [2],
+                            [2],
+                            [2],
+                        ],
+                        dtype=tf_dtype,
+                    ),
+                    [
+                        # values
+                        tf.constant(
+                            [
+                                [1],
+                                [1],
+                                [4],
+                                [5],
+                                [5],
+                                [20],
+                            ],
+                            dtype=tf_dtype,
+                        ),
+                        # segment
+                        tf.constant(
+                            [
+                                [1],
+                                [1],
+                                [2],
+                                [1],
+                                [1],
+                                [2],
+                            ],
+                            dtype=tf_dtype,
+                        ),
+                    ],
+                    2,
+                    True,
+                    None,
+                    spark_dtype,
+                    spark_dtype,
+                )
+                for tf_dtype, spark_dtype in [
+                    (tf.int8, "tinyint"),
+                    (tf.int16, "smallint"),
+                    (tf.int32, "int"),
+                ]
+            ],
         ],
     )
     def test_list_max_transform_spark_tf_parity(
@@ -734,3 +880,61 @@ class TestListMax:
                 decimal=6,
                 err_msg="Spark and Tensorflow transform outputs are not equal",
             )
+
+    @pytest.mark.parametrize(
+        "spark_dtype, tf_dtype",
+        [
+            ("tinyint", tf.int8),
+            ("smallint", tf.int16),
+            ("int", tf.int32),
+            ("bigint", tf.int64),
+        ],
+    )
+    def test_list_max_transform_spark_tf_parity_at_dtype_minimum(
+        self, spark_session, spark_dtype, tf_dtype
+    ):
+        """Spark only returns null once a filter empties a window, so a query whose
+        genuine maximum is the dtype minimum keeps that value. Tensorflow has to
+        agree rather than read the reduction result back as an emptied query."""
+        # given, two queries of two items filtered at the dtype minimum, so nothing
+        # is removed. The first has the dtype minimum as its real maximum, the
+        # second keeps an ordinary value as a control.
+        dtype_min = tf_dtype.min
+        list_size = 2
+        query_ids = [1, 1, 2, 2]
+        values = [dtype_min, dtype_min, dtype_min, 5]
+        transformer = ListMaxTransformer(
+            inputCol="input0",
+            outputCol="output",
+            inputDtype=spark_dtype,
+            outputDtype=spark_dtype,
+            queryIdCol="search_id",
+            minFilterValue=dtype_min,
+            nanFillValue=0.0,
+        )
+        spark_df = spark_session.createDataFrame(
+            list(zip(query_ids, values)), ["search_id", "input0"]
+        )
+        # when
+        spark_values = (
+            transformer.transform(spark_df)
+            .select("output")
+            .rdd.map(lambda r: r[0])
+            .collect()
+        )
+        input_tensor = tf.reshape(
+            tf.constant(values, dtype=tf_dtype), (-1, list_size, 1)
+        )
+        tensorflow_values = np.reshape(
+            transformer.get_keras_layer()(input_tensor).numpy(), -1
+        ).tolist()
+        # then
+        assert spark_values == [dtype_min, dtype_min, 5, 5], (
+            "The dtype minimum should be kept as a real value, and nanFillValue "
+            "should not appear when nothing is filtered"
+        )
+        np.testing.assert_equal(
+            spark_values,
+            tensorflow_values,
+            err_msg="Spark and Tensorflow transform outputs are not equal",
+        )
