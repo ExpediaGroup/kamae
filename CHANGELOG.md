@@ -2,6 +2,49 @@
 
 
 
+## v3.3.0 (2026-10-30)
+
+### Feature
+
+* feat: add EventNgramLookup estimator, transformer and layer (#77)
+
+* feat: add event n-gram tokenizer with a frequency-based shared vocabulary
+
+Co-Authored-By: Claude Opus 5 (1M context) &lt;noreply@anthropic.com&gt;
+
+* feat: log the vocabulary&#39;s n-gram length distribution
+
+* fix: Improve tokeniser input  contract, and add sanitization.:
+
+* refactor: harden EventNgramLookup pipeline integration and unknown handling
+
+* refactor: move fitted params to the transformer and tidy EventNgramLookup
+
+* refactor: reject an id axis that is not a whole number of events in EventNgramLookupLayer
+
+* fix: keep EventNgramLookup token/type struct in the output column
+
+---------
+
+Co-authored-by: Claude Opus 5 (1M context) &lt;noreply@anthropic.com&gt; ([`abc7869`](https://github.com/ExpediaGroup/kamae/commit/abc7869089822b0e66ea022378fddcc9d7399a88))
+
+* feat: array contains (#67)
+
+* feat: array contains
+
+* fix: readability
+
+* fi: undo formatting
+
+* fix: apply comments
+
+* fix: apply comments
+
+* fix: apply comments
+
+* fix: spark dtypes ([`abce236`](https://github.com/ExpediaGroup/kamae/commit/abce23652f169f6d2b144a09e32956ae2c9a6fe4))
+
+
 ## v3.2.0 (2026-08-25)
 
 ### Feature
