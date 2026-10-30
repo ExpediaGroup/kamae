@@ -27,6 +27,7 @@ from pyspark.sql import Column, DataFrame
 from pyspark.storagelevel import StorageLevel
 
 from kamae.graph import PipelineGraph
+from kamae.spark.common import SparkOperation
 from kamae.spark.estimators import BaseEstimator
 from kamae.spark.params.default_read_write import (
     KamaeDefaultParamsReader,
@@ -985,6 +986,20 @@ class KamaeSparkPipeline(Pipeline):
         )
 
     @staticmethod
+    def _fused_column_prefix(columns: List[str]) -> str:
+        """
+        A random column name prefix that no existing column starts with, for the
+        helper columns of a fused fit.
+
+        :param columns: The dataset's column names.
+        :returns: A prefix of the form `__fused_<random>_`.
+        """
+        while True:
+            prefix = f"__fused_{SparkOperation.generate_tmp_column_suffix()}_"
+            if not any(column.startswith(prefix) for column in columns):
+                return prefix
+
+    @staticmethod
     def fit_estimators_fused(
         estimators: List[BaseEstimator], dataset: DataFrame
     ) -> List[BaseTransformer]:
@@ -995,9 +1010,10 @@ class KamaeSparkPipeline(Pipeline):
         estimators (or those setting their own sampleFraction) are fitted normally.
         Nothing is persisted.
 
-        Each estimator gets a prefix unique within the call (`__fused_<index>__`)
-        for its helper columns and aggregation aliases. If anything fails, the
-        estimators are pointed back at their original input columns.
+        Each estimator gets a prefix (`__fused_<random>_<index>__`, see
+        `_fused_column_prefix`) for its helper columns and aggregation aliases, so
+        they cannot collide with the dataset's columns or each other. If anything
+        fails, the estimators are pointed back at their original input columns.
 
         :param estimators: Estimators that do not depend on each other.
         :param dataset: Dataset holding every column the estimators read.
@@ -1005,6 +1021,7 @@ class KamaeSparkPipeline(Pipeline):
         """
         fitted: List[Optional[BaseTransformer]] = [None] * len(estimators)
         working = dataset
+        column_prefix = KamaeSparkPipeline._fused_column_prefix(dataset.columns)
         # (index, estimator, prefix, aggregations) of the estimators in the shared
         # aggregation, which point at casted input columns until finished.
         shared: List[Tuple[int, BaseEstimator, str, List[Column]]] = []
@@ -1017,7 +1034,7 @@ class KamaeSparkPipeline(Pipeline):
                 if own_sample or not estimator.can_fit_by_aggregation(dataset):
                     fitted[index] = estimator.fit(dataset)
                     continue
-                prefix = f"__fused_{index}__"
+                prefix = f"{column_prefix}{index}__"
                 try:
                     prepared = estimator.prepare_fit_dataset(working)
                     shared.append((index, estimator, prefix, []))

@@ -300,3 +300,48 @@ def test_normal_fit_releases_its_persisted_dataset(spark_session, input_dtype):
     ]:
         estimator.fit(df)
         assert persistent().size() == before
+
+
+def test_fused_helper_columns_never_collide_with_existing_columns(
+    spark_session, monkeypatch
+):
+    from kamae.spark.common import SparkOperation
+
+    # The dataset already has a column named like a fused helper column, holding
+    # data that would corrupt the fit if the helper overwrote or reused it.
+    taken = "__fused_TAKEN_0__element_struct"
+    df = spark_session.createDataFrame(
+        [([1.0, 2.0], "junk"), ([3.0, 5.0], "junk"), ([4.0, 0.0], "junk")],
+        f"x array<double>, `{taken}` string",
+    )
+
+    def stages():
+        return [
+            ConditionalStandardScaleEstimator(
+                inputCol="x", outputCol="x_scaled", layerName="x_scaled"
+            )
+        ]
+
+    expected = _fitted_values(_fit(stages, df, fuse=False))
+    estimators = stages()  # constructed before the generator is patched
+    calls = []
+
+    def first_suggestion_taken(str_len=25):
+        # The first random name collides with the existing column; later ones
+        # (and those of the transformers created by the fit) are free.
+        calls.append(str_len)
+        return "TAKEN" if len(calls) == 1 else "FREE"
+
+    monkeypatch.setattr(
+        SparkOperation,
+        "generate_tmp_column_suffix",
+        staticmethod(first_suggestion_taken),
+    )
+    assert KamaeSparkPipeline._fused_column_prefix(df.columns) == "__fused_FREE_"
+
+    calls.clear()
+    actual = _fitted_values(
+        KamaeSparkPipeline(stages=estimators, fuseEstimatorFits=True).fit(df)
+    )
+    assert actual == expected
+    assert df.select(taken).distinct().collect()[0][0] == "junk"
