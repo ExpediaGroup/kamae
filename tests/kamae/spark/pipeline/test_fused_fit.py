@@ -90,11 +90,10 @@ def _fusable_estimators():
         ),
         StringIndexEstimator(
             inputCol="s",
-            outputCol="s_idx_desc_mask_max",
-            layerName="s_idx_desc_mask_max",
+            outputCol="s_idx_desc_mask",
+            layerName="s_idx_desc_mask",
             stringOrderType="alphabeticalDesc",
             maskToken="mask",
-            maxNumLabels=4,
         ),
         StringIndexEstimator(
             inputCol="n",
@@ -159,7 +158,6 @@ def _fusable_estimators():
             outputCols=["s_shared_ohe", "t_shared_ohe"],
             layerName="st_shared_ohe",
             stringOrderType="alphabeticalDesc",
-            maxNumLabels=3,
         ),
     ]
 
@@ -257,11 +255,30 @@ def test_fit_estimators_fused_falls_back_for_unsupported(fit_dataframe):
             imputeMethod="mean",
             maskValue=-999.0,
         ),
+        # maxNumLabels: the distributed label fit only brings the first labels to
+        # the driver, collect_set would gather every distinct label first.
+        StringIndexEstimator(
+            inputCol="s",
+            outputCol="s_idx_max",
+            layerName="s_idx_max",
+            stringOrderType="alphabeticalDesc",
+            maskToken="mask",
+            maxNumLabels=4,
+        ),
+        SharedOneHotEncodeEstimator(
+            inputCols=["s", "t"],
+            outputCols=["s_shared_max", "t_shared_max"],
+            layerName="st_shared_max",
+            stringOrderType="alphabeticalDesc",
+            maxNumLabels=3,
+        ),
     ]
     assert [e.can_fit_by_aggregation(fit_dataframe) for e in estimators] == [
         True,
         False,
         True,
+        False,
+        False,
         False,
         False,
         False,
@@ -397,3 +414,36 @@ def test_estimator_whose_aggregations_add_rows_is_fitted_on_its_own(fit_datafram
         actual = KamaeSparkPipeline.fit_estimators_fused(estimators(), fit_dataframe)
     for e, a in zip(expected, actual):
         _assert_same_fit(e, a)
+
+
+def test_label_estimators_fit_normally_with_distributed_collection(
+    fit_dataframe, monkeypatch
+):
+    # The normal fit keeps collect_labels_array (distributed distinct + sort);
+    # only the fused fit collects labels with F.collect_set.
+    import kamae.spark.estimators.string_index as string_index_module
+
+    calls = []
+    original = string_index_module.collect_labels_array
+
+    def counting_collect_labels_array(*args, **kwargs):
+        calls.append(1)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        string_index_module, "collect_labels_array", counting_collect_labels_array
+    )
+
+    def estimator():
+        return StringIndexEstimator(
+            inputCol="s",
+            outputCol="s_idx",
+            layerName="s_idx",
+            stringOrderType="alphabeticalAsc",
+        )
+
+    expected = estimator().fit(fit_dataframe)
+    assert len(calls) == 1
+    actual = KamaeSparkPipeline.fit_estimators_fused([estimator()], fit_dataframe)
+    assert len(calls) == 1
+    assert actual[0].getLabelsArray() == expected.getLabelsArray()

@@ -25,14 +25,18 @@ from kamae.spark.utils import labels_from_distinct_values
 class LabelsAggregationFitMixin:
     """
     Fit by aggregation for the label-collecting estimators (StringIndex,
-    OneHotEncode and their shared variants): the distinct labels of each input
-    column are collected with `F.collect_set`, then ordered exactly as
-    `collect_labels_array` orders them. The estimator implements
-    `_transformer_from_labels`.
+    OneHotEncode and their shared variants), used only when they are fitted fused
+    with other estimators (see `KamaeSparkPipeline` `fuseEstimatorFits`): the
+    distinct labels of each input column are collected with `F.collect_set`, then
+    ordered exactly as `collect_labels_array` orders them. The estimator implements
+    `_transformer_from_labels`. Their normal fit keeps `collect_labels_array`, whose
+    distinct and sort are distributed.
 
-    Only for an alphabetical string order and single-value input columns: frequency
-    orders need label counts, and array inputs are flattened first, so those keep
-    the estimator's own fit.
+    Only for an alphabetical string order, single-value input columns and no
+    maxNumLabels: frequency orders need label counts, array inputs are flattened
+    first, and `F.collect_set` gathers every distinct label in one aggregation
+    buffer before maxNumLabels would cut them, so those keep the estimator's own fit
+    (typically high-cardinality columns are the ones limited with maxNumLabels).
     """
 
     def _label_input_cols(self) -> List[str]:
@@ -50,14 +54,20 @@ class LabelsAggregationFitMixin:
         Whether the labels can be collected with `F.collect_set`.
 
         :param dataset: The input dataset.
-        :returns: True for an alphabetical string order and no array input column.
+        :returns: True for an alphabetical string order, no array input column and
+        no maxNumLabels.
         """
-        return self.getStringOrderType() in [
-            "alphabeticalAsc",
-            "alphabeticalDesc",
-        ] and not any(
-            isinstance(self.get_column_datatype(dataset, column), ArrayType)
-            for column in self._label_input_cols()
+        return (
+            self.getMaxNumLabels() is None
+            and self.getStringOrderType()
+            in [
+                "alphabeticalAsc",
+                "alphabeticalDesc",
+            ]
+            and not any(
+                isinstance(self.get_column_datatype(dataset, column), ArrayType)
+                for column in self._label_input_cols()
+            )
         )
 
     def fit_aggregations(

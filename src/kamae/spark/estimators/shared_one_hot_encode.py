@@ -125,8 +125,6 @@ class SharedOneHotEncodeEstimator(
         :param dataset: Pyspark dataframe to fit the estimator to.
         :returns: OneHotEncodeTransformer instance with collected string labels.
         """
-        if self.can_fit_by_aggregation(dataset):
-            return self._fit_by_aggregation(dataset, persist=False)
         column_datatypes = [
             self.get_column_datatype(dataset=dataset, column_name=i)
             for i in self.getInputCols()
