@@ -29,6 +29,7 @@ from .shared import (  # noqa: F401
     DateTimeParams,
     DefaultIntValueParams,
     DropUnseenParams,
+    EventNgramLookupParams,
     HashIndexParams,
     ImputeMethodParams,
     LabelsArrayParams,
