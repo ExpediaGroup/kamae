@@ -1012,8 +1012,11 @@ class KamaeSparkPipeline(Pipeline):
 
         Each estimator gets a prefix (`__fused_<random>_<index>__`, see
         `_fused_column_prefix`) for its helper columns and aggregation aliases, so
-        they cannot collide with the dataset's columns or each other. If anything
-        fails, the estimators are pointed back at their original input columns.
+        they cannot collide with the dataset's columns or each other, and a fresh
+        temporary column suffix for its casted input columns (restored afterwards),
+        so copies of an estimator, which share a suffix, cannot reuse each other's
+        casted columns. If anything fails, the estimators are pointed back at their
+        original input columns.
 
         :param estimators: Estimators that do not depend on each other.
         :param dataset: Dataset holding every column the estimators read.
@@ -1025,6 +1028,8 @@ class KamaeSparkPipeline(Pipeline):
         # (index, estimator, prefix, aggregations) of the estimators in the shared
         # aggregation, which point at casted input columns until finished.
         shared: List[Tuple[int, BaseEstimator, str, List[Column]]] = []
+        # (estimator, its own temporary column suffix), restored at the end.
+        original_suffixes: List[Tuple[BaseEstimator, str]] = []
         try:
             for index, estimator in enumerate(estimators):
                 own_sample = (
@@ -1035,6 +1040,12 @@ class KamaeSparkPipeline(Pipeline):
                     fitted[index] = estimator.fit(dataset)
                     continue
                 prefix = f"{column_prefix}{index}__"
+                # Copies of an estimator share its temporary column suffix, so in
+                # the shared frame their casted input columns would collide.
+                original_suffixes.append((estimator, estimator.tmp_column_suffix))
+                estimator.tmp_column_suffix = (
+                    SparkOperation.generate_tmp_column_suffix()
+                )
                 try:
                     prepared = estimator.prepare_fit_dataset(working)
                     shared.append((index, estimator, prefix, []))
@@ -1079,6 +1090,9 @@ class KamaeSparkPipeline(Pipeline):
             for _, estimator, _, _ in shared:
                 estimator.reset_fit_input_columns(working)
             raise
+        finally:
+            for estimator, suffix in original_suffixes:
+                estimator.tmp_column_suffix = suffix
 
     def _run_fused_fit_loop(
         self,

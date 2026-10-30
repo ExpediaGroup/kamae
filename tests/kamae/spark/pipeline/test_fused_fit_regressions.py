@@ -345,3 +345,27 @@ def test_fused_helper_columns_never_collide_with_existing_columns(
     )
     assert actual == expected
     assert df.select(taken).distinct().collect()[0][0] == "junk"
+
+
+def test_copied_estimators_with_different_input_dtypes(spark_session):
+    # Copies share their temporary column suffix; reading the same input column
+    # with different inputDtypes, they must not reuse each other's casted column.
+    df = spark_session.createDataFrame([(1.1,), (2.2,), (3.3,), (4.4,)], "c double")
+    as_float = ConditionalStandardScaleEstimator(
+        inputCol="c", outputCol="c_float", layerName="c_float", inputDtype="float"
+    )
+    as_double = as_float.copy()
+    as_double.setInputDtype("double")
+    as_double.setOutputCol("c_double")
+    as_double.setLayerName("c_double")
+    assert as_float.tmp_column_suffix == as_double.tmp_column_suffix
+    suffix = as_float.tmp_column_suffix
+
+    expected = [e.fit(df) for e in [as_float, as_double]]
+    assert expected[0].getMean() != expected[1].getMean()  # float vs double
+    actual = KamaeSparkPipeline.fit_estimators_fused([as_float, as_double], df)
+    for e, a in zip(expected, actual):
+        assert e.getMean() == a.getMean()
+        assert e.getStddev() == a.getStddev()
+    assert as_float.tmp_column_suffix == as_double.tmp_column_suffix == suffix
+    assert as_float.getInputCol() == as_double.getInputCol() == "c"
