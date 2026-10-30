@@ -27,6 +27,7 @@ from .array_utils import (  # noqa: F401
 from .indexer_utils import (  # noqa: F401
     collect_labels_array,
     collect_labels_array_from_multiple_columns,
+    labels_from_distinct_values,
 )
 from .list_utils import (  # noqa: F401
     check_and_apply_listwise_op,

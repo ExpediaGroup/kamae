@@ -29,9 +29,11 @@ from kamae.spark.transformers import SharedStringIndexTransformer
 from kamae.spark.utils import collect_labels_array_from_multiple_columns
 
 from .base import BaseEstimator
+from .labels_aggregation import LabelsAggregationFitMixin
 
 
 class SharedStringIndexEstimator(
+    LabelsAggregationFitMixin,
     BaseEstimator,
     MultiInputMultiOutputParams,
     StringIndexParams,
@@ -124,6 +126,17 @@ class SharedStringIndexEstimator(
             mask_token=self.getMaskToken(),
             max_num_labels=self.getMaxNumLabels(),
         )
+        return self._transformer_from_labels(labels)
+
+    def _transformer_from_labels(
+        self, labels: List[str]
+    ) -> "SharedStringIndexTransformer":
+        """
+        Sets the collected labels and builds the fitted transformer.
+
+        :param labels: The collected string labels.
+        :returns: SharedStringIndexTransformer instance with the labels set.
+        """
         self.setLabelsArray(labels)
 
         return SharedStringIndexTransformer(

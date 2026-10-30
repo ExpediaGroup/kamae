@@ -16,11 +16,11 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pyspark.sql.functions as F
 from pyspark import keyword_only
-from pyspark.sql import DataFrame
+from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
 from kamae.keras.core.backend import ALL_BACKENDS
@@ -120,6 +120,8 @@ class ImputeEstimator(
         :param dataset: Pyspark dataframe to fit the estimator to.
         :returns: ImputeTransformer instance with impute value set.
         """
+        if self.can_fit_by_aggregation(dataset):
+            return self._fit_by_aggregation(dataset, persist=False)
         imputeMethod = self.getImputeMethod()
 
         if imputeMethod == "mean":
@@ -160,6 +162,60 @@ class ImputeEstimator(
             .collect()[0][0]
         )
 
+        return self._transformer_from_impute_value(imputeValue)
+
+    def can_fit_by_aggregation(self, dataset: DataFrame) -> bool:
+        """
+        Single-value inputs are one aggregation. Array inputs are exploded first,
+        which changes the rows, so they keep their own fit.
+
+        :param dataset: The input dataset.
+        :returns: True if the input column is not an array.
+        """
+        input_column_type = self.get_column_datatype(dataset, self.getInputCol())
+        return not isinstance(input_column_type, ArrayType)
+
+    def fit_aggregations(
+        self, dataset: DataFrame, prefix: str
+    ) -> Tuple[Dict[str, Column], List[Column]]:
+        """
+        Builds the imputation statistic aggregation of the input feature column,
+        ignoring nulls and values equal to the mask value.
+
+        :param dataset: Pyspark dataframe to fit the estimator to.
+        :param prefix: Prefix of the aggregation alias.
+        :returns: Tuple of no helper columns and the aggregation.
+        """
+        imputeMethod = self.getImputeMethod()
+        if imputeMethod == "mean":
+            estimator_fn = F.mean
+        elif imputeMethod == "median":
+            estimator_fn = F.median
+        input_col = F.col(self.getInputCol())
+        value = F.when(
+            (input_col == F.lit(self.getMaskValue())) | (input_col.isNull()),
+            None,
+        ).otherwise(input_col)
+        return {}, [estimator_fn(value).alias(f"{prefix}impute_value")]
+
+    def fit_from_row(self, row: Dict[str, Any], prefix: str) -> "ImputeTransformer":
+        """
+        Builds the fitted transformer from the statistic aggregated by
+        `fit_aggregations`.
+
+        :param row: The aggregation result row, as a dict of alias -> value.
+        :param prefix: The prefix given to `fit_aggregations`.
+        :returns: ImputeTransformer instance with impute value set.
+        """
+        return self._transformer_from_impute_value(row[f"{prefix}impute_value"])
+
+    def _transformer_from_impute_value(self, imputeValue: Any) -> "ImputeTransformer":
+        """
+        Builds the fitted transformer with the given impute value.
+
+        :param imputeValue: The imputation statistic.
+        :returns: ImputeTransformer instance with impute value set.
+        """
         return ImputeTransformer(
             inputCol=self.getInputCol(),
             outputCol=self.getOutputCol(),

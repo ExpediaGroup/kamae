@@ -33,9 +33,11 @@ from kamae.spark.transformers import OneHotEncodeTransformer
 from kamae.spark.utils import collect_labels_array
 
 from .base import BaseEstimator
+from .labels_aggregation import LabelsAggregationFitMixin
 
 
 class OneHotEncodeEstimator(
+    LabelsAggregationFitMixin,
     BaseEstimator,
     DropUnseenParams,
     SingleInputSingleOutputParams,
@@ -136,7 +138,15 @@ class OneHotEncodeEstimator(
             mask_token=self.getMaskToken(),
             max_num_labels=self.getMaxNumLabels(),
         )
+        return self._transformer_from_labels(labels)
 
+    def _transformer_from_labels(self, labels: List[str]) -> "OneHotEncodeTransformer":
+        """
+        Sets the collected labels and builds the fitted transformer.
+
+        :param labels: The collected string labels.
+        :returns: OneHotEncodeTransformer instance with the labels set.
+        """
         self.setLabelsArray(labels)
 
         return OneHotEncodeTransformer(
