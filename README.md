@@ -45,12 +45,12 @@ fitted_pipeline = pipeline.fit(data)
 fitted_pipeline.transform(data).show()  # Use in Spark
 
 # Export for TensorFlow Serving
-tf_input_schema = [
-    {"name": "col1", "dtype": "int32", "shape": (None, 1)},
-    {"name": "col2", "dtype": "int32", "shape": (None, 1)},
-    {"name": "category", "dtype": "string", "shape": (None, 1)},
+input_schema = [
+    {"name": "col1", "dtype": "int32", "shape": (1,)},
+    {"name": "col2", "dtype": "int32", "shape": (1,)},
+    {"name": "category", "dtype": "string", "shape": (1,)},
 ]
-keras_model = fitted_pipeline.build_keras_model(tf_input_schema=tf_input_schema)
+keras_model = fitted_pipeline.build_keras_model(input_schema=input_schema)
 keras_model.save("./preprocessing_model.keras")
 ```
 
