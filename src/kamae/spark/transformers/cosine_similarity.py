@@ -133,15 +133,20 @@ class CosineSimilarityTransformer(
             )
 
         # If the norms are zero, then we match the tensorflow behavior and return 0.0.
+        # The zero check is explicit since with ANSI mode enabled (the default in
+        # Spark 4) division by zero raises an error rather than returning null.
+        def cosine_similarity(x: Column) -> Column:
+            norm_product = norm(x, input_col_names[0]) * norm(x, input_col_names[1])
+            return F.coalesce(
+                F.when(norm_product != F.lit(0.0), dot_product(x) / norm_product),
+                F.lit(0.0),
+            )
+
         output_col = multi_input_single_output_array_transform(
             input_cols=input_cols,
             input_col_datatypes=datatypes,
             input_col_names=input_col_names,
-            func=lambda x: F.coalesce(
-                dot_product(x)
-                / (norm(x, input_col_names[0]) * norm(x, input_col_names[1])),
-                F.lit(0.0),
-            ),
+            func=cosine_similarity,
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 

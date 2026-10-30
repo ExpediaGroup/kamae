@@ -121,7 +121,11 @@ class DivideTransformer(
             """
             Divide two columns, and if the result is NaN, return 0.0 instead
             """
-            return F.coalesce(column1 / column2, F.lit(0.0))
+            # Guard the divisor explicitly, since with ANSI mode enabled (the default
+            # in Spark 4) division by zero raises an error rather than returning null.
+            return F.coalesce(
+                F.when(column2 != F.lit(0), column1 / column2), F.lit(0.0)
+            )
 
         output_col = multi_input_single_output_scalar_transform(
             input_cols=input_cols,
