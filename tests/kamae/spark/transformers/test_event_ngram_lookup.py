@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pyspark.sql.functions as F
 import pytest
 import tensorflow as tf
 from pyspark.sql.types import (
@@ -280,6 +281,25 @@ class TestEventNgramLookupTransformer:
             assert row["clicks_tokens_types"] == [
                 type_lookup[t] for t in row["clicks_tokens"]
             ]
+
+    def test_type_columns_do_not_clobber_existing_columns(self, id_df):
+        # Tokens and types come out of one struct; holding it must not overwrite or
+        # drop an existing column, e.g. one named like an internal temp column.
+        df = id_df.withColumn("clicks_tokens__tokens_and_types", F.lit("keep"))
+        transformer = self._transformer(
+            includeTokenTypes=True, tokenTypeLookup=[0, 0, 5, 1, 8, 3]
+        )
+
+        transformed = transformer.transform(df)
+
+        assert transformed.columns == df.columns + [
+            "clicks_tokens",
+            "clicks_tokens_types",
+        ]
+        assert all(
+            row["clicks_tokens__tokens_and_types"] == "keep"
+            for row in transformed.collect()
+        )
 
     def test_output_dtype_applies_to_the_type_columns(self, id_df):
         # The type columns are derived rather than listed in outputCols, so they must

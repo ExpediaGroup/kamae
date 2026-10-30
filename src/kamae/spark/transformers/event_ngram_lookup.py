@@ -336,17 +336,17 @@ class EventNgramLookupTransformer(
                 ),
                 struct_type,
             )
-            struct_col = f"{output_col}__tokens_and_types"
+            # The struct is held in output_col, which is overwritten with the tokens
+            # anyway, so no temporary column can collide with an existing one.
             # The type columns are not in outputCols, so the base class's output cast
             # does not reach them; cast them here to match the Keras layer.
             casted_types, _ = self._cast_output_columns(
-                [F.col(f"{struct_col}.types")], [token_array_type]
+                [F.col(output_col).getField("types")], [token_array_type]
             )[0]
             dataset = (
-                dataset.withColumn(struct_col, tokenize_udf(F.col(input_col)))
-                .withColumn(output_col, F.col(f"{struct_col}.tokens"))
+                dataset.withColumn(output_col, tokenize_udf(F.col(input_col)))
                 .withColumn(type_col, casted_types)
-                .drop(struct_col)
+                .withColumn(output_col, F.col(output_col).getField("tokens"))
             )
         return dataset
 
