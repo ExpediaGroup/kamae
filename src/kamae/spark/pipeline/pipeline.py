@@ -13,8 +13,9 @@
 # limitations under the License.
 
 import os
+import re
 import warnings
-from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Type
 
 import networkx as nx
 from pyspark import keyword_only
@@ -22,10 +23,11 @@ from pyspark.ml import Pipeline
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.ml.pipeline import PipelineReader, PipelineSharedReadWrite, PipelineWriter
 from pyspark.ml.util import MLWriter
-from pyspark.sql import DataFrame
+from pyspark.sql import Column, DataFrame
 from pyspark.storagelevel import StorageLevel
 
 from kamae.graph import PipelineGraph
+from kamae.spark.common import SparkOperation
 from kamae.spark.estimators import BaseEstimator
 from kamae.spark.params.default_read_write import (
     KamaeDefaultParamsReader,
@@ -56,7 +58,9 @@ class KamaeSparkPipeline(Pipeline):
     estimators reuse it instead of re-scanning the wide input; `fitSampleFraction`
     draws a single persisted sample of the input up-front and fits the estimators
     that opt in (those with `useFitSample=True`) from that shared sample, while
-    estimators without it keep fitting on the full input.
+    estimators without it keep fitting on the full input. `fuseEstimatorFits` groups
+    the estimators into dependency layers and fits each layer in one aggregation
+    (one pass over the data) instead of one or more passes per estimator.
     """
 
     checkpointInterval = Param(
@@ -117,6 +121,18 @@ class KamaeSparkPipeline(Pipeline):
         "reproducibility. None (default) leaves the sample unseeded.",
         typeConverter=TypeConverters.toInt,
     )
+    fuseEstimatorFits = Param(
+        Params._dummy(),
+        "fuseEstimatorFits",
+        "If True, group the estimators into dependency layers (an estimator is in "
+        "the layer after the deepest estimator it depends on) and fit all estimators "
+        "of a layer in one aggregation, so each layer is one pass over the data and "
+        "nothing is cached. Estimators that do not support fused fitting are fitted "
+        "normally. Ignored if fitSampleFraction is set; cacheIntermediateData, "
+        "cacheEstimatorInput and checkpointInterval do not apply. False (default) "
+        "disables it.",
+        typeConverter=TypeConverters.toBoolean,
+    )
 
     @keyword_only
     def __init__(
@@ -129,6 +145,7 @@ class KamaeSparkPipeline(Pipeline):
         cacheEstimatorInput: bool = False,
         fitSampleFraction: Optional[float] = None,
         fitSampleSeed: Optional[int] = None,
+        fuseEstimatorFits: bool = False,
     ) -> None:
         """
         Initialises the KamaeSparkPipeline object.
@@ -150,6 +167,8 @@ class KamaeSparkPipeline(Pipeline):
         None (default) disables it.
         :param fitSampleSeed: Optional integer seed for the fitSampleFraction
         sample. None (default) leaves it unseeded.
+        :param fuseEstimatorFits: If True, fit the estimators of each dependency
+        layer in one aggregation. False (default) disables it.
         :returns: None - class instantiated.
         """
         kwargs = self._input_kwargs
@@ -161,6 +180,7 @@ class KamaeSparkPipeline(Pipeline):
             cacheEstimatorInput=False,
             fitSampleFraction=None,
             fitSampleSeed=None,
+            fuseEstimatorFits=False,
         )
         self.setParams(**kwargs)
 
@@ -298,6 +318,25 @@ class KamaeSparkPipeline(Pipeline):
         """
         return self.getOrDefault(self.fitSampleSeed)
 
+    def setFuseEstimatorFits(self, value: bool) -> "KamaeSparkPipeline":
+        """
+        Sets the `fuseEstimatorFits` parameter.
+
+        :param value: Whether to fit the estimators of each dependency layer in one
+        aggregation.
+        :returns: KamaeSparkPipeline object with fuseEstimatorFits set.
+        """
+        return self._set(fuseEstimatorFits=value)
+
+    def getFuseEstimatorFits(self) -> bool:
+        """
+        Gets the `fuseEstimatorFits` parameter.
+
+        :returns: Whether to fit the estimators of each dependency layer in one
+        aggregation.
+        """
+        return self.getOrDefault(self.fuseEstimatorFits)
+
     @keyword_only
     def setParams(
         self,
@@ -309,6 +348,7 @@ class KamaeSparkPipeline(Pipeline):
         cacheEstimatorInput: bool = False,
         fitSampleFraction: Optional[float] = None,
         fitSampleSeed: Optional[int] = None,
+        fuseEstimatorFits: bool = False,
     ) -> "KamaeSparkPipeline":
         """
         Sets the keyword arguments of the pipeline.
@@ -331,6 +371,8 @@ class KamaeSparkPipeline(Pipeline):
         disables it.
         :param fitSampleSeed: Optional integer seed for the fitSampleFraction
         sample. None (default) leaves it unseeded.
+        :param fuseEstimatorFits: If True, fit the estimators of each dependency
+        layer in one aggregation. False (default) disables it.
         :returns: KamaeSparkPipeline object with params set.
         """
         for param_name, param_value in self._input_kwargs.items():
@@ -521,6 +563,21 @@ class KamaeSparkPipeline(Pipeline):
         if self.getPruneInputColumns():
             dataset = self.prune_unused_input_columns(dataset, expanded_pipeline_stages)
 
+        # Opt-in: fit the estimators of each dependency layer in one aggregation.
+        if self.getFuseEstimatorFits():
+            if self.getFitSampleFraction() is not None:
+                warnings.warn(
+                    "fuseEstimatorFits is ignored because fitSampleFraction is set.",
+                    stacklevel=2,
+                )
+            else:
+                fused_model = self._run_fused_fit_loop(
+                    expanded_pipeline_stages=expanded_pipeline_stages,
+                    dataset=dataset,
+                )
+                if fused_model is not None:
+                    return fused_model
+
         # Native Spark checks for the last estimator and executes all transformers
         # before it, regardless whether there is a dependency between them. See here:
         # https://github.com/apache/spark/blob/master/python/pyspark/ml/pipeline.py#L120
@@ -531,6 +588,7 @@ class KamaeSparkPipeline(Pipeline):
         estimator_parent_stages = self.collect_estimator_parents(
             expanded_pipeline_stages
         )
+
         # Opt-in plan-depth bounding. 0 (or None) = no change.
         checkpoint_interval = self.getCheckpointInterval()
         checkpoint_enabled = self._resolve_checkpoint_enabled(
@@ -784,6 +842,303 @@ class KamaeSparkPipeline(Pipeline):
         if persisted_frame is not None:
             persisted_frame.unpersist()
         return KamaeSparkPipelineModel(transformers)
+
+    @staticmethod
+    def stage_read_write_columns(
+        stage: "KamaePipelineStage",
+    ) -> Tuple[Set[str], Set[str]]:
+        """
+        The columns a stage reads and the columns it writes. Reads are its inputs plus
+        the value(s) of every other param whose name ends in `Col`/`Cols` (e.g.
+        relevanceCol, maskCols), as in `collect_required_input_columns`.
+
+        :param stage: Pipeline stage.
+        :returns: Tuple of the column names read and the column names written.
+        """
+        inputs, outputs = stage.get_layer_inputs_outputs()
+        reads = set(inputs)
+        for param in stage.params:
+            if param.name in ["outputCol", "outputCols"]:
+                continue
+            if not (param.name.endswith("Col") or param.name.endswith("Cols")):
+                continue
+            if not stage.isDefined(param):
+                continue
+            value = stage.getOrDefault(param)
+            if isinstance(value, str):
+                reads.add(value)
+            elif isinstance(value, (list, tuple)):
+                reads.update(item for item in value if isinstance(item, str))
+        return reads, set(outputs)
+
+    @classmethod
+    def stage_ancestors(
+        cls, stages: List["KamaePipelineStage"]
+    ) -> Tuple[List[Set[int]], List[Dict[str, int]]]:
+        """
+        For each stage, the indices of the stages it depends on, directly or not,
+        through any column it reads (see `stage_read_write_columns`), and the version
+        of each column it reads: the index of the last earlier stage writing it, or -1
+        for the input dataset's column.
+
+        :param stages: Expanded pipeline stages.
+        :returns: Tuple of the ancestor indices and the read column versions of each
+        stage.
+        """
+        producers: Dict[str, int] = {}
+        ancestors: List[Set[int]] = []
+        read_versions: List[Dict[str, int]] = []
+        for index, stage in enumerate(stages):
+            reads, writes = cls.stage_read_write_columns(stage)
+            versions = {column: producers.get(column, -1) for column in reads}
+            stage_ancestors: Set[int] = set()
+            for version in versions.values():
+                if version >= 0:
+                    stage_ancestors.add(version)
+                    stage_ancestors |= ancestors[version]
+            ancestors.append(stage_ancestors)
+            read_versions.append(versions)
+            for column in writes:
+                producers[column] = index
+        return ancestors, read_versions
+
+    @staticmethod
+    def estimator_layer_indices(
+        stages: List["KamaePipelineStage"], ancestors: List[Set[int]]
+    ) -> List[List[int]]:
+        """
+        Groups the estimators into dependency layers. An estimator that depends on no
+        other estimator is in layer 0; otherwise it is in the layer after the deepest
+        estimator it depends on. Estimators of one layer never depend on each other,
+        so they can be fitted together.
+
+        :param stages: Expanded pipeline stages.
+        :param ancestors: Ancestor indices of each stage (see `stage_ancestors`).
+        :returns: The stage indices of the estimators of each layer, in pipeline order.
+        """
+        depths: Dict[int, int] = {}
+        for index, stage in enumerate(stages):
+            if isinstance(stage, BaseEstimator):
+                parents = [depths[a] for a in ancestors[index] if a in depths]
+                depths[index] = 1 + max(parents) if parents else 0
+        layers: List[List[int]] = [[] for _ in set(depths.values())]
+        for index, depth in depths.items():
+            layers[depth].append(index)
+        return layers
+
+    @classmethod
+    def estimator_layers(
+        cls, stages: List["KamaePipelineStage"]
+    ) -> List[List[BaseEstimator]]:
+        """
+        The estimators of each dependency layer (see `estimator_layer_indices`).
+
+        :param stages: Expanded pipeline stages.
+        :returns: The estimators of each layer.
+        """
+        ancestors, _ = cls.stage_ancestors(stages)
+        return [
+            [stages[index] for index in layer]
+            for layer in cls.estimator_layer_indices(stages, ancestors)
+        ]
+
+    @classmethod
+    def fused_fit_column_conflicts(cls, stages: List["KamaePipelineStage"]) -> Set[str]:
+        """
+        Columns that a fused fit would give an estimator in a different version than
+        the normal fit. A layer's estimators are fitted on one dataset with all their
+        ancestor stages applied, so if one of those stages rewrites a column that an
+        estimator of the layer reads, the estimator would see the rewritten column
+        instead of the one at its position in the pipeline.
+
+        :param stages: Expanded pipeline stages.
+        :returns: The conflicting column names (empty if the fused fit is exact).
+        """
+        ancestors, read_versions = cls.stage_ancestors(stages)
+        conflicts: Set[str] = set()
+        for layer in cls.estimator_layer_indices(stages, ancestors):
+            # Version of each column once the layer's ancestor stages are applied.
+            versions: Dict[str, int] = {}
+            for index in sorted(set().union(*[ancestors[i] for i in layer])):
+                for column in cls.stage_read_write_columns(stages[index])[1]:
+                    versions[column] = index
+            for index in layer:
+                conflicts.update(
+                    column
+                    for column, version in read_versions[index].items()
+                    if versions.get(column, -1) != version
+                )
+        return conflicts
+
+    @staticmethod
+    def _generator_count(dataset: DataFrame) -> int:
+        """
+        The number of row generators (e.g. explode) in the dataset's analyzed plan.
+        Analysis only: no Spark job runs.
+
+        :param dataset: Pyspark dataframe.
+        :returns: The number of `Generate` nodes in its plan.
+        """
+        return len(
+            re.findall(
+                r"\bGenerate\b", dataset._jdf.queryExecution().analyzed().toString()
+            )
+        )
+
+    @staticmethod
+    def _fused_column_prefix(columns: List[str]) -> str:
+        """
+        A random column name prefix that no existing column starts with, for the
+        helper columns of a fused fit.
+
+        :param columns: The dataset's column names.
+        :returns: A prefix of the form `__fused_<random>_`.
+        """
+        while True:
+            prefix = f"__fused_{SparkOperation.generate_tmp_column_suffix()}_"
+            if not any(column.startswith(prefix) for column in columns):
+                return prefix
+
+    @staticmethod
+    def fit_estimators_fused(
+        estimators: List[BaseEstimator], dataset: DataFrame
+    ) -> List[BaseTransformer]:
+        """
+        Fits estimators that do not depend on each other, sharing one aggregation
+        over the dataset: part one (`fit_aggregations`) of every estimator that fits
+        by aggregation, one `.agg()`, then part two (`fit_from_row`) of each. Other
+        estimators (or those setting their own sampleFraction) are fitted normally.
+        Nothing is persisted.
+
+        Each estimator gets a prefix (`__fused_<random>_<index>__`, see
+        `_fused_column_prefix`) for its helper columns and aggregation aliases, so
+        they cannot collide with the dataset's columns or each other, and a fresh
+        temporary column suffix for its casted input columns (restored afterwards),
+        so copies of an estimator, which share a suffix, cannot reuse each other's
+        casted columns. If anything fails, the estimators are pointed back at their
+        original input columns.
+
+        :param estimators: Estimators that do not depend on each other.
+        :param dataset: Dataset holding every column the estimators read.
+        :returns: The fitted transformers, in the order of `estimators`.
+        """
+        fitted: List[Optional[BaseTransformer]] = [None] * len(estimators)
+        working = dataset
+        column_prefix = KamaeSparkPipeline._fused_column_prefix(dataset.columns)
+        # (index, estimator, prefix, aggregations) of the estimators in the shared
+        # aggregation, which point at casted input columns until finished.
+        shared: List[Tuple[int, BaseEstimator, str, List[Column]]] = []
+        # (estimator, its own temporary column suffix), restored at the end.
+        original_suffixes: List[Tuple[BaseEstimator, str]] = []
+        try:
+            for index, estimator in enumerate(estimators):
+                own_sample = (
+                    estimator.hasParam("sampleFraction")
+                    and estimator.getSampleFraction() is not None
+                )
+                if own_sample or not estimator.can_fit_by_aggregation(dataset):
+                    fitted[index] = estimator.fit(dataset)
+                    continue
+                prefix = f"{column_prefix}{index}__"
+                # Copies of an estimator share its temporary column suffix, so in
+                # the shared frame their casted input columns would collide.
+                original_suffixes.append((estimator, estimator.tmp_column_suffix))
+                estimator.tmp_column_suffix = (
+                    SparkOperation.generate_tmp_column_suffix()
+                )
+                try:
+                    prepared = estimator.prepare_fit_dataset(working)
+                    shared.append((index, estimator, prefix, []))
+                    columns, aggregations = estimator.fit_aggregations(prepared, prefix)
+                except Exception as e:
+                    raise estimator.with_error_context(e)
+                with_columns = prepared.withColumns(columns) if columns else prepared
+                if KamaeSparkPipeline._generator_count(
+                    with_columns
+                ) > KamaeSparkPipeline._generator_count(prepared):
+                    # A helper column that adds rows (e.g. explode) would change the
+                    # rows every other estimator of the aggregation sees.
+                    warnings.warn(
+                        f"{estimator.uid} is fitted on its own: its fit aggregations "
+                        "add a row generator (e.g. explode), which changes the rows.",
+                        stacklevel=2,
+                    )
+                    shared.pop()
+                    estimator.reset_fit_input_columns(prepared)
+                    fitted[index] = estimator.fit(dataset)
+                    continue
+                shared[-1] = (index, estimator, prefix, aggregations)
+                working = with_columns
+
+            if shared:
+                row = (
+                    working.agg(*[agg for *_, aggs in shared for agg in aggs])
+                    .first()
+                    .asDict()
+                )
+            while shared:
+                index, estimator, prefix, _ = shared[0]
+                try:
+                    transformer = estimator.fit_from_row(row, prefix)
+                except Exception as e:
+                    raise estimator.with_error_context(e)
+                estimator.finish_fit(working, transformer)
+                shared.pop(0)
+                fitted[index] = transformer
+            return fitted
+        except Exception:
+            for _, estimator, _, _ in shared:
+                estimator.reset_fit_input_columns(working)
+            raise
+        finally:
+            for estimator, suffix in original_suffixes:
+                estimator.tmp_column_suffix = suffix
+
+    def _run_fused_fit_loop(
+        self,
+        *,
+        expanded_pipeline_stages: List["KamaePipelineStage"],
+        dataset: DataFrame,
+    ) -> Optional["KamaeSparkPipelineModel"]:
+        """
+        Fits the pipeline layer by layer (see `estimator_layer_indices`): each
+        layer's estimators are fitted together by `fit_estimators_fused` on the input
+        dataset with only the stages they depend on applied, in pipeline order, with
+        earlier-layer estimators replaced by their fitted transformers.
+
+        :param expanded_pipeline_stages: Flattened pipeline stages to fit.
+        :param dataset: DataFrame to fit the pipeline to.
+        :returns: KamaeSparkPipelineModel object, or None (with a warning) if the
+        fused fit would give an estimator a different version of a column than the
+        normal fit (see `fused_fit_column_conflicts`), in which case the pipeline
+        must be fitted normally.
+        """
+        stages = expanded_pipeline_stages
+        conflicts = self.fused_fit_column_conflicts(stages)
+        if conflicts:
+            warnings.warn(
+                "fuseEstimatorFits is ignored because these columns are rewritten "
+                "by a stage that an estimator reading the earlier version would be "
+                f"fitted with: {sorted(conflicts)}. The estimators are fitted one by "
+                "one.",
+                stacklevel=3,
+            )
+            return None
+        ancestors, _ = self.stage_ancestors(stages)
+        fitted: Dict[int, BaseTransformer] = {}
+        for layer in self.estimator_layer_indices(stages, ancestors):
+            layer_dataset = dataset
+            for index in sorted(set().union(*[ancestors[i] for i in layer])):
+                layer_dataset = fitted.get(index, stages[index]).transform(
+                    layer_dataset
+                )
+            transformers = self.fit_estimators_fused(
+                [stages[index] for index in layer], layer_dataset
+            )
+            fitted.update(zip(layer, transformers))
+        return KamaeSparkPipelineModel(
+            [fitted.get(index, stage) for index, stage in enumerate(stages)]
+        )
 
     def copy(self, extra: Optional["ParamMap"] = None) -> "KamaeSparkPipeline":
         """

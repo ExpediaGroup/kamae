@@ -16,14 +16,13 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pyspark.sql.functions as F
 from pyspark import keyword_only
-from pyspark.sql import DataFrame
+from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
-from pyspark.storagelevel import StorageLevel
 
 from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.spark.params import (
@@ -32,7 +31,10 @@ from kamae.spark.params import (
     SingleInputSingleOutputParams,
 )
 from kamae.spark.transformers import StandardScaleTransformer
-from kamae.spark.utils import construct_nested_elements_for_scaling
+from kamae.spark.utils import (
+    construct_nested_elements_for_scaling,
+    get_array_nesting_level_and_element_dtype,
+)
 
 from .base import BaseEstimator
 
@@ -110,6 +112,34 @@ class StandardScaleEstimator(
         :param dataset: Pyspark dataframe to fit the estimator to.
         :returns: StandardScaleTransformer instance with mean & standard deviation set.
         """
+        return self._fit_by_aggregation(dataset)
+
+    def can_fit_by_aggregation(self, dataset: DataFrame) -> bool:
+        """
+        The mean and standard deviation are one aggregation, except for nested
+        array inputs: their elements are exploded into rows (see
+        `construct_nested_elements_for_scaling`), which changes the rows, so they
+        keep their own fit.
+
+        :param dataset: The input dataset.
+        :returns: True unless the input column is a nested array.
+        """
+        nested_lvl, _ = get_array_nesting_level_and_element_dtype(
+            self.get_column_datatype(dataset, self.getInputCol())
+        )
+        return nested_lvl <= 1
+
+    def fit_aggregations(
+        self, dataset: DataFrame, prefix: str
+    ) -> Tuple[Dict[str, Column], List[Column]]:
+        """
+        Builds the mean and standard deviation aggregations of each element of the
+        input feature column, ignoring elements equal to the mask value.
+
+        :param dataset: Pyspark dataframe to fit the estimator to.
+        :param prefix: Prefix of the helper column name and aggregation aliases.
+        :returns: Tuple of the helper columns and the aggregations.
+        """
         input_column_type = self.get_column_datatype(dataset, self.getInputCol())
         if not isinstance(input_column_type, ArrayType):
             input_col = F.array(F.col(self.getInputCol()))
@@ -117,57 +147,50 @@ class StandardScaleEstimator(
         else:
             input_col = F.col(self.getInputCol())
 
-        # Persist so the array-size probe and the moments aggregation reuse a
-        # materialised result instead of re-scanning the upstream lineage twice.
-        # Guarded so we do not double-persist data the caller already cached.
-        already_cached = dataset.storageLevel.useMemory or dataset.storageLevel.useDisk
-        if not already_cached:
-            dataset = dataset.persist(StorageLevel.MEMORY_AND_DISK)
+        # Collect a single row to driver and get the length.
+        # We assume all subsequent rows have the same length.
+        array_size = np.array((dataset.select(input_col).first()[0])).shape[-1]
+        struct_col_name = f"{prefix}element_struct"
+        element_struct = construct_nested_elements_for_scaling(
+            column=input_col,
+            column_datatype=input_column_type,
+            array_dim=array_size,
+        )
+        elements = [
+            F.when(
+                F.col(f"{struct_col_name}.element_{i}") == F.lit(self.getMaskValue()),
+                F.lit(None),
+            ).otherwise(F.col(f"{struct_col_name}.element_{i}"))
+            for i in range(1, array_size + 1)
+        ]
+        mean_cols = [
+            F.mean(element).alias(f"{prefix}mean_{i}")
+            for i, element in enumerate(elements, start=1)
+        ]
+        stddev_cols = [
+            F.stddev_pop(element).alias(f"{prefix}stddev_{i}")
+            for i, element in enumerate(elements, start=1)
+        ]
+        # Carry the array size to `fit_from_row`.
+        array_size_col = F.lit(array_size).alias(f"{prefix}array_size")
+        return {struct_col_name: element_struct}, mean_cols + stddev_cols + [
+            array_size_col
+        ]
 
-        try:
-            # Collect a single row to driver and get the length.
-            # We assume all subsequent rows have the same length.
-            array_size = np.array((dataset.select(input_col).first()[0])).shape[-1]
+    def fit_from_row(
+        self, row: Dict[str, Any], prefix: str
+    ) -> "StandardScaleTransformer":
+        """
+        Builds the fitted transformer from the moments aggregated by
+        `fit_aggregations`.
 
-            element_struct = construct_nested_elements_for_scaling(
-                column=input_col,
-                column_datatype=input_column_type,
-                array_dim=array_size,
-            )
-
-            mean_cols = [
-                F.mean(
-                    F.when(
-                        F.col(f"element_struct.element_{i}")
-                        == F.lit(self.getMaskValue()),
-                        F.lit(None),
-                    ).otherwise(F.col(f"element_struct.element_{i}"))
-                ).alias(f"mean_{i}")
-                for i in range(1, array_size + 1)
-            ]
-
-            stddev_cols = [
-                F.stddev_pop(
-                    F.when(
-                        F.col(f"element_struct.element_{i}")
-                        == F.lit(self.getMaskValue()),
-                        F.lit(None),
-                    ).otherwise(F.col(f"element_struct.element_{i}"))
-                ).alias(f"stddev_{i}")
-                for i in range(1, array_size + 1)
-            ]
-
-            metric_cols = mean_cols + stddev_cols
-
-            mean_and_stddev_dict = (
-                dataset.select(element_struct).agg(*metric_cols).first().asDict()
-            )
-        finally:
-            if not already_cached:
-                dataset.unpersist()
-        mean = [mean_and_stddev_dict[f"mean_{i}"] for i in range(1, array_size + 1)]
-        stddev = [mean_and_stddev_dict[f"stddev_{i}"] for i in range(1, array_size + 1)]
-
+        :param row: The aggregation result row, as a dict of alias -> value.
+        :param prefix: The prefix given to `fit_aggregations`.
+        :returns: StandardScaleTransformer instance with mean & standard deviation set.
+        """
+        array_size = row[f"{prefix}array_size"]
+        mean = [row[f"{prefix}mean_{i}"] for i in range(1, array_size + 1)]
+        stddev = [row[f"{prefix}stddev_{i}"] for i in range(1, array_size + 1)]
         return StandardScaleTransformer(
             inputCol=self.getInputCol(),
             outputCol=self.getOutputCol(),
