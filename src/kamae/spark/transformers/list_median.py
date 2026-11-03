@@ -162,12 +162,17 @@ class ListMedianTransformer(
         dataset = dataset.withColumn("array_size", F.size(F.col("sorted_values")))
         mid_index_1 = (F.col("array_size") / 2).cast("int")
         mid_index_2 = (F.col("array_size") / 2 - 1).cast("int")
+        # Empty arrays give a null median (filled below). This is explicit since with
+        # ANSI mode enabled (the default in Spark 4) element_at raises an error for
+        # an out of bounds index rather than returning null.
         dataset = dataset.withColumn(
             self.getOutputCol(),
-            F.when(
+            F.when(F.col("array_size") <= 0, F.lit(None))
+            .when(
                 F.col("array_size") % 2 == 1,
                 F.element_at(F.col("sorted_values"), mid_index_1 + 1),
-            ).otherwise(
+            )
+            .otherwise(
                 (
                     F.element_at(F.col("sorted_values"), mid_index_1 + 1)
                     + F.element_at(F.col("sorted_values"), mid_index_2 + 1)

@@ -17,10 +17,10 @@ def tensor_to_python_type(x):
     if x.dtype.name == "string":
         return x.numpy().decode("utf-8")
     elif x.dtype.name == "bool":
-        return bool(x.numpy())
+        return bool(x.numpy().item())
     elif x.dtype.is_floating:
-        return float(x.numpy())
+        return float(x.numpy().item())
     elif x.dtype.is_integer:
-        return int(x.numpy())
+        return int(x.numpy().item())
     else:
         raise ValueError(f"Unknown dtype: {x.dtype}")

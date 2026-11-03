@@ -179,14 +179,20 @@ class ModuloTransformer(
             input_cols=input_cols,
             input_col_names=input_col_names,
             input_col_datatypes=input_col_datatypes,
+            # A zero divisor returns null. This is explicit since with ANSI mode
+            # enabled (the default in Spark 4) modulo by zero raises an error.
             func=lambda x: F.when(
-                # If the result of the modulo operation is negative,
-                # add the divisor to the result. This is to match the behavior of the
-                # tensorflow modulo layer.
-                x[input_col_names[0]] % x[input_col_names[1]] >= 0,
-                x[input_col_names[0]] % x[input_col_names[1]],
-            ).otherwise(
-                (x[input_col_names[0]] % x[input_col_names[1]]) + x[input_col_names[1]]
+                x[input_col_names[1]] != F.lit(0),
+                F.when(
+                    # If the result of the modulo operation is negative,
+                    # add the divisor to the result. This is to match the behavior of
+                    # the tensorflow modulo layer.
+                    x[input_col_names[0]] % x[input_col_names[1]] >= 0,
+                    x[input_col_names[0]] % x[input_col_names[1]],
+                ).otherwise(
+                    (x[input_col_names[0]] % x[input_col_names[1]])
+                    + x[input_col_names[1]]
+                ),
             ),
         )
         return dataset.withColumn(self.getOutputCol(), output_col)

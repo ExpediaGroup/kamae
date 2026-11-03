@@ -23,7 +23,7 @@ import pyspark.sql.functions as F
 import tensorflow as tf
 from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
-from pyspark.sql import DataFrame
+from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType, StringType
 
 from kamae.keras.core.backend import TENSORFLOW_ONLY
@@ -198,13 +198,24 @@ class SubStringDelimAtIndexTransformer(
         # Since element_at is a 1-based index , we need to add 1 to the index if it
         # is non-negative.
         one_based_index = index + 1 if index >= 0 else index
+
+        # The bounds check is explicit since with ANSI mode enabled (the default in
+        # Spark 4) element_at raises an error for an out of bounds index rather than
+        # returning null.
+        def sub_string_at_index(x: Column) -> Column:
+            split_col = F.split(x, delimiter)
+            return F.coalesce(
+                F.when(
+                    F.size(split_col) >= F.lit(abs(one_based_index)),
+                    F.element_at(split_col, one_based_index),
+                ),
+                F.lit(default_value),
+            )
+
         output_col = single_input_single_output_scalar_transform(
             input_col=F.col(self.getInputCol()),
             input_col_datatype=input_datatype,
-            func=lambda x: F.coalesce(
-                F.element_at(F.split(x, delimiter), one_based_index),
-                F.lit(default_value),
-            ),
+            func=sub_string_at_index,
         )
         return dataset.withColumn(self.getOutputCol(), output_col)
 

@@ -126,7 +126,12 @@ class PairwiseCosineSimilarityTransformer(
                     lambda acc, x: acc + (x * x).cast("double"),
                 )
             )
-            return F.coalesce(dot / (query_norm * cand_norm), F.lit(0.0))
+            # Guard against zero norms explicitly, since with ANSI mode enabled (the
+            # default in Spark 4) division by zero raises rather than returning null.
+            norm_product = query_norm * cand_norm
+            return F.coalesce(
+                F.when(norm_product != F.lit(0.0), dot / norm_product), F.lit(0.0)
+            )
 
         similarities = F.transform(indices, cosine_sim_at_index)
         return dataset.withColumn(self.getOutputCol(), similarities)
