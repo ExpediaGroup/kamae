@@ -16,12 +16,12 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pyspark.sql.functions as F
 from pyspark import keyword_only
-from pyspark.sql import DataFrame
+from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
 from kamae.keras.core.backend import ALL_BACKENDS
@@ -31,7 +31,10 @@ from kamae.spark.params import (
     SingleInputSingleOutputParams,
 )
 from kamae.spark.transformers import MinMaxScaleTransformer
-from kamae.spark.utils import construct_nested_elements_for_scaling
+from kamae.spark.utils import (
+    construct_nested_elements_for_scaling,
+    get_array_nesting_level_and_element_dtype,
+)
 
 from .base import BaseEstimator
 
@@ -111,6 +114,34 @@ class MinMaxScaleEstimator(
         :param dataset: Pyspark dataframe to fit the estimator to.
         :returns: MinMaxScaleTransformer instance with min & max set.
         """
+        return self._fit_by_aggregation(dataset, persist=False)
+
+    def can_fit_by_aggregation(self, dataset: DataFrame) -> bool:
+        """
+        The min and max are one aggregation, except for nested
+        array inputs: their elements are exploded into rows (see
+        `construct_nested_elements_for_scaling`), which changes the rows, so they
+        keep their own fit.
+
+        :param dataset: The input dataset.
+        :returns: True unless the input column is a nested array.
+        """
+        nested_lvl, _ = get_array_nesting_level_and_element_dtype(
+            self.get_column_datatype(dataset, self.getInputCol())
+        )
+        return nested_lvl <= 1
+
+    def fit_aggregations(
+        self, dataset: DataFrame, prefix: str
+    ) -> Tuple[Dict[str, Column], List[Column]]:
+        """
+        Builds the min and max aggregations of each element of the input feature
+        column, ignoring elements equal to the mask value.
+
+        :param dataset: Pyspark dataframe to fit the estimator to.
+        :param prefix: Prefix of the helper column name and aggregation aliases.
+        :returns: Tuple of the helper columns and the aggregations.
+        """
         input_column_type = self.get_column_datatype(dataset, self.getInputCol())
         if not isinstance(input_column_type, ArrayType):
             input_col = F.array(F.col(self.getInputCol()))
@@ -121,41 +152,45 @@ class MinMaxScaleEstimator(
         # Collect a single row to driver and get the length.
         # We assume all subsequent rows have the same length.
         array_size = np.array((dataset.select(input_col).first()[0])).shape[-1]
-
+        struct_col_name = f"{prefix}element_struct"
         element_struct = construct_nested_elements_for_scaling(
             column=input_col,
             column_datatype=input_column_type,
             array_dim=array_size,
         )
-
+        elements = [
+            F.when(
+                F.col(f"{struct_col_name}.element_{i}") == F.lit(self.getMaskValue()),
+                F.lit(None),
+            ).otherwise(F.col(f"{struct_col_name}.element_{i}"))
+            for i in range(1, array_size + 1)
+        ]
         min_cols = [
-            F.min(
-                F.when(
-                    F.col(f"element_struct.element_{i}") == F.lit(self.getMaskValue()),
-                    F.lit(None),
-                ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"min_{i}")
-            for i in range(1, array_size + 1)
+            F.min(element).alias(f"{prefix}min_{i}")
+            for i, element in enumerate(elements, start=1)
         ]
-
         max_cols = [
-            F.max(
-                F.when(
-                    F.col(f"element_struct.element_{i}") == F.lit(self.getMaskValue()),
-                    F.lit(None),
-                ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"max_{i}")
-            for i in range(1, array_size + 1)
+            F.max(element).alias(f"{prefix}max_{i}")
+            for i, element in enumerate(elements, start=1)
         ]
+        # Carry the array size to `fit_from_row`.
+        array_size_col = F.lit(array_size).alias(f"{prefix}array_size")
+        return {struct_col_name: element_struct}, min_cols + max_cols + [array_size_col]
 
-        metric_cols = min_cols + max_cols
+    def fit_from_row(
+        self, row: Dict[str, Any], prefix: str
+    ) -> "MinMaxScaleTransformer":
+        """
+        Builds the fitted transformer from the min and max aggregated by
+        `fit_aggregations`.
 
-        min_and_max_dict = (
-            dataset.select(element_struct).agg(*metric_cols).first().asDict()
-        )
-        min_vals = [min_and_max_dict[f"min_{i}"] for i in range(1, array_size + 1)]
-        max_vals = [min_and_max_dict[f"max_{i}"] for i in range(1, array_size + 1)]
-
+        :param row: The aggregation result row, as a dict of alias -> value.
+        :param prefix: The prefix given to `fit_aggregations`.
+        :returns: MinMaxScaleTransformer instance with min & max set.
+        """
+        array_size = row[f"{prefix}array_size"]
+        min_vals = [row[f"{prefix}min_{i}"] for i in range(1, array_size + 1)]
+        max_vals = [row[f"{prefix}max_{i}"] for i in range(1, array_size + 1)]
         return MinMaxScaleTransformer(
             inputCol=self.getInputCol(),
             outputCol=self.getOutputCol(),

@@ -2,6 +2,132 @@
 
 
 
+## v3.4.0 (2026-11-02)
+
+### Feature
+
+* feat: opt-in fused estimator fits, one aggregation per dependency layer (#84)
+
+* refactor: split estimator fits into an aggregation part and a build-from-row part
+
+Estimators whose fit is a single aggregation over the rows now expose it in two
+parts on BaseEstimator:
+
+- can_fit_by_aggregation(dataset): whether the fit is one aggregation.
+- fit_aggregations(dataset, prefix): helper columns and aggregation expressions
+  (may add columns, never filters, explodes or samples rows).
+- fit_from_row(row, prefix): builds the fitted transformer from the result row.
+
+_fit_by_aggregation(dataset, persist) is the normal fit built from these two
+parts, so the default behaviour is unchanged (including the persist the standard
+scalers already did). fit() is split into prepare_fit_dataset / finish_fit so
+both parts can be driven from outside the estimator.
+
+Converted: ConditionalStandardScale (standard and binary), StandardScale,
+MinMaxScale, Impute (scalar inputs), and StringIndex, OneHotEncode,
+SharedStringIndex, SharedOneHotEncode (alphabetical string orders, scalar
+inputs; labels collected with collect_set and ordered on the driver exactly as
+collect_labels_array orders them). Nested-array scaler inputs, array inputs,
+frequency orders and SingleFeatureArrayStandardScale keep their own fit.
+
+Fitted values are bitwise identical to 3.2.0 across the parameter combinations
+of every converted estimator.
+
+* feat: opt-in fused estimator fits, one aggregation per dependency layer
+
+Adds fuseEstimatorFits to KamaeSparkPipeline (default False). When set, the
+estimators are grouped into dependency layers (an estimator is in the layer
+after the deepest estimator it depends on, through any column it reads,
+including relevanceCol/maskCols). Each layer is fitted in one pass over the
+data: part one (fit_aggregations) of every estimator that fits by aggregation,
+a single agg(), then part two (fit_from_row) of each. Nothing is persisted.
+Estimators that cannot fit by aggregation, or set their own sampleFraction,
+are fitted normally within their layer.
+
+Safeguards:
+- the pipeline is fitted normally (with a warning) if a layer would give an
+  estimator a different version of a column than the normal fit, i.e. a
+  column rewritten by a stage in the same layer;
+- an estimator whose helper columns add a row generator (e.g. explode) is
+  fitted on its own, with a warning;
+- on failure, every estimator is pointed back at its original input columns.
+
+Ignored when fitSampleFraction is set. On a 17-estimator pipeline over 25.6M
+rows the fit went from 2h44m to ~14 min, with identical vocabularies and
+scaler moments within 1e-14 relative of the normal fit.
+
+* fix: make fused fit helper column names collision-proof
+
+The helper columns of a fused fit used a fixed prefix (`__fused_&lt;index&gt;__`),
+which could clash with a column already in the dataset. Use a random prefix
+(`__fused_&lt;random&gt;_&lt;index&gt;__`, from the same generator as the temporary cast
+columns) and pick another if any existing column starts with it.
+
+* fix: give each fused estimator a fresh temporary column suffix
+
+Copies of an estimator share its temporary column suffix. In the shared frame
+of a fused fit, copies reading the same input column with different inputDtypes
+created the same casted column, so one fitted on the other&#39;s cast. Each fused
+estimator now gets a fresh suffix for the fit, restored afterwards.
+
+* fix: keep distributed label collection for the normal fit
+
+F.collect_set gathers every distinct label in one aggregation buffer and sends
+them to the driver before maxNumLabels is applied, which can run out of memory
+on high-cardinality columns. The label estimators&#39; normal fit goes back to
+collect_labels_array (distributed distinct and sort, take(maxNumLabels)), so it
+is unchanged from before. collect_set is only used when fitting fused, and not
+for estimators that set maxNumLabels.
+
+---------
+
+Co-authored-by: abasra &lt;abasra@expediagroup.com&gt;
+Co-authored-by: Mantas &lt;56790921+mantasu@users.noreply.github.com&gt; ([`80ae601`](https://github.com/ExpediaGroup/kamae/commit/80ae601405e3177f5bcc2cf9e7b10282bc1039da))
+
+
+## v3.3.0 (2026-10-30)
+
+### Feature
+
+* feat: add EventNgramLookup estimator, transformer and layer (#77)
+
+* feat: add event n-gram tokenizer with a frequency-based shared vocabulary
+
+Co-Authored-By: Claude Opus 5 (1M context) &lt;noreply@anthropic.com&gt;
+
+* feat: log the vocabulary&#39;s n-gram length distribution
+
+* fix: Improve tokeniser input  contract, and add sanitization.:
+
+* refactor: harden EventNgramLookup pipeline integration and unknown handling
+
+* refactor: move fitted params to the transformer and tidy EventNgramLookup
+
+* refactor: reject an id axis that is not a whole number of events in EventNgramLookupLayer
+
+* fix: keep EventNgramLookup token/type struct in the output column
+
+---------
+
+Co-authored-by: Claude Opus 5 (1M context) &lt;noreply@anthropic.com&gt; ([`abc7869`](https://github.com/ExpediaGroup/kamae/commit/abc7869089822b0e66ea022378fddcc9d7399a88))
+
+* feat: array contains (#67)
+
+* feat: array contains
+
+* fix: readability
+
+* fi: undo formatting
+
+* fix: apply comments
+
+* fix: apply comments
+
+* fix: apply comments
+
+* fix: spark dtypes ([`abce236`](https://github.com/ExpediaGroup/kamae/commit/abce23652f169f6d2b144a09e32956ae2c9a6fe4))
+
+
 ## v3.2.0 (2026-08-25)
 
 ### Feature

@@ -1038,3 +1038,136 @@ class MaskStringValueParams(Params):
         :returns: Str value of the mask value.
         """
         return self.getOrDefault(self.maskValue)
+
+
+class EventNgramLookupParams(Params):
+    """
+    Mixin class for the event n-gram lookup tokenizer parameters shared between the
+    ``EventNgramLookupEstimator`` and the ``EventNgramLookupTransformer``.
+    """
+
+    numEventsPerInput = Param(
+        Params._dummy(),
+        "numEventsPerInput",
+        "Number of events per input column, e.g. [10, 10, 1].",
+        typeConverter=TypeConverters.toListInt,
+    )
+
+    tupleSize = Param(
+        Params._dummy(),
+        "tupleSize",
+        "Number of discrete ID values (ID levels) per event tuple.",
+        typeConverter=TypeConverters.toInt,
+    )
+
+    topK = Param(
+        Params._dummy(),
+        "topK",
+        "Number of tokens emitted per event tuple.",
+        typeConverter=TypeConverters.toInt,
+    )
+
+    includeTokenTypes = Param(
+        Params._dummy(),
+        "includeTokenTypes",
+        "Whether to also emit, per input column, a parallel '<col>_types' column "
+        "giving each token's ID-level bitmask.",
+        typeConverter=TypeConverters.toBoolean,
+    )
+
+    def setNumEventsPerInput(self, value: List[int]) -> "EventNgramLookupParams":
+        """
+        Sets the numEventsPerInput parameter.
+
+        :param value: Number of events per input column.
+        :raises ValueError: If the list is empty or any column has fewer than one event.
+        :returns: Instance of class mixed in.
+        """
+        if not value or any(num_events < 1 for num_events in value):
+            raise ValueError(
+                f"numEventsPerInput must give at least one event for each input "
+                f"column. Got {value}"
+            )
+        return self._set(numEventsPerInput=value)
+
+    def getNumEventsPerInput(self) -> List[int]:
+        """
+        Gets the numEventsPerInput parameter.
+
+        :returns: Number of events per input column.
+        """
+        return self.getOrDefault(self.numEventsPerInput)
+
+    def setTupleSize(self, value: int) -> "EventNgramLookupParams":
+        """
+        Sets the tupleSize parameter.
+
+        :param value: Number of discrete ID values per event tuple.
+        :raises ValueError: If the tuple size is not a positive integer.
+        :returns: Instance of class mixed in.
+        """
+        if value < 1:
+            raise ValueError(f"tupleSize must be a positive integer. Got {value}")
+        return self._set(tupleSize=value)
+
+    def getTupleSize(self) -> int:
+        """
+        Gets the tupleSize parameter.
+
+        :returns: Number of discrete ID values per event tuple.
+        """
+        return self.getOrDefault(self.tupleSize)
+
+    def setTopK(self, value: int) -> "EventNgramLookupParams":
+        """
+        Sets the topK parameter.
+
+        :param value: Number of tokens emitted per event tuple.
+        :raises ValueError: If the number of tokens is not a positive integer.
+        :returns: Instance of class mixed in.
+        """
+        if value < 1:
+            raise ValueError(f"topK must be a positive integer. Got {value}")
+        return self._set(topK=value)
+
+    def getTopK(self) -> int:
+        """
+        Gets the topK parameter.
+
+        :returns: Number of tokens emitted per event tuple.
+        """
+        return self.getOrDefault(self.topK)
+
+    def setIncludeTokenTypes(self, value: bool) -> "EventNgramLookupParams":
+        """
+        Sets the includeTokenTypes parameter.
+
+        :param value: Whether to also emit per-input token-type columns.
+        :returns: Instance of class mixed in.
+        """
+        return self._set(includeTokenTypes=value)
+
+    def getIncludeTokenTypes(self) -> bool:
+        """
+        Gets the includeTokenTypes parameter.
+
+        :returns: Whether to also emit per-input token-type columns.
+        """
+        return self.getOrDefault(self.includeTokenTypes)
+
+    def getTokenTypeCols(self, token_cols: List[str]) -> List[str]:
+        """
+        Gets the names of the derived token-type columns.
+
+        With includeTokenTypes set, every token column ``<col>`` is accompanied by a
+        ``<col>_types`` column. These are not listed in outputCols, so the estimator
+        and transformer both declare them alongside the token columns, in the order
+        the Keras layer returns its type tensors.
+
+        :param token_cols: The token (output) column names.
+        :returns: One type column name per token column, or an empty list if
+        includeTokenTypes is not set.
+        """
+        if not self.getIncludeTokenTypes():
+            return []
+        return [f"{col}_types" for col in token_cols]

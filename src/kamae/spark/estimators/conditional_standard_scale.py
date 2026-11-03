@@ -16,7 +16,8 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from functools import reduce
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pyspark.sql.functions as F
@@ -25,7 +26,6 @@ from pyspark import keyword_only
 from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
-from pyspark.storagelevel import StorageLevel
 
 from kamae.keras.core.backend import ALL_BACKENDS
 from kamae.spark.params import (
@@ -35,7 +35,10 @@ from kamae.spark.params import (
     StandardScaleSkipZerosParams,
 )
 from kamae.spark.transformers import ConditionalStandardScaleTransformer
-from kamae.spark.utils import construct_nested_elements_for_scaling
+from kamae.spark.utils import (
+    construct_nested_elements_for_scaling,
+    get_array_nesting_level_and_element_dtype,
+)
 from kamae.utils import get_condition_operator
 
 from .base import BaseEstimator
@@ -357,12 +360,47 @@ class ConditionalStandardScaleEstimator(
     def _fit(self, dataset: DataFrame) -> "ConditionalStandardScaleTransformer":
         """
         Fits the ConditionalStandardScaleEstimator estimator to the given dataset.
-        Calculates the mean and standard deviation of the input feature column and
-        returns a StandardScaleTransformer with the mean and standard deviation set.
+        Calculates the moments of the input feature column (see `fit_aggregations`)
+        and returns a ConditionalStandardScaleTransformer with them set.
 
         :param dataset: Pyspark dataframe to fit the estimator to.
-        :returns: ConditionalStandardScaleEstimator instance with
+        :returns: ConditionalStandardScaleTransformer instance with
         mean & standard deviation set.
+        """
+        # Masks are applied to the dataset before calculating the moments. The mask
+        # condition inside the aggregations (needed when fitting together with other
+        # estimators) is then true on every remaining row.
+        mask = self._mask_condition(dataset)
+        if mask is not None:
+            dataset = dataset.filter(mask)
+        return self._fit_by_aggregation(dataset)
+
+    def can_fit_by_aggregation(self, dataset: DataFrame) -> bool:
+        """
+        Both scaling functions fit as one aggregation, except for nested
+        array inputs: their elements are exploded into rows (see
+        `construct_nested_elements_for_scaling`), which changes the rows, so they
+        keep their own fit.
+
+        :param dataset: The input dataset.
+        :returns: True unless the input column is a nested array.
+        """
+        nested_lvl, _ = get_array_nesting_level_and_element_dtype(
+            self.get_column_datatype(dataset, self.getInputCol())
+        )
+        return nested_lvl <= 1
+
+    def fit_aggregations(
+        self, dataset: DataFrame, prefix: str
+    ) -> Tuple[Dict[str, Column], List[Column]]:
+        """
+        Builds the aggregations of the moments of the input feature column. Masks
+        are applied as a condition inside the aggregations, so only the rows meeting
+        them are counted.
+
+        :param dataset: Pyspark dataframe to fit the estimator to.
+        :param prefix: Prefix of the helper column name and aggregation aliases.
+        :returns: Tuple of the helper columns and the aggregations.
         """
         input_column_dtype = self.get_column_datatype(dataset, self.getInputCol())
         if not isinstance(input_column_dtype, ArrayType):
@@ -371,247 +409,74 @@ class ConditionalStandardScaleEstimator(
         else:
             input_col = F.col(self.getInputCol())
 
-        # Masks are applied to the dataset before calculating the moments
-        self._validate_mask_ops()
-        if self.getMaskCols() is not None:
-            mask_cols = self.getMaskCols()
-            for i in range(len(mask_cols)):
-                mask_col = mask_cols[i]
-                if mask_col not in dataset.columns:
-                    raise ValueError(f"Mask column {mask_col} not found in dataset.")
-                mask_op = get_condition_operator(self.getMaskOperators()[i])
-                mask_val = self.getMaskValues()[i]
-                dataset = dataset.filter(mask_op(F.col(mask_col), mask_val))
-
-        # Persist so the array-size probe and the moments aggregation reuse a
-        # materialised result instead of re-scanning the (masked) upstream lineage
-        # twice. Guarded so we do not double-persist data the caller already cached.
-        already_cached = dataset.storageLevel.useMemory or dataset.storageLevel.useDisk
-        if not already_cached:
-            dataset = dataset.persist(StorageLevel.MEMORY_AND_DISK)
-
-        try:
-            # Collect a single row to driver and get the length.
-            # We assume all subsequent rows have the same length.
-            row = dataset.select(input_col).first()
-            if row is None:
-                raise ValueError("No data left after application of mask conditions.")
-            array_size = np.array((row[0])).shape[-1]
-
-            # Calculate the moments
-            if self.getScalingFunction().lower() == "standard":
-                return self._fit_standard(
-                    dataset, input_col, input_column_dtype, array_size
-                )
-            elif self.getScalingFunction().lower() == "binary":
-                return self._fit_binary(
-                    dataset, input_col, input_column_dtype, array_size
-                )
-            else:
-                raise ValueError(
-                    f"Unknown scaling function: {self.getScalingFunction()}."
-                )
-        finally:
-            if not already_cached:
-                dataset.unpersist()
-
-    def _fit_binary(
-        self,
-        dataset: DataFrame,
-        input_column: Column,
-        input_column_dtype: DataType,
-        array_size: int,
-    ) -> "ConditionalStandardScaleTransformer":
-        """
-        Fits the ConditionalStandardScaleEstimator estimator with
-        the binary scaling function. In this case, the relevance
-        column name must be set. This should be used only when input
-        is a binary variable and the label can be transformed into a
-        classification task (if relevance > 0 then 1 else 0).
-
-        With this function, the mean and stddev are:
-            mean = 1 - (f/n)
-            stddev = sqrt((f * pow(1-(f/n), 2) + (n-f) * pow(0-(f/n), 2)) / (n-1))
-        where:
-            n = sum(when(x==1, 1, 0))
-            f = sum(when(x==1 && relevance > 0, 1, 0))
-
-        :param dataset: Pyspark dataframe to fit the estimator to.
-        :param array_size: The size of the array to standardize.
-        :returns: ConditionalStandardScaleEstimator instance with
-        mean & standard deviation set.
-        """
-        if self.getRelevanceCol() is None:
+        mask = self._mask_condition(dataset)
+        scaling_function = self.getScalingFunction().lower()
+        if scaling_function not in ["standard", "binary"]:
+            raise ValueError(f"Unknown scaling function: {self.getScalingFunction()}.")
+        if scaling_function == "binary" and self.getRelevanceCol() is None:
             raise ValueError("Relevance column must be set for binary scaling.")
 
+        # Collect a single row (meeting the masks) to driver and get the length.
+        # We assume all subsequent rows have the same length.
+        row = (
+            (dataset if mask is None else dataset.filter(mask))
+            .select(input_col)
+            .first()
+        )
+        if row is None:
+            raise ValueError("No data left after application of mask conditions.")
+        array_size = np.array((row[0])).shape[-1]
+
         # Construct the elements to calculate the moments
+        struct_col_name = f"{prefix}element_struct"
         element_struct = construct_nested_elements_for_scaling(
-            column=input_column,
+            column=input_col,
             column_datatype=input_column_dtype,
             array_dim=array_size,
         )
-
-        count_cols = [
-            F.sum(
-                F.when(
-                    F.col(f"element_struct.element_{i}") == F.lit(1),
-                    1,
-                ).otherwise(0)
-            ).alias(f"count_{i}")
-            for i in range(1, array_size + 1)
+        elements = [
+            F.col(f"{struct_col_name}.element_{i}") for i in range(1, array_size + 1)
         ]
-        count_ones_cols = [
-            F.sum(
-                F.when(
-                    (F.col(f"element_struct.element_{i}") == F.lit(1))
-                    & (F.col(self.getRelevanceCol()) > 0),
-                    1,
-                ).otherwise(0)
-            ).alias(f"count_ones_{i}")
-            for i in range(1, array_size + 1)
-        ]
+        if scaling_function == "standard":
+            aggregations = self._standard_aggregations(elements, prefix, mask)
+        else:
+            aggregations = self._binary_aggregations(elements, prefix, mask)
+        # Carry the array size to `fit_from_row`.
+        aggregations.append(F.lit(array_size).alias(f"{prefix}array_size"))
+        return {struct_col_name: element_struct}, aggregations
 
-        # apply the aggregations
-        metric_cols = count_cols + count_ones_cols
-        metrics_dict = (
-            dataset.withColumn("element_struct", element_struct)
-            .agg(*metric_cols)
-            .first()
-            .asDict()
-        )
-        count = [metrics_dict[f"count_{i}"] for i in range(1, array_size + 1)]
-        count_ones = [metrics_dict[f"count_ones_{i}"] for i in range(1, array_size + 1)]
-        if self.getNanFillValue() is not None:
-            fill_val = self.getNanFillValue()
-            count = [fill_val if c is None else c for c in count]
-            count_ones = [fill_val if c is None else c for c in count_ones]
-        mean, stddev = self._get_binary_moments(np.array(count_ones), np.array(count))
-        return ConditionalStandardScaleTransformer(
-            inputCol=self.getInputCol(),
-            outputCol=self.getOutputCol(),
-            layerName=self.getLayerName(),
-            inputDtype=self.getInputDtype(),
-            outputDtype=self.getOutputDtype(),
-            mean=mean.tolist(),
-            stddev=stddev.tolist(),
-            skipZeros=self.getSkipZeros(),
-            epsilon=self.getEpsilon(),
-        )
-
-    def _fit_standard(
-        self,
-        dataset: DataFrame,
-        input_column: Column,
-        input_column_dtype: DataType,
-        array_size: int,
+    def fit_from_row(
+        self, row: Dict[str, Any], prefix: str
     ) -> "ConditionalStandardScaleTransformer":
         """
-        Fits the ConditionalStandardScaleEstimator estimator with
-        the standard scaling function.
-        This should be the default function for the scaling operation.
+        Builds the fitted transformer from the moments aggregated by
+        `fit_aggregations`.
 
-        :param dataset: Pyspark dataframe to fit the estimator to.
-        :param array_size: The size of the array to standardize.
-        :returns: ConditionalStandardScaleEstimator instance with
+        :param row: The aggregation result row, as a dict of alias -> value.
+        :param prefix: The prefix given to `fit_aggregations`.
+        :returns: ConditionalStandardScaleTransformer instance with
         mean & standard deviation set.
         """
-        # Construct the elements to calculate the moments
-        element_struct = construct_nested_elements_for_scaling(
-            column=input_column,
-            column_datatype=input_column_dtype,
-            array_dim=array_size,
-        )
-        # Defaults
-        mean_cols = [
-            F.mean(F.col(f"element_struct.element_{i}")).alias(f"mean_{i}")
-            for i in range(1, array_size + 1)
-        ]
-        stddev_cols = [
-            F.stddev_pop(F.col(f"element_struct.element_{i}")).alias(f"stddev_{i}")
-            for i in range(1, array_size + 1)
-        ]
-        # Use relevance column and skip zeros (with epsilon)
-        if self.getSkipZeros() and (self.getRelevanceCol() is not None):
-            eps = self.getEpsilon()
-            mean_cols = [
-                F.mean(
-                    F.when(
-                        # x != (0 +- eps)
-                        (F.abs(F.col(f"element_struct.element_{i}")) > F.lit(eps))
-                        & (F.col(self.getRelevanceCol()) > 0),
-                        F.col(f"element_struct.element_{i}"),
-                    )
-                ).alias(f"mean_{i}")
-                for i in range(1, array_size + 1)
+        array_size = row[f"{prefix}array_size"]
+        fill_val = self.getNanFillValue()
+        if self.getScalingFunction().lower() == "standard":
+            mean = [row[f"{prefix}mean_{i}"] for i in range(1, array_size + 1)]
+            stddev = [row[f"{prefix}stddev_{i}"] for i in range(1, array_size + 1)]
+            if fill_val is not None:
+                mean = [fill_val if m is None else m for m in mean]
+                stddev = [fill_val if s is None else s for s in stddev]
+        else:
+            count = [row[f"{prefix}count_{i}"] for i in range(1, array_size + 1)]
+            count_ones = [
+                row[f"{prefix}count_ones_{i}"] for i in range(1, array_size + 1)
             ]
-            stddev_cols = [
-                F.stddev_pop(
-                    F.when(
-                        # x != (0 +- eps)
-                        (F.abs(F.col(f"element_struct.element_{i}")) > F.lit(eps))
-                        & (F.col(self.getRelevanceCol()) > 0),
-                        F.col(f"element_struct.element_{i}"),
-                    )
-                ).alias(f"stddev_{i}")
-                for i in range(1, array_size + 1)
-            ]
-        # Use relevance column
-        elif self.getRelevanceCol() is not None:
-            mean_cols = [
-                F.mean(
-                    F.when(
-                        (F.col(self.getRelevanceCol()) > 0),
-                        F.col(f"element_struct.element_{i}"),
-                    )
-                ).alias(f"mean_{i}")
-                for i in range(1, array_size + 1)
-            ]
-            stddev_cols = [
-                F.stddev_pop(
-                    F.when(
-                        (F.col(self.getRelevanceCol()) > 0),
-                        F.col(f"element_struct.element_{i}"),
-                    )
-                ).alias(f"stddev_{i}")
-                for i in range(1, array_size + 1)
-            ]
-        # Skip zeros on fit (with epsilon)
-        elif self.getSkipZeros():
-            eps = self.getEpsilon()
-            mean_cols = [
-                F.mean(
-                    F.when(
-                        # x != (0 +- eps)
-                        F.abs(F.col(f"element_struct.element_{i}")) > F.lit(eps),
-                        F.col(f"element_struct.element_{i}"),
-                    ),
-                ).alias(f"mean_{i}")
-                for i in range(1, array_size + 1)
-            ]
-            stddev_cols = [
-                F.stddev_pop(
-                    F.when(
-                        # x != (0 +- eps)
-                        F.abs(F.col(f"element_struct.element_{i}")) > F.lit(eps),
-                        F.col(f"element_struct.element_{i}"),
-                    ),
-                ).alias(f"stddev_{i}")
-                for i in range(1, array_size + 1)
-            ]
-        # apply the aggregations
-        metric_cols = mean_cols + stddev_cols
-        mean_and_stddev_dict = (
-            dataset.withColumn("element_struct", element_struct)
-            .agg(*metric_cols)
-            .first()
-            .asDict()
-        )
-        mean = [mean_and_stddev_dict[f"mean_{i}"] for i in range(1, array_size + 1)]
-        stddev = [mean_and_stddev_dict[f"stddev_{i}"] for i in range(1, array_size + 1)]
-        if self.getNanFillValue() is not None:
-            fill_val = self.getNanFillValue()
-            mean = [fill_val if m is None else m for m in mean]
-            stddev = [fill_val if s is None else s for s in stddev]
+            if fill_val is not None:
+                count = [fill_val if c is None else c for c in count]
+                count_ones = [fill_val if c is None else c for c in count_ones]
+            mean, stddev = self._get_binary_moments(
+                np.array(count_ones), np.array(count)
+            )
+            mean, stddev = mean.tolist(), stddev.tolist()
         return ConditionalStandardScaleTransformer(
             inputCol=self.getInputCol(),
             outputCol=self.getOutputCol(),
@@ -623,3 +488,102 @@ class ConditionalStandardScaleEstimator(
             skipZeros=self.getSkipZeros(),
             epsilon=self.getEpsilon(),
         )
+
+    def _mask_condition(self, dataset: DataFrame) -> Optional[Column]:
+        """
+        The combined mask condition, or None without masks.
+
+        :param dataset: Pyspark dataframe holding the mask columns.
+        :returns: The mask condition.
+        """
+        self._validate_mask_ops()
+        if self.getMaskCols() is None:
+            return None
+        mask_conditions = []
+        for mask_col, mask_op, mask_val in zip(
+            self.getMaskCols(), self.getMaskOperators(), self.getMaskValues()
+        ):
+            if mask_col not in dataset.columns:
+                raise ValueError(f"Mask column {mask_col} not found in dataset.")
+            mask_conditions.append(
+                get_condition_operator(mask_op)(F.col(mask_col), mask_val)
+            )
+        return reduce(lambda a, b: a & b, mask_conditions)
+
+    def _standard_aggregations(
+        self, elements: List[Column], prefix: str, mask: Optional[Column]
+    ) -> List[Column]:
+        """
+        The mean and stddev aggregations of the standard scaling function. Elements
+        are only counted on rows meeting the masks, where the relevance column is
+        positive (if set) and, with skipZeros, where they are not zero (+- epsilon).
+
+        :param elements: The element columns to standardize.
+        :param prefix: Prefix of the aggregation aliases.
+        :param mask: The mask condition, or None.
+        :returns: The mean aggregations followed by the stddev aggregations.
+        """
+        values = []
+        for element in elements:
+            conditions = []
+            if self.getSkipZeros():
+                # x != (0 +- eps)
+                conditions.append(F.abs(element) > F.lit(self.getEpsilon()))
+            if self.getRelevanceCol() is not None:
+                conditions.append(F.col(self.getRelevanceCol()) > 0)
+            if mask is not None:
+                conditions.append(mask)
+            values.append(
+                F.when(reduce(lambda a, b: a & b, conditions), element)
+                if conditions
+                else element
+            )
+        mean_cols = [
+            F.mean(value).alias(f"{prefix}mean_{i}")
+            for i, value in enumerate(values, start=1)
+        ]
+        stddev_cols = [
+            F.stddev_pop(value).alias(f"{prefix}stddev_{i}")
+            for i, value in enumerate(values, start=1)
+        ]
+        return mean_cols + stddev_cols
+
+    def _binary_aggregations(
+        self, elements: List[Column], prefix: str, mask: Optional[Column]
+    ) -> List[Column]:
+        """
+        The count aggregations of the binary scaling function, on rows meeting the
+        masks. This should be used only when input is a binary variable and the
+        label can be transformed into a classification task (if relevance > 0 then
+        1 else 0). With f and n the counts below, the mean and stddev are:
+            mean = 1 - (f/n)
+            stddev = sqrt((f * pow(1-(f/n), 2) + (n-f) * pow(0-(f/n), 2)) / (n-1))
+        where:
+            n = sum(when(x==1, 1, 0))
+            f = sum(when(x==1 && relevance > 0, 1, 0))
+
+        :param elements: The element columns to scale.
+        :param prefix: Prefix of the aggregation aliases.
+        :param mask: The mask condition, or None.
+        :returns: The count aggregations followed by the count-of-ones aggregations.
+        """
+
+        def where(condition: Column) -> Column:
+            return condition if mask is None else (condition & mask)
+
+        count_cols = [
+            F.sum(F.when(where(element == F.lit(1)), 1).otherwise(0)).alias(
+                f"{prefix}count_{i}"
+            )
+            for i, element in enumerate(elements, start=1)
+        ]
+        count_ones_cols = [
+            F.sum(
+                F.when(
+                    where((element == F.lit(1)) & (F.col(self.getRelevanceCol()) > 0)),
+                    1,
+                ).otherwise(0)
+            ).alias(f"{prefix}count_ones_{i}")
+            for i, element in enumerate(elements, start=1)
+        ]
+        return count_cols + count_ones_cols

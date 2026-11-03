@@ -28,6 +28,7 @@ from .date_add import DateAddLayer  # noqa: F401
 from .date_diff import DateDiffLayer  # noqa: F401
 from .date_parse import DateParseLayer  # noqa: F401
 from .date_time_to_unix_timestamp import DateTimeToUnixTimestampLayer  # noqa: F401
+from .event_ngram_lookup import EventNgramLookupLayer  # noqa: F401
 from .hash_index import HashIndexLayer  # noqa: F401
 from .if_statement import IfStatementLayer  # noqa: F401
 from .lambda_function import LambdaFunctionLayer  # noqa: F401
@@ -66,6 +67,7 @@ __all__ = [
     "DateDiffLayer",
     "DateParseLayer",
     "DateTimeToUnixTimestampLayer",
+    "EventNgramLookupLayer",
     "HashIndexLayer",
     "IfStatementLayer",
     "LambdaFunctionLayer",

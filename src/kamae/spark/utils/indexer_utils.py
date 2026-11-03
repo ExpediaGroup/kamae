@@ -129,6 +129,40 @@ def collect_labels_array(
         return label_vals.collect()
 
 
+def labels_from_distinct_values(
+    values: List[Optional[str]],
+    string_order_type: str,
+    mask_token: Optional[str] = None,
+    max_num_labels: Optional[int] = None,
+) -> List[str]:
+    """
+    Orders already-distinct string values exactly as `collect_labels_array` orders
+    the labels it collects, for the alphabetical string order types. Used when the
+    distinct values are collected with `F.collect_set` in an aggregation.
+
+    :param values: Distinct string values.
+    :param string_order_type: String order type, one of
+    'alphabeticalAsc', 'alphabeticalDesc'.
+    :param mask_token: Optional value to mask when indexing.
+    :param max_num_labels: Optional value to limit the number of labels.
+
+    :returns: List of string labels.
+    """
+    if string_order_type not in ["alphabeticalAsc", "alphabeticalDesc"]:
+        raise ValueError(
+            "string_order_type must be one of alphabeticalAsc, alphabeticalDesc"
+        )
+    if (max_num_labels is not None) and (not isinstance(max_num_labels, int)):
+        raise ValueError("max_labels_count must be an integer")
+    labels = [
+        x for x in values if x is not None and (mask_token is None or x != mask_token)
+    ]
+    labels = sorted(labels, reverse=string_order_type == "alphabeticalDesc")
+    if max_num_labels is not None:
+        return labels[:max_num_labels]
+    return labels
+
+
 def collect_labels_array_from_multiple_columns(
     dataset: DataFrame,
     columns: List[Column],
