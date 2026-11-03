@@ -2,6 +2,38 @@
 
 
 
+## v3.5.0 (2026-11-03)
+
+### Feature
+
+* feat: support Spark 4 and numpy 2 (#83)
+
+Relax dependency bounds to pyspark&gt;=3.4.0,&lt;5.0.0 and numpy&gt;=1.22.0 (no
+upper bound), fixing installs on Databricks runtimes that ship numpy 2.
+
+Spark 4 enables ANSI mode by default, under which division/modulo by zero
+and out of bounds element_at raise instead of returning null. Guard these
+explicitly so results match Spark 3 and the Keras layers:
+- Divide, CosineSimilarity, PairwiseCosineSimilarity: zero divisor -&gt; 0.0
+- Modulo: zero divisor -&gt; null
+- SubStringDelimAtIndex: out of bounds index -&gt; defaultValue
+- ListMedian: empty list -&gt; nanFillValue
+
+Tests:
+- Add test_ansi_mode.py covering the above with ANSI on and off.
+- Fix test helper scalar conversion for numpy 2.5.
+- Patch the concrete DataFrame class in the checkpoint test, since
+  pyspark.sql.DataFrame is abstract in Spark 4.
+- Check JIT-incompatible layers via experimental_get_compiler_ir, avoiding
+  a TF 2.21 abort in the XLA compilation cache on repeated failed compiles
+  of string ops.
+
+CI: add pyspark 4.0.1 lane, set up Java 17, keep a numpy 1.26 lane.
+
+Co-authored-by: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;
+Co-authored-by: George Barrowclough &lt;30464443+georyetti@users.noreply.github.com&gt; ([`cb8aaca`](https://github.com/ExpediaGroup/kamae/commit/cb8aaca8b046dfb119e4b48e3670478fd3699967))
+
+
 ## v3.4.0 (2026-11-02)
 
 ### Feature
