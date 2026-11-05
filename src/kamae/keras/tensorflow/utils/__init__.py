@@ -37,5 +37,10 @@ from .date_utils import (  # noqa: F401
     datetime_year,
     unix_timestamp_to_datetime,
 )
-from .list_utils import get_top_n, listify_tensors, segmented_operation  # noqa: F401
+from .list_utils import (  # noqa: F401
+    get_top_n,
+    listify_tensors,
+    min_filter_mask,
+    segmented_operation,
+)
 from .transform_utils import map_fn_w_axis  # noqa: F401
